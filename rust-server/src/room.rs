@@ -202,14 +202,30 @@ impl Room {
     pub fn add_player(&mut self, socket_id: u32, player: Weak<RwLock<Player>>) {
         self.players.insert(socket_id, player);
     }
+
+    pub fn process_grab_flag(&mut self, flag_id: usize, pos: Vec<f32>, socket_id: u32) {
+        if let Some(flag) = self.flags.get_mut(flag_id) {
+            if flag.linked_to_player.is_some() {
+                return;
+            }
+            let x_diff = pos[0] - flag.pos[0];
+            let z_diff = pos[2] - flag.pos[2];
+            let dist = (x_diff * x_diff + z_diff * z_diff).sqrt();
+            if dist < 50. {
+                flag.linked_to_player = Some(socket_id);
+                flag.fall_mode = false;
+                flag.at_start_position = false;
+                flag.idle_timer = 0;
+            }
+        }
+    }
 }
 
 pub struct Flag {
     pos: Box<[f32; 3]>,
     start_pos: Box<[f32; 3]>,
-    linked_to_player: bool,
+    linked_to_player: Option<u32>,
     at_start_position: bool,
-    socket_id: Option<u32>,
     idle_timer: u16,
     fall_mode: bool,
     height_before_fall: f32,
@@ -220,9 +236,8 @@ impl Flag {
         Self {
             pos: Box::new(pos),
             start_pos: Box::new(pos),
-            linked_to_player: false,
+            linked_to_player: None,
             at_start_position: true,
-            socket_id: None,
             idle_timer: 0,
             fall_mode: false,
             height_before_fall: 20000.,
@@ -236,7 +251,7 @@ impl Flag {
     }
 
     pub fn process_idle(&mut self) {
-        if !self.linked_to_player && !self.at_start_position {
+        if self.linked_to_player.is_none() && !self.at_start_position {
             self.idle_timer += 1;
             if self.idle_timer > 3000 {
                 self.pos = self.start_pos.clone();
@@ -250,8 +265,8 @@ impl Flag {
     pub fn get_msg(&self) -> FlagMsg {
         FlagMsg {
             pos: self.pos.to_vec(),
-            linked_to_player: self.linked_to_player,
-            socket_id: self.socket_id.unwrap_or_default(), // TODO
+            linked_to_player: self.linked_to_player.is_some(),
+            socket_id: self.linked_to_player.unwrap_or_default(), // TODO remove from proto
             height_before_fall: self.height_before_fall,
         }
     }

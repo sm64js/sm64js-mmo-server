@@ -105,7 +105,10 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Sm64JsWsSession {
                         self.addr.do_send(server::SendAttack { attack_msg })
                     }
                     Some(sm64_js_msg::Message::GrabMsg(grab_flag_msg)) => {
-                        self.addr.do_send(server::SendGrabFlag { grab_flag_msg })
+                        self.addr.do_send(server::SendGrabFlag {
+                            socket_id: self.id,
+                            grab_flag_msg,
+                        })
                     }
                     Some(sm64_js_msg::Message::ChatMsg(chat_msg)) => {
                         self.addr

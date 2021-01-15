@@ -144,6 +144,7 @@ impl Handler<SendAttack> for Sm64JsServer {
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct SendGrabFlag {
+    pub socket_id: u32,
     pub grab_flag_msg: GrabFlagMsg,
 }
 
@@ -151,8 +152,20 @@ impl Handler<SendGrabFlag> for Sm64JsServer {
     type Result = ();
 
     fn handle(&mut self, send_grab: SendGrabFlag, _: &mut Context<Self>) {
-        let _grab_flag_msg = send_grab.grab_flag_msg;
-        // TODO
+        let socket_id = send_grab.socket_id;
+        let grab_flag_msg = send_grab.grab_flag_msg;
+        if let Some(level_id) = self
+            .clients
+            .get(&socket_id)
+            .map(|client| client.get_level())
+            .flatten()
+        {
+            if let Some(mut room) = self.rooms.get_mut(&level_id) {
+                let flag_id = grab_flag_msg.flag_id as usize;
+                let pos = grab_flag_msg.pos;
+                room.process_grab_flag(flag_id, pos, socket_id);
+            }
+        }
     }
 }
 
