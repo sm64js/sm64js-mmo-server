@@ -6,7 +6,10 @@ use crate::{
 use actix::prelude::*;
 use actix_web_actors::ws;
 use prost::Message as ProstMessage;
-use std::time::{Duration, Instant};
+use std::{
+    net::SocketAddr,
+    time::{Duration, Instant},
+};
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -19,6 +22,8 @@ pub struct Sm64JsWsSession {
     hb: Instant,
     hb_data: Option<Instant>,
     addr: Addr<server::Sm64JsServer>,
+    ip: Option<SocketAddr>,
+    real_ip: Option<String>,
 }
 
 impl Actor for Sm64JsWsSession {
@@ -31,6 +36,8 @@ impl Actor for Sm64JsWsSession {
         self.addr
             .send(server::Connect {
                 addr: addr.recipient(),
+                ip: self.ip,
+                real_ip: self.real_ip.clone(),
             })
             .into_actor(self)
             .then(|res, act, ctx| {
@@ -187,12 +194,18 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Sm64JsWsSession {
 }
 
 impl Sm64JsWsSession {
-    pub fn new(addr: Addr<server::Sm64JsServer>) -> Self {
+    pub fn new(
+        addr: Addr<server::Sm64JsServer>,
+        ip: Option<SocketAddr>,
+        real_ip: Option<String>,
+    ) -> Self {
         Self {
             id: 0,
             hb: Instant::now(),
             hb_data: None,
             addr,
+            ip,
+            real_ip,
         }
     }
 

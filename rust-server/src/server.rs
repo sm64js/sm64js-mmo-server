@@ -17,6 +17,7 @@ use rayon::prelude::*;
 use std::{
     collections::{HashMap, HashSet},
     env,
+    net::SocketAddr,
     sync::Arc,
     thread,
     time::Duration,
@@ -65,6 +66,8 @@ impl Actor for Sm64JsServer {
 #[rtype(u32)]
 pub struct Connect {
     pub addr: Recipient<Message>,
+    pub ip: Option<SocketAddr>,
+    pub real_ip: Option<String>,
 }
 
 impl Handler<Connect> for Sm64JsServer {
@@ -72,7 +75,7 @@ impl Handler<Connect> for Sm64JsServer {
 
     fn handle(&mut self, msg: Connect, _: &mut Context<Self>) -> Self::Result {
         let socket_id = rand::thread_rng().gen::<u32>();
-        let client = Client::new(msg.addr, socket_id);
+        let client = Client::new(msg.addr, msg.ip, msg.real_ip, socket_id);
 
         let root_msg = RootMsg {
             message: Some(root_msg::Message::UncompressedSm64jsMsg(Sm64JsMsg {

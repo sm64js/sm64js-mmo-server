@@ -46,8 +46,9 @@ impl ChatHistory {
     pub fn add_message(
         &mut self,
         message: &String,
-        player_id: u32,
         player_name: String,
+        ip: Option<String>,
+        real_ip: Option<String>,
     ) -> ChatResult {
         let escaped_message = format!("{}", escape(message));
         let is_escaped = &escaped_message != message;
@@ -69,8 +70,9 @@ impl ChatHistory {
             Utc::now(),
             ChatMessage {
                 message: message.clone(),
-                player_id,
                 player_name,
+                ip,
+                real_ip,
                 is_escaped,
                 is_censored,
                 is_spam,
@@ -120,8 +122,9 @@ impl ChatHistory {
 #[derive(Apiv2Schema, Clone, Debug, Deserialize, Serialize)]
 pub struct ChatMessage {
     message: String,
-    player_id: u32,
     player_name: String,
+    ip: Option<String>,
+    real_ip: Option<String>,
     is_escaped: bool,
     is_censored: bool,
     is_spam: bool,

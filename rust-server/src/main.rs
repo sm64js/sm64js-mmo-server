@@ -31,11 +31,20 @@ use session::Sm64JsWsSession;
 
 #[api_v2_operation(tags(Hidden))]
 async fn ws_index(
-    r: HttpRequest,
+    req: HttpRequest,
     stream: web::Payload,
     srv: web::Data<Addr<server::Sm64JsServer>>,
 ) -> Result<HttpResponse, Error> {
-    ws::start(Sm64JsWsSession::new(srv.get_ref().clone()), &r, stream)
+    let ip = req.peer_addr();
+    let real_ip = req
+        .connection_info()
+        .realip_remote_addr()
+        .map(|ip| ip.to_string());
+    ws::start(
+        Sm64JsWsSession::new(srv.get_ref().clone(), ip, real_ip),
+        &req,
+        stream,
+    )
 }
 
 #[actix_web::main]

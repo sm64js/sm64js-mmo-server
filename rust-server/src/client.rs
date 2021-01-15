@@ -9,6 +9,7 @@ use dashmap::DashMap;
 use parking_lot::RwLock;
 use std::{
     collections::HashMap,
+    net::SocketAddr,
     sync::{Arc, Weak},
 };
 
@@ -19,15 +20,24 @@ pub type WeakPlayers = HashMap<u32, Weak<RwLock<Player>>>;
 #[derive(Debug)]
 pub struct Client {
     addr: Recipient<Message>,
+    ip: Option<SocketAddr>,
+    real_ip: Option<String>,
     data: Option<MarioMsg>,
     socket_id: u32,
     level: Option<u32>,
 }
 
 impl Client {
-    pub fn new(addr: Recipient<Message>, socket_id: u32) -> Self {
+    pub fn new(
+        addr: Recipient<Message>,
+        ip: Option<SocketAddr>,
+        real_ip: Option<String>,
+        socket_id: u32,
+    ) -> Self {
         Client {
             addr,
+            ip,
+            real_ip,
             data: None,
             socket_id,
             level: None,
@@ -104,9 +114,14 @@ impl Player {
         chat_history: ChatHistoryData,
         message: &String,
     ) -> ChatResult {
+        let (ip, real_ip) = if let Some(client) = self.clients.get(&self.socket_id) {
+            (client.ip.map(|ip| ip.to_string()), client.real_ip.clone())
+        } else {
+            (None, None)
+        };
         chat_history
             .write()
-            .add_message(message, self.socket_id, self.name.clone())
+            .add_message(message, self.name.clone(), ip, real_ip)
     }
 
     pub fn get_updated_skin_data(&mut self) -> Option<SkinData> {
