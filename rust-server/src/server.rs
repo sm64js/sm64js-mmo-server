@@ -3,7 +3,7 @@ use crate::{
         root_msg, sm64_js_msg, AnnouncementMsg, AttackMsg, ChatMsg, ConnectedMsg, GrabFlagMsg,
         MarioMsg, PlayerNameMsg, RootMsg, SkinMsg, Sm64JsMsg,
     },
-    ChatError, ChatResult, Client, Clients, Player, Players, Room, Rooms,
+    ChatError, ChatHistoryData, ChatResult, Client, Clients, Player, Players, Room, Rooms,
 };
 
 use actix::{prelude::*, Recipient};
@@ -37,6 +37,7 @@ pub struct Sm64JsServer {
     clients: Arc<Clients>,
     players: Players,
     rooms: Arc<Rooms>,
+    chat_history: ChatHistoryData,
 }
 
 impl Actor for Sm64JsServer {
@@ -170,7 +171,7 @@ impl Handler<SendChat> for Sm64JsServer {
             Ok(Self::handle_command(chat_msg))
         } else {
             if let Some(player) = self.players.get(&socket_id) {
-                Self::handle_chat(player, chat_msg)
+                self.handle_chat(player, chat_msg)
             } else {
                 Ok(None)
             }
@@ -250,7 +251,7 @@ impl Handler<SendPlayerName> for Sm64JsServer {
 }
 
 impl Sm64JsServer {
-    pub fn new() -> Self {
+    pub fn new(chat_history: ChatHistoryData) -> Self {
         if let Ok(admin_tokens) = env::var("ADMIN_TOKENS") {
             admin_tokens
                 .split(':')
@@ -263,6 +264,7 @@ impl Sm64JsServer {
             clients: Arc::new(DashMap::new()),
             players: HashMap::new(),
             rooms: Arc::new(Room::init_rooms()),
+            chat_history,
         }
     }
 
@@ -322,10 +324,14 @@ impl Sm64JsServer {
     }
 
     fn handle_chat(
+        &self,
         player: &Arc<RwLock<Player>>,
         mut chat_msg: ChatMsg,
     ) -> Result<Option<Vec<u8>>, Vec<u8>> {
-        let root_msg = match player.write().add_chat_message(&chat_msg.message) {
+        let root_msg = match player
+            .write()
+            .add_chat_message(self.chat_history.clone(), &chat_msg.message)
+        {
             ChatResult::Ok(message) => {
                 chat_msg.message = message;
                 chat_msg.is_admin = ADMIN_TOKENS.read().contains(&chat_msg.admin_token);

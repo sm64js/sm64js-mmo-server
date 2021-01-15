@@ -11,7 +11,7 @@ mod room;
 mod server;
 mod session;
 
-pub use chat::{ChatError, ChatHistory, ChatResult};
+pub use chat::{ChatError, ChatHistory, ChatHistoryData, ChatResult};
 pub use client::{Client, Clients, Player, Players, WeakPlayers};
 pub use room::{Flag, Room, Rooms};
 pub use server::Message;
@@ -40,12 +40,16 @@ async fn ws_index(
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    use parking_lot::RwLock;
+    use std::sync::Arc;
+
     std::env::set_var("RUST_LOG", "actix_server=info,actix_web=info");
     env_logger::init();
 
-    let server = server::Sm64JsServer::new().start();
-
     HttpServer::new(move || {
+        let chat_history = Arc::new(RwLock::new(ChatHistory::new()));
+        let server = server::Sm64JsServer::new(chat_history.clone()).start();
+
         let spec = DefaultApiRaw {
             tags: vec![
                 Tag {
@@ -68,7 +72,8 @@ async fn main() -> std::io::Result<()> {
 
         App::new()
             .wrap_api_with_spec(spec)
-            .data(server.clone())
+            .data(chat_history)
+            .data(server)
             .wrap(middleware::Logger::default())
             .with_json_spec_at("/api/spec")
             .service(web::resource("/ws/").to(ws_index))
