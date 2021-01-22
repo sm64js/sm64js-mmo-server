@@ -7,6 +7,7 @@ extern crate maplit;
 mod chat;
 mod client;
 mod date_format;
+mod game;
 mod room;
 mod server;
 mod session;
@@ -55,10 +56,12 @@ async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_server=info,actix_web=info");
     env_logger::init();
 
-    HttpServer::new(move || {
-        let chat_history = Arc::new(RwLock::new(ChatHistory::new()));
-        let server = server::Sm64JsServer::new(chat_history.clone()).start();
+    let chat_history = Arc::new(RwLock::new(ChatHistory::new()));
+    let rooms = Room::init_rooms();
+    let server = server::Sm64JsServer::new(chat_history.clone(), rooms.clone()).start();
+    game::Game::run(rooms.clone());
 
+    HttpServer::new(move || {
         let spec = DefaultApiRaw {
             tags: vec![
                 Tag {
@@ -81,8 +84,8 @@ async fn main() -> std::io::Result<()> {
 
         App::new()
             .wrap_api_with_spec(spec)
-            .data(chat_history)
-            .data(server)
+            .data(chat_history.clone())
+            .data(server.clone())
             .wrap(middleware::Logger::default())
             .with_json_spec_at("/api/spec")
             .service(web::resource("/ws/").to(ws_index))

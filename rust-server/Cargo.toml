@@ -17,7 +17,7 @@ actix-web = "3"
 actix-web-actors = "3"
 censor = "0.2"
 chrono = "0.4"
-dashmap = "4"
+dashmap = { version = "4", features = ["rayon"] }
 env_logger = "0.8"
 flate2 = "1"
 # flate2 = { version = "1", features = ["zlib"], default-features = false }

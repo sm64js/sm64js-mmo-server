@@ -3,7 +3,7 @@ use crate::{
         root_msg, sm64_js_msg, AnnouncementMsg, AttackMsg, ChatMsg, ConnectedMsg, GrabFlagMsg,
         MarioMsg, PlayerNameMsg, RootMsg, SkinMsg, Sm64JsMsg,
     },
-    ChatError, ChatHistoryData, ChatResult, Client, Clients, Player, Players, Room, Rooms,
+    ChatError, ChatHistoryData, ChatResult, Client, Clients, Player, Players, Rooms,
 };
 
 use actix::{prelude::*, Recipient};
@@ -19,8 +19,6 @@ use std::{
     env,
     net::SocketAddr,
     sync::Arc,
-    thread,
-    time::Duration,
 };
 use v_htmlescape::escape;
 
@@ -37,29 +35,14 @@ pub struct Message(pub Vec<u8>);
 pub struct Sm64JsServer {
     clients: Arc<Clients>,
     players: Players,
-    rooms: Arc<Rooms>,
+    rooms: Rooms,
     chat_history: ChatHistoryData,
 }
 
 impl Actor for Sm64JsServer {
     type Context = Context<Self>;
 
-    fn started(&mut self, _: &mut Self::Context) {
-        let rooms = self.rooms.clone();
-
-        thread::spawn(move || {
-            let mut i = 0;
-            loop {
-                i += 1;
-                Sm64JsServer::process_flags(rooms.clone());
-                Sm64JsServer::broadcast_data(rooms.clone()).unwrap();
-                if i == 30 {
-                    Sm64JsServer::broadcast_skins(rooms.clone()).unwrap();
-                }
-                thread::sleep(Duration::from_millis(33));
-            }
-        });
-    }
+    fn started(&mut self, _: &mut Self::Context) {}
 }
 
 #[derive(Message)]
@@ -152,6 +135,7 @@ impl Handler<SendGrabFlag> for Sm64JsServer {
     type Result = ();
 
     fn handle(&mut self, send_grab: SendGrabFlag, _: &mut Context<Self>) {
+        dbg!("SendGrabFlag");
         let socket_id = send_grab.socket_id;
         let grab_flag_msg = send_grab.grab_flag_msg;
         if let Some(level_id) = self
@@ -160,9 +144,12 @@ impl Handler<SendGrabFlag> for Sm64JsServer {
             .map(|client| client.get_level())
             .flatten()
         {
-            if let Some(mut room) = self.rooms.get_mut(&level_id) {
+            dbg!(level_id);
+            if let Some(room) = self.rooms.get(&level_id) {
                 let flag_id = grab_flag_msg.flag_id as usize;
+                dbg!(flag_id);
                 let pos = grab_flag_msg.pos;
+                dbg!(&pos);
                 room.process_grab_flag(flag_id, pos, socket_id);
             }
         }
@@ -267,7 +254,7 @@ impl Handler<SendPlayerName> for Sm64JsServer {
 }
 
 impl Sm64JsServer {
-    pub fn new(chat_history: ChatHistoryData) -> Self {
+    pub fn new(chat_history: ChatHistoryData, rooms: Rooms) -> Self {
         if let Ok(admin_tokens) = env::var("ADMIN_TOKENS") {
             admin_tokens
                 .split(':')
@@ -279,34 +266,9 @@ impl Sm64JsServer {
         Sm64JsServer {
             clients: Arc::new(DashMap::new()),
             players: HashMap::new(),
-            rooms: Arc::new(Room::init_rooms()),
+            rooms,
             chat_history,
         }
-    }
-
-    pub fn process_flags(rooms: Arc<Rooms>) {
-        rooms
-            .iter_mut()
-            .par_bridge()
-            .for_each(|mut room| room.process_flags());
-    }
-
-    pub fn broadcast_data(rooms: Arc<Rooms>) -> Result<()> {
-        rooms
-            .iter()
-            .par_bridge()
-            .map(|room| room.broadcast_data())
-            .collect::<Result<Vec<_>>>()?;
-        Ok(())
-    }
-
-    pub fn broadcast_skins(rooms: Arc<Rooms>) -> Result<()> {
-        rooms
-            .iter_mut()
-            .par_bridge()
-            .map(|mut room| room.broadcast_skins())
-            .collect::<Result<Vec<_>>>()?;
-        Ok(())
     }
 
     fn handle_command(chat_msg: ChatMsg) -> Option<Vec<u8>> {

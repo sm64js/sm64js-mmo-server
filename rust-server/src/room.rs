@@ -6,16 +6,20 @@ use crate::{
 use anyhow::Result;
 use dashmap::DashMap;
 use flate2::{write::ZlibEncoder, Compression};
-use parking_lot::RwLock;
 use prost::Message as ProstMessage;
 use rayon::prelude::*;
-use std::{collections::HashMap, io::prelude::*, sync::Weak};
+use std::{
+    collections::HashMap,
+    io::prelude::*,
+    sync::{Arc, RwLock, Weak},
+};
 
-pub type Rooms = DashMap<u32, Room>;
+pub type Rooms = Arc<DashMap<u32, Room>>;
 
+#[derive(Debug)]
 pub struct Room {
     id: String,
-    flags: Vec<Flag>,
+    flags: Vec<RwLock<Flag>>,
     players: WeakPlayers,
 }
 
@@ -26,7 +30,7 @@ impl Room {
             5,
             Room {
                 id: "Cool, Cool Mountain".to_string(),
-                flags: vec![Flag::new([0., 7657., 0.])],
+                flags: vec![RwLock::new(Flag::new([0., 7657., 0.]))],
                 players: HashMap::new(),
             },
         );
@@ -34,7 +38,7 @@ impl Room {
             9,
             Room {
                 id: "Bob-omb Battlefield".to_string(),
-                flags: vec![Flag::new([-2384., 260., 6203.])],
+                flags: vec![RwLock::new(Flag::new([-2384., 260., 6203.]))],
                 players: HashMap::new(),
             },
         );
@@ -42,7 +46,7 @@ impl Room {
             16,
             Room {
                 id: "Castle Grounds".to_string(),
-                flags: vec![Flag::new([0., 3657., 0.])],
+                flags: vec![RwLock::new(Flag::new([0., 3657., 0.]))],
                 players: HashMap::new(),
             },
         );
@@ -50,7 +54,7 @@ impl Room {
             24,
             Room {
                 id: "Whomps Fortress".to_string(),
-                flags: vec![Flag::new([0., 7657., 0.])],
+                flags: vec![RwLock::new(Flag::new([0., 7657., 0.]))],
                 players: HashMap::new(),
             },
         );
@@ -58,7 +62,7 @@ impl Room {
             27,
             Room {
                 id: "Princess's Secret Slide".to_string(),
-                flags: vec![Flag::new([0., 7657., 0.])],
+                flags: vec![RwLock::new(Flag::new([0., 7657., 0.]))],
                 players: HashMap::new(),
             },
         );
@@ -66,7 +70,7 @@ impl Room {
             36,
             Room {
                 id: "Tall, Tall Mountain".to_string(),
-                flags: vec![Flag::new([0., 7657., 0.])],
+                flags: vec![RwLock::new(Flag::new([0., 7657., 0.]))],
                 players: HashMap::new(),
             },
         );
@@ -75,19 +79,25 @@ impl Room {
             Room {
                 id: "Mushroom Battlefield".to_string(),
                 flags: vec![
-                    Flag::new([9380., 7657., -8980.]),
-                    Flag::new([-5126., 3678., 10106.]),
-                    Flag::new([-14920., 3800., -8675.]),
-                    Flag::new([12043., 3000., 10086.]),
+                    RwLock::new(Flag::new([9380., 7657., -8980.])),
+                    RwLock::new(Flag::new([-5126., 3678., 10106.])),
+                    RwLock::new(Flag::new([-14920., 3800., -8675.])),
+                    RwLock::new(Flag::new([12043., 3000., 10086.])),
                 ],
                 players: HashMap::new(),
             },
         );
-        rooms
+
+        Arc::new(rooms)
     }
 
-    pub fn process_flags(&mut self) {
-        self.flags.par_iter_mut().for_each(|flag| {
+    pub fn process_flags(&self, i: i32) {
+        // let cond = self.id == "Mushroom Battlefield".to_string() && i == 30;
+        self.flags.par_iter().for_each(|flag| {
+            // if cond {
+            //     dbg!(&flag);
+            // }
+            let mut flag = flag.write().unwrap();
             flag.process_falling();
             flag.process_idle();
         });
@@ -110,7 +120,7 @@ impl Room {
             .flags
             .iter()
             .par_bridge()
-            .map(|flag| flag.get_msg())
+            .map(|flag| flag.read().unwrap().get_msg())
             .collect();
         let sm64js_msg = Sm64JsMsg {
             message: Some(sm64_js_msg::Message::ListMsg(MarioListMsg {
@@ -135,14 +145,15 @@ impl Room {
         Ok(())
     }
 
-    pub fn broadcast_skins(&mut self) -> Result<()> {
+    pub fn broadcast_skins(&self) -> Result<()> {
         let messages: Vec<_> = self
             .players
-            .par_iter_mut()
+            .par_iter()
             .filter_map(|(_, player)| {
                 if let Some(player) = player.upgrade() {
+                    let player_name = player.read().get_name().clone();
                     if let Some(skin_data) = player.write().get_updated_skin_data() {
-                        Some((skin_data, player.read().get_name().clone()))
+                        Some((skin_data, player_name))
                     } else {
                         None
                     }
@@ -199,18 +210,21 @@ impl Room {
         }
     }
 
-    pub fn add_player(&mut self, socket_id: u32, player: Weak<RwLock<Player>>) {
+    pub fn add_player(&mut self, socket_id: u32, player: Weak<parking_lot::RwLock<Player>>) {
         self.players.insert(socket_id, player);
     }
 
-    pub fn process_grab_flag(&mut self, flag_id: usize, pos: Vec<f32>, socket_id: u32) {
-        if let Some(flag) = self.flags.get_mut(flag_id) {
+    pub fn process_grab_flag(&self, flag_id: usize, pos: Vec<f32>, socket_id: u32) {
+        if let Some(flag) = self.flags.get(flag_id) {
+            let mut flag = flag.write().unwrap();
+            dbg!(&*flag);
             if flag.linked_to_player.is_some() {
                 return;
             }
             let x_diff = pos[0] - flag.pos[0];
             let z_diff = pos[2] - flag.pos[2];
             let dist = (x_diff * x_diff + z_diff * z_diff).sqrt();
+            dbg!(dist);
             if dist < 50. {
                 flag.linked_to_player = Some(socket_id);
                 flag.fall_mode = false;
@@ -221,6 +235,7 @@ impl Room {
     }
 }
 
+#[derive(Debug)]
 pub struct Flag {
     pos: Box<[f32; 3]>,
     start_pos: Box<[f32; 3]>,
