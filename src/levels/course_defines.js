@@ -1,1 +1,0 @@
-export const COURSE_NONE = 0
