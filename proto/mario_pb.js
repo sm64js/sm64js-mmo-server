@@ -4040,7 +4040,7 @@ proto.sm64js.ValidPlayersMsg.prototype.toObject = function(opt_includeInstance) 
  */
 proto.sm64js.ValidPlayersMsg.toObject = function(includeInstance, msg) {
   var f, obj = {
-    roomKey: jspb.Message.getFieldWithDefault(msg, 1, 0),
+    levelId: jspb.Message.getFieldWithDefault(msg, 1, 0),
     validplayersList: (f = jspb.Message.getRepeatedField(msg, 2)) == null ? undefined : f
   };
 
@@ -4080,7 +4080,7 @@ proto.sm64js.ValidPlayersMsg.deserializeBinaryFromReader = function(msg, reader)
     switch (field) {
     case 1:
       var value = /** @type {number} */ (reader.readUint32());
-      msg.setRoomKey(value);
+      msg.setLevelId(value);
       break;
     case 2:
       var value = /** @type {!Array<number>} */ (reader.readPackedUint32());
@@ -4115,7 +4115,7 @@ proto.sm64js.ValidPlayersMsg.prototype.serializeBinary = function() {
  */
 proto.sm64js.ValidPlayersMsg.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
-  f = message.getRoomKey();
+  f = message.getLevelId();
   if (f !== 0) {
     writer.writeUint32(
       1,
@@ -4133,10 +4133,10 @@ proto.sm64js.ValidPlayersMsg.serializeBinaryToWriter = function(message, writer)
 
 
 /**
- * optional uint32 room_key = 1;
+ * optional uint32 level_id = 1;
  * @return {number}
  */
-proto.sm64js.ValidPlayersMsg.prototype.getRoomKey = function() {
+proto.sm64js.ValidPlayersMsg.prototype.getLevelId = function() {
   return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 1, 0));
 };
 
@@ -4145,7 +4145,7 @@ proto.sm64js.ValidPlayersMsg.prototype.getRoomKey = function() {
  * @param {number} value
  * @return {!proto.sm64js.ValidPlayersMsg} returns this
  */
-proto.sm64js.ValidPlayersMsg.prototype.setRoomKey = function(value) {
+proto.sm64js.ValidPlayersMsg.prototype.setLevelId = function(value) {
   return jspb.Message.setProto3IntField(this, 1, value);
 };
 
@@ -5499,7 +5499,8 @@ proto.sm64js.PlayerNameMsg.toObject = function(includeInstance, msg) {
   var f, obj = {
     name: jspb.Message.getFieldWithDefault(msg, 1, ""),
     level: jspb.Message.getFieldWithDefault(msg, 2, 0),
-    accepted: jspb.Message.getBooleanFieldWithDefault(msg, 3, false)
+    accepted: jspb.Message.getBooleanFieldWithDefault(msg, 3, false),
+    gameId: jspb.Message.getFieldWithDefault(msg, 4, "")
   };
 
   if (includeInstance) {
@@ -5548,6 +5549,10 @@ proto.sm64js.PlayerNameMsg.deserializeBinaryFromReader = function(msg, reader) {
       var value = /** @type {boolean} */ (reader.readBool());
       msg.setAccepted(value);
       break;
+    case 4:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setGameId(value);
+      break;
     default:
       reader.skipField();
       break;
@@ -5595,6 +5600,13 @@ proto.sm64js.PlayerNameMsg.serializeBinaryToWriter = function(message, writer) {
   if (f) {
     writer.writeBool(
       3,
+      f
+    );
+  }
+  f = message.getGameId();
+  if (f.length > 0) {
+    writer.writeString(
+      4,
       f
     );
   }
@@ -5652,6 +5664,24 @@ proto.sm64js.PlayerNameMsg.prototype.getAccepted = function() {
  */
 proto.sm64js.PlayerNameMsg.prototype.setAccepted = function(value) {
   return jspb.Message.setProto3BooleanField(this, 3, value);
+};
+
+
+/**
+ * optional string game_id = 4;
+ * @return {string}
+ */
+proto.sm64js.PlayerNameMsg.prototype.getGameId = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 4, ""));
+};
+
+
+/**
+ * @param {string} value
+ * @return {!proto.sm64js.PlayerNameMsg} returns this
+ */
+proto.sm64js.PlayerNameMsg.prototype.setGameId = function(value) {
+  return jspb.Message.setProto3StringField(this, 4, value);
 };
 
 
