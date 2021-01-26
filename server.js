@@ -114,9 +114,11 @@ const sendValidUpdate = () => {
 
 }
 
-const allowedLevelRooms = [1000, 16, 9, 5, 27, 36, 24]  // client selectable levels
+const allowedLevelRooms = [1001, 1000, 16, 9, 5, 27, 36, 24]  // client selectable levels
 
-/*1000: "Mushroom Battlefield",
+/*
+1001: "CTF/Race Map"
+1000: "Mushroom Battlefield",
 16: "Castle Grounds",
 9: "Bob-omb Battlefield",
 5: "Cool, Cool Mountain",
@@ -125,6 +127,8 @@ const allowedLevelRooms = [1000, 16, 9, 5, 27, 36, 24]  // client selectable lev
 24: "Whomps Fortress"*/
 
 const flagStarts = {
+    1001: [[-76, 467, -7768],
+            [-76, 467, 7945]],
     1000: [[9380, 7657, -8980],
            [-5126, 3678, 10106],
            [-14920, 3800, -8675],
