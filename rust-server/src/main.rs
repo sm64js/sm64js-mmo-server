@@ -53,6 +53,7 @@ async fn main() -> std::io::Result<()> {
     use parking_lot::RwLock;
     use std::sync::Arc;
 
+    std::env::set_var("RUST_BACKTRACE", "1");
     std::env::set_var("RUST_LOG", "actix_server=info,actix_web=info");
     env_logger::init();
 
