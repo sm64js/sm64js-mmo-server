@@ -28,18 +28,24 @@ impl Game {
     }
 
     pub fn broadcast_data(rooms: Rooms) -> Result<()> {
-        rooms
+        if let Err(err) = rooms
             .par_iter()
             .map(|room| room.broadcast_data())
-            .collect::<Result<Vec<_>>>()?;
+            .collect::<Result<Vec<_>>>()
+        {
+            eprintln!("{:?}", err);
+        }
         Ok(())
     }
 
     pub fn broadcast_skins(rooms: Rooms) -> Result<()> {
-        rooms
+        if let Err(err) = rooms
             .par_iter()
             .map(|room| room.broadcast_skins())
-            .collect::<Result<Vec<_>>>()?;
+            .collect::<Result<Vec<_>>>()
+        {
+            eprintln!("{:?}", err);
+        }
         Ok(())
     }
 }
