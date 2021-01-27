@@ -83,7 +83,7 @@ jobs:
 
   publish:
     # this needs to be changed, if the Rust server should be published from a different branch
-    if: github.ref == 'refs/heads/MMO_benchmark_rust'
+    if: github.ref == 'refs/heads/MMO_rust'
     needs: test
     runs-on: ubuntu-latest
     steps:
