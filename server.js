@@ -975,6 +975,6 @@ app.post('/createNewGame', (req, res) => {
         }
     })
 
-    return res.send(`<a href="https://sm64js.com/?gameID=${gameID}">https://sm64js.com/?gameID=${gameID}</a>`)
+    return res.send(`Invite Link: <a href="https://sm64js.com/?gameID=${gameID}">https://sm64js.com/?gameID=${gameID}</a>`)
 
 })
