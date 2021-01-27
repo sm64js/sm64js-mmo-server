@@ -135,7 +135,6 @@ impl Handler<SendGrabFlag> for Sm64JsServer {
     type Result = ();
 
     fn handle(&mut self, send_grab: SendGrabFlag, _: &mut Context<Self>) {
-        dbg!("SendGrabFlag");
         let socket_id = send_grab.socket_id;
         let grab_flag_msg = send_grab.grab_flag_msg;
         if let Some(level_id) = self
@@ -144,12 +143,9 @@ impl Handler<SendGrabFlag> for Sm64JsServer {
             .map(|client| client.get_level())
             .flatten()
         {
-            dbg!(level_id);
             if let Some(room) = self.rooms.get(&level_id) {
                 let flag_id = grab_flag_msg.flag_id as usize;
-                dbg!(flag_id);
                 let pos = grab_flag_msg.pos;
-                dbg!(&pos);
                 room.process_grab_flag(flag_id, pos, socket_id);
             }
         }

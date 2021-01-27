@@ -91,12 +91,8 @@ impl Room {
         Arc::new(rooms)
     }
 
-    pub fn process_flags(&self, i: i32) {
-        // let cond = self.id == "Mushroom Battlefield".to_string() && i == 30;
+    pub fn process_flags(&self) {
         self.flags.par_iter().for_each(|flag| {
-            // if cond {
-            //     dbg!(&flag);
-            // }
             let mut flag = flag.write().unwrap();
             flag.process_falling();
             flag.process_idle();
@@ -217,14 +213,12 @@ impl Room {
     pub fn process_grab_flag(&self, flag_id: usize, pos: Vec<f32>, socket_id: u32) {
         if let Some(flag) = self.flags.get(flag_id) {
             let mut flag = flag.write().unwrap();
-            dbg!(&*flag);
             if flag.linked_to_player.is_some() {
                 return;
             }
             let x_diff = pos[0] - flag.pos[0];
             let z_diff = pos[2] - flag.pos[2];
             let dist = (x_diff * x_diff + z_diff * z_diff).sqrt();
-            dbg!(dist);
             if dist < 50. {
                 flag.linked_to_player = Some(socket_id);
                 flag.fall_mode = false;

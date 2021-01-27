@@ -12,7 +12,7 @@ impl Game {
             let mut i = 0;
             loop {
                 i += 1;
-                Self::process_flags(rooms.clone(), i);
+                Self::process_flags(rooms.clone());
                 Self::broadcast_data(rooms.clone()).unwrap();
                 if i == 30 {
                     Self::broadcast_skins(rooms.clone()).unwrap();
@@ -23,8 +23,8 @@ impl Game {
         });
     }
 
-    pub fn process_flags(rooms: Rooms, i: i32) {
-        rooms.par_iter().for_each(|room| room.process_flags(i));
+    pub fn process_flags(rooms: Rooms) {
+        rooms.par_iter().for_each(|room| room.process_flags());
     }
 
     pub fn broadcast_data(rooms: Rooms) -> Result<()> {
