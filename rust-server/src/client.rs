@@ -49,6 +49,10 @@ impl Client {
         self.data = Some(data);
     }
 
+    pub fn get_pos(&self) -> Option<&Vec<f32>> {
+        self.data.as_ref().map(|data| &data.pos)
+    }
+
     pub fn get_socket_id(&self) -> u32 {
         self.socket_id
     }

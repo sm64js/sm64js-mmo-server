@@ -7,6 +7,7 @@ use anyhow::Result;
 use dashmap::DashMap;
 use flate2::{write::ZlibEncoder, Compression};
 use prost::Message as ProstMessage;
+use rand::{self, Rng};
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
@@ -208,6 +209,26 @@ impl Room {
 
     pub fn add_player(&mut self, socket_id: u32, player: Weak<parking_lot::RwLock<Player>>) {
         self.players.insert(socket_id, player);
+    }
+
+    pub fn process_attack(&self, flag_id: usize, attacker_pos: Vec<f32>, target_id: u32) {
+        if let Some(flag) = self.flags.get(flag_id) {
+            let mut flag = flag.write().unwrap();
+            if let Some(link_id) = flag.linked_to_player {
+                // TODO use target_id to determine valid attack
+                if link_id != target_id {
+                    return;
+                }
+                flag.linked_to_player = None;
+                flag.fall_mode = true;
+                flag.pos = Box::new([
+                    attacker_pos[0] + rand::thread_rng().gen_range(0f32..=1000.) - 500.,
+                    attacker_pos[1] + 600.,
+                    attacker_pos[2] + rand::thread_rng().gen_range(0f32..=1000.) - 500.,
+                ]);
+                flag.height_before_fall = flag.pos[1];
+            }
+        }
     }
 
     pub fn process_grab_flag(&self, flag_id: usize, pos: Vec<f32>, socket_id: u32) {

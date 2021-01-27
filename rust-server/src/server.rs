@@ -112,6 +112,7 @@ impl Handler<SetData> for Sm64JsServer {
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct SendAttack {
+    pub socket_id: u32,
     pub attack_msg: AttackMsg,
 }
 
@@ -119,8 +120,20 @@ impl Handler<SendAttack> for Sm64JsServer {
     type Result = ();
 
     fn handle(&mut self, send_attack: SendAttack, _: &mut Context<Self>) {
-        let _attack_msg = send_attack.attack_msg;
-        // TODO
+        let socket_id = send_attack.socket_id;
+        let attack_msg = send_attack.attack_msg;
+        if let Some((level_id, attacker_pos)) = self
+            .clients
+            .get(&socket_id)
+            .map(|client| try { (client.get_level()?, client.get_pos()?.clone()) })
+            .flatten()
+        {
+            if let Some(room) = self.rooms.get(&level_id) {
+                let flag_id = attack_msg.flag_id as usize;
+                let target_id = attack_msg.target_socket_id;
+                room.process_attack(flag_id, attacker_pos, target_id);
+            }
+        }
     }
 }
 
