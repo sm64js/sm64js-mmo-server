@@ -1,0 +1,41 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js"></script>
+    <title>Create Custom sm64js Game</title>
+
+</head>
+
+<body>
+    <container>
+        <form action="/createNewGame" method="POST" style="margin-top:50px; margin-left:50px">
+            <div class="form-row align-items-center">
+                <div class="col-sm-1 my-1">
+                    <label class="h5" for="inlineFormCustomSelect">Select Map</label>
+                </div>
+                <div class="col-sm-3 my-1">
+                    <select name="level" class="custom-select mr-sm-2" id="inlineFormCustomSelect">
+                        <option selected value="16">Choose...</option>
+                        <option value="1000">Mushroom Battlefield</option>
+                        <option value="1001">CTF/Race Map</option>
+                        <option value="16">Castle Grounds</option>
+                        <option value="5">Cool, Cool Mountain</option>
+                        <option value="27">Princess's Secret Slide</option>
+                        <option value="9">Bob-omb Battlefield</option>
+                        <option value="24">Whomps Fortress</option>
+                        <option value="36">Tall, Tall Mountain</option>
+                    </select>
+                </div>
+
+                <div class="col-sm-1 my-1">
+                    <button type="submit" class="btn btn-primary">Create Game</button>
+                </div>
+            </div>
+        </form>
+    </container>
+</body>
+</html>

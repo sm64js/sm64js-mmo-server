@@ -841,6 +841,8 @@ const express = require('express')
 const app = express()
 const server = http.Server(app)
 
+app.use(express.urlencoded({ extended: true }))
+
 server.listen(port, () => { console.log('Starting Express server for http requests ' + port) })
 
 
@@ -947,9 +949,13 @@ app.get('/adminLog/:token', (req, res) => {
 
 })
 
-app.get('/createGame/:level/', (req, res) => {
+app.get('/createGame', (req, res) => {
+    res.sendFile(__dirname + '/createGameForm.html')
+})
 
-    const level = parseInt(req.params.level)
+app.post('/createNewGame', (req, res) => {
+
+    const level = parseInt(req.body.level)
 
     if (!allowedLevelRooms.includes(level)) return res.status(401).send('Invalid Level/Map ID')
 
