@@ -1,19 +1,18 @@
-on: [push, pull_request]
+on: 
+  push:
+    paths:
+      - "rust-server/**/*"
+      - ".github/workflows/test-and-publish.yml"
+  pull_request:
+    paths:
+      - "rust-server/**/*"
+      - ".github/workflows/test-and-publish.yml"
 
 name: Rust Server Test & Publish
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    # TODO run Rust stuff conditionally
-    # push:
-    #   paths:
-    #     - "rust-server/**/*"
-    #     - ".github/workflows/test-and-publish.yml"
-    # pull_request:
-    #   paths:
-    #     - "rust-server/**/*"
-    #     - ".github/workflows/test-and-publish.yml"
 
     env:
       RUST_BACKTRACE: full
@@ -82,8 +81,6 @@ jobs:
           args: -- -D warnings
 
   publish:
-    # this needs to be changed, if the Rust server should be published from a different branch
-    if: github.ref == 'refs/heads/MMO_rust'
     needs: test
     runs-on: ubuntu-latest
     steps:
