@@ -17,34 +17,29 @@ const got = require('got')
 const crypto = require('crypto-js')
 const util = require('util')
 const { v4: uuidv4 } = require('uuid')
+const low = require('lowdb')
+const FileSync = require('lowdb/adapters/FileSync')
 const zlib = require('zlib')
 const deflate = util.promisify(zlib.deflate)
 const port = 3080
 const ws_port = 3000
 
+const adminTokens = process.env.PRODUCTION ? process.env.ADMIN_TOKENS.split(":") : ["testAdminToken"]
 const ip_encryption_key = process.env.PRODUCTION ? process.env.IP_ENCRYPTION_KEY : "abcdef123456"
-
-const low = require('lowdb')
-const FileSync = require('lowdb/adapters/FileSync')
 
 const adapter = (process.env.PRODUCTION && process.env.CUSTOMSERVER != 1) ? new FileSync('/tmp/data/db.json') : new FileSync('testdb.json')
 const db = low(adapter)
 db.defaults({ chats: [], adminCommands: [], ipList: [] }).write()
 
-//Auto Delete Old chat entries
-setInterval(() => {
-    const threeDaysAgo = Date.now() - (86400000 * 3)
-    db.get('chats').remove((entry) => {
-        if (entry.timestampMs < threeDaysAgo) return true
-    }).write()
-}, 86400000) //1 Days
+const standardLevels = require('./levelData').standardLevels
 
-const clientsRoot = {}
-const connectedIPs = {}
-const socketIdsToRoomKeys = {}
+const allGames = {}
+const publicLevelsToGameIds = {}
+const socketIdsToGameIds = {}
 let socketsInLobby = []
-const stats = {}
 
+const connectedIPs = {}
+const stats = {}
 
 let currentId = 0
 const generateID = () => {
@@ -52,74 +47,74 @@ const generateID = () => {
     return currentId
 }
 
-const text = {
-    decoder: new TextDecoder(),
-    encoder: new TextEncoder()
-}
-
-// const sendJsonWithTopic = (topic, msg, socket) => {
-//     const str = JSON.stringify({ topic, msg })
-//     let bytes = text.encoder.encode(str)
-//     const rootMsg = new RootMsg()
-//     rootMsg.setJsonBytesMsg(bytes)
-//     socket.send(rootMsg.serializeBinary(), true)
-// }
-
-// const broadcastJsonWithTopic = (topic, msg, roomKey) => { /// TODO
-//     const str = JSON.stringify({ topic, msg })
-//     let bytes = text.encoder.encode(str)
-//     const rootMsg = new RootMsg()
-//     rootMsg.setJsonBytesMsg(bytes)
-//     bytes = rootMsg.serializeBinary()
-//     Object.values(clientsRoot[roomKey]).forEach(x => { x.socket.send(bytes, true) })
-// }
-
 const sendData = (bytes, socket) => { if (!socket.closed) socket.send(bytes, true) }
 
-const broadcastData = (bytes, roomKey) => {
-    if (roomKey == "lobbySockets") { // send to lobbySockets
+const broadcastData = (bytes, gameID) => {
+    if (gameID == "lobbySockets") { // send to lobbySockets
         socketsInLobby.forEach(socket => { sendData(bytes, socket) })
-    } else if (roomKey) { // normal room
-        if (clientsRoot[roomKey]) Object.values(clientsRoot[roomKey]).forEach(x => { sendData(bytes, x.socket) })
-    } else { /// send to all rooms 
-        Object.keys(clientsRoot).forEach(roomKey => {
-            Object.values(clientsRoot[roomKey]).forEach(x => { sendData(bytes, x.socket) })
+    } else if (gameID) { // send to single game
+        if (allGames[gameID]) Object.values(allGames[gameID].players).forEach(x => { sendData(bytes, x.socket) })
+    } else { /// send to all games 
+        Object.values(allGames).forEach(gameData => {
+            Object.values(gameData.players).forEach(x => { sendData(bytes, x.socket) })
         })
     }
 }
 
+const initNewLevel = (level, public) => {
+    const gameID = uuidv4()
 
-const adminTokens = process.env.PRODUCTION ? process.env.ADMIN_TOKENS.split(":") : ["testAdminToken"]
+    const flagPositions = standardLevels[level].flagStartPositions
+
+    const newFlagData = new Array(flagPositions.length).fill(0).map((_, i) => {
+        return {
+            pos: [...flagPositions[i]],
+            linkedToPlayer: false,
+            atStartPosition: true,
+            socketID: null,
+            idleTimer: 0,
+            heightBeforeFall: 20000
+        }
+    })
+
+    allGames[gameID] = {
+        players: [],
+        flagData: newFlagData,
+        level,
+        public,
+        inactiveCount: 0
+    }
+
+    return gameID
+}
 
 const sendValidUpdate = () => {
 
-    const allRooms = []
+    const allGamesValidPlayers = []
 
-    Object.entries(clientsRoot).forEach(([roomKeyStr, roomData]) => {
+    Object.entries(allGames).forEach(([gameID, gameData]) => {
 
-        const validPlayers = Object.values(roomData).filter(data => data.valid > 0).map(data => data.socket.my_id)
+        const validPlayers = Object.values(gameData.players).filter(data => data.valid > 0).map(data => data.socket.my_id)
         const validplayersmsg = new ValidPlayersMsg()
         validplayersmsg.setValidplayersList(validPlayers)
+        validplayersmsg.setLevelId(gameData.level)
 
-        if (roomKeyStr.length < 10) {  /// normal server room
-            validplayersmsg.setLevelId(parseInt(roomKeyStr))
-            allRooms.push(validplayersmsg)
-        } else { // custom game room
-            validplayersmsg.setLevelId(customGameMetaData[roomKeyStr].level)
-        }
+        if (gameData.public) {  /// public server room
+            allGamesValidPlayers.push(validplayersmsg)
+        } 
 
         const playerListsMsg = new PlayerListsMsg()
-        const sm64jsMsg = new Sm64JsMsg()
         playerListsMsg.setRoomList([validplayersmsg])
+        const sm64jsMsg = new Sm64JsMsg()
         sm64jsMsg.setPlayerListsMsg(playerListsMsg)
         const rootMsg = new RootMsg()
         rootMsg.setUncompressedSm64jsMsg(sm64jsMsg)
-        broadcastData(rootMsg.serializeBinary(), roomKeyStr)
+        broadcastData(rootMsg.serializeBinary(), gameID)
     })
 
     /// send all public room data to lobbbySockets
     const playerListsMsg = new PlayerListsMsg()
-    playerListsMsg.setRoomList(allRooms)
+    playerListsMsg.setRoomList(allGamesValidPlayers)
     const sm64jsMsg = new Sm64JsMsg()
     sm64jsMsg.setPlayerListsMsg(playerListsMsg)
     const rootMsg = new RootMsg()
@@ -127,49 +122,6 @@ const sendValidUpdate = () => {
     broadcastData(rootMsg.serializeBinary(), "lobbySockets")
 
 }
-
-const allowedLevelRooms = [1001, 1000, 16, 9, 5, 27, 36, 24]  // client selectable levels
-
-const customGameMetaData = {}
-
-/*
-1001: "CTF/Race Map"
-1000: "Mushroom Battlefield",
-16: "Castle Grounds",
-9: "Bob-omb Battlefield",
-5: "Cool, Cool Mountain",
-27: "Princess's Secret Slide",
-36: "Tall, Tall Mountain",
-24: "Whomps Fortress"*/
-
-const flagStarts = {
-    1001: [[-76, 467, -7768],
-            [-76, 467, 7945]],
-    1000: [[9380, 7657, -8980],
-           [-5126, 3678, 10106],
-           [-14920, 3800, -8675],
-           [12043, 3000, 10086]],
-    16: [[6300, 910, -5900],
-        [-4200, -1300, -5300]],
-    9: [[-2384, 260, 6203]],
-    5: [[0, 7657, 0]],
-    27: [[0, 7657, 0]],
-    36: [[0, 7657, 0]],
-    24: [[0, 7657, 0]]
-}
-
-const flagData = Object.fromEntries(Object.keys(flagStarts).map((key) => {
-    return [ key, new Array(flagStarts[key].length).fill(0).map((_, i) => {
-        return {
-            pos: [...flagStarts[key][i]],
-            linkedToPlayer: false,
-            atStartPosition: true,
-            socketID: null,
-            idleTimer: 0,
-            heightBeforeFall: 20000
-        }
-    })]
-}))
 
 const processPlayerData = (socket_id, decodedMario) => {
 
@@ -180,33 +132,25 @@ const processPlayerData = (socket_id, decodedMario) => {
     /// server should always force the socket_id - not needed if checking
     decodedMario.setSocketid(socket_id)
 
-    const roomKey = socketIdsToRoomKeys[socket_id]
+    const gameID = socketIdsToGameIds[socket_id]
 
     /// Data is Valid
-    clientsRoot[roomKey][socket_id].decodedMario = decodedMario
-    clientsRoot[roomKey][socket_id].valid = 100
+    allGames[gameID].players[socket_id].decodedMario = decodedMario
+    allGames[gameID].players[socket_id].valid = 100
 
 }
 
-/*const processControllerUpdate = (socket_id, bytes) => {
-    const decodedController = ControllerMsg.deserializeBinary(bytes)
-
-    /// do some validation here probably
-    allChannels[socket_id].decodedController = decodedController
-    //broadcastDataWithOpcode(bytes, 3, socket_id)
-}*/
-
 const processSkin = (socket_id, skinMsg) => {
 
-    const roomKey = socketIdsToRoomKeys[socket_id]
-    if (roomKey == undefined) return 
+    const gameID = socketIdsToGameIds[socket_id]
+    if (gameID == undefined) return 
 
-    if (clientsRoot[roomKey][socket_id].valid == 0) return
+    if (allGames[gameID].players[socket_id].valid == 0) return
 
     const skinData = skinMsg.getSkindata()
 
-    clientsRoot[roomKey][socket_id].skinData = skinData
-    clientsRoot[roomKey][socket_id].skinDataUpdated = true
+    allGames[gameID].players[socket_id].skinData = skinData
+    allGames[gameID].players[socket_id].skinDataUpdated = true
 }
 
 const rejectPlayerName = (socket) => {
@@ -249,7 +193,7 @@ const applyValidCharacters = (str) => {
     return str.split('').filter(c => validCharacters.has(c)).join('');
 }
 
-const processAdminCommand = (msg, token, roomKey) => {
+const processAdminCommand = (msg, token, gameID) => {
     const parts = msg.split(' ')
     const command = parts[0].toUpperCase()
     const remainingParts = parts.slice(1)
@@ -264,26 +208,26 @@ const processAdminCommand = (msg, token, roomKey) => {
             sm64jsMsg.setAnnouncementMsg(announcementMsg)
             const rootMsg = new RootMsg()
             rootMsg.setUncompressedSm64jsMsg(sm64jsMsg)
-            broadcastData(rootMsg.serializeBinary(), roomKey)
+            broadcastData(rootMsg.serializeBinary(), gameID)
             break
         default:  return console.log("Unknown Admin Command: " + parts[0])
     }
 
-    db.get('adminCommands').push({ token, roomKey, timestampMs: Date.now(), command, args }).write()
+    db.get('adminCommands').push({ token, gameID, timestampMs: Date.now(), command, args }).write()
 }
 
 const processChat = async (socket_id, sm64jsMsg) => {
     const chatMsg = sm64jsMsg.getChatMsg()
     const message = chatMsg.getMessage()
 
-    const roomKey = socketIdsToRoomKeys[socket_id]
-    if (roomKey == undefined) return 
+    const gameID = socketIdsToGameIds[socket_id]
+    if (gameID == undefined) return 
 
-    const clientData = clientsRoot[roomKey][socket_id]
-    if (clientData == undefined) return
+    const playerData = allGames[gameID].players[socket_id]
+    if (playerData == undefined) return
 
     /// Throttle chats by IP
-    if (connectedIPs[clientData.socket.ip].chatCooldown > 10) {
+    if (connectedIPs[playerData.socket.ip].chatCooldown > 10) {
         const chatMsg = new ChatMsg()
         chatMsg.setSocketid(socket_id)
         chatMsg.setMessage("Chat message ignored: You have to wait longer between sending chat messages")
@@ -292,7 +236,7 @@ const processChat = async (socket_id, sm64jsMsg) => {
         sm64jsMsg.setChatMsg(chatMsg)
         const rootMsg = new RootMsg()
         rootMsg.setUncompressedSm64jsMsg(sm64jsMsg)
-        sendData(rootMsg.serializeBinary(), clientData.socket)
+        sendData(rootMsg.serializeBinary(), playerData.socket)
         return
     }
 
@@ -302,20 +246,20 @@ const processChat = async (socket_id, sm64jsMsg) => {
     const isAdmin = adminToken != null && adminTokens.includes(adminToken)
 
     if (message[0] == '/') {
-        if (isAdmin) processAdminCommand(message.slice(1), adminToken, roomKey)
+        if (isAdmin) processAdminCommand(message.slice(1), adminToken, gameID)
         return
     }
 
-    const decodedMario = clientData.decodedMario
+    const decodedMario = playerData.decodedMario
     if (decodedMario == undefined) return
 
-    connectedIPs[clientData.socket.ip].chatCooldown += 3 // seconds
+    connectedIPs[playerData.socket.ip].chatCooldown += 3 // seconds
 
     /// record chat to DB
     db.get('chats').push({
         socketID: socket_id,
-        playerName: clientData.playerName,
-        ip: clientData.socket.ip,
+        playerName: playerData.playerName,
+        ip: playerData.socket.ip,
         timestampMs: Date.now(),
         message,
         adminToken
@@ -330,12 +274,12 @@ const processChat = async (socket_id, sm64jsMsg) => {
 
         chatMsg.setSocketid(socket_id)
         chatMsg.setMessage(filteredMessage)
-        chatMsg.setSender(clientData.playerName)
+        chatMsg.setSender(playerData.playerName)
         chatMsg.setIsadmin(isAdmin)
 
         const rootMsg = new RootMsg()
         rootMsg.setUncompressedSm64jsMsg(sm64jsMsg)
-        broadcastData(rootMsg.serializeBinary(), roomKey)
+        broadcastData(rootMsg.serializeBinary(), gameID)
 
     } catch (e) {
         console.log(`Got error with profanity api: ${e}`)
@@ -345,7 +289,7 @@ const processChat = async (socket_id, sm64jsMsg) => {
 
 const processPlayerName = async (socket, msg) => {
 
-    if (socketIdsToRoomKeys[socket.my_id] != undefined) return ///already initialized
+    if (socketIdsToGameIds[socket.my_id] != undefined) return ///already initialized
 
     const name = msg.getName()
 
@@ -368,41 +312,42 @@ const processPlayerName = async (socket, msg) => {
             return rejectPlayerName(socket)
         }
 
-        let roomKey
-
-        let level = msg.getLevel()
+        const level = msg.getLevel()
+        let gameID
 
         if (level == 0) { /// custom game room
-            const gameId = msg.getGameId()
-            if (!Object.keys(clientsRoot).includes(gameId)) return rejectPlayerName(socket)
-            roomKey = gameId
-            level = customGameMetaData[gameId].level
-            customGameMetaData[gameId].inactiveCount = 0 /// some activity
+            gameID = msg.getGameId()
+            if (allGames[gameID] == undefined) return rejectPlayerName(socket)
         } else {  /// normal server room
-            if (!allowedLevelRooms.includes(level)) return rejectPlayerName(socket)
-            if (clientsRoot[level] == undefined) clientsRoot[level] = {}
-            roomKey = level
+            if (standardLevels[level] == undefined) return rejectPlayerName(socket)
+            gameID = publicLevelsToGameIds[level]
+            if (allGames[gameID] == undefined) {  //// public room doesn't exist, create
+                gameID = initNewLevel(level, true)
+                publicLevelsToGameIds[level] = gameID
+            }
         }
 
+        allGames[gameID].inactiveCount = 0 /// some activity
+
         //filteredPlayerName should equal the original name at this point
-        const takenPlayerNames = Object.values(clientsRoot[roomKey]).map(obj => obj.playerName)
+        const takenPlayerNames = Object.values(allGames[gameID].players).map(obj => obj.playerName)
         if (takenPlayerNames.includes(filteredPlayerName)) return rejectPlayerName(socket)
 
         ////Success point - should initialize player
-        clientsRoot[roomKey][socket.my_id] = {
+        allGames[gameID].players[socket.my_id] = {
             socket, /// also contains socket_id and ip
             playerName: filteredPlayerName,
             valid: 0,
             decodedMario: undefined,
             skinData: undefined
         }
-        socketIdsToRoomKeys[socket.my_id] = roomKey
+        socketIdsToGameIds[socket.my_id] = gameID
 
         socketsInLobby = socketsInLobby.filter((lobbySocket) => { return lobbySocket != socket })
 
         const playerNameMsg = new PlayerNameMsg()
         playerNameMsg.setName(filteredPlayerName)
-        playerNameMsg.setLevel(level)
+        playerNameMsg.setLevel(allGames[gameID].level)
         playerNameMsg.setAccepted(true)
         const sm64jsMsg = new Sm64JsMsg()
         sm64jsMsg.setPlayerNameMsg(playerNameMsg)
@@ -421,12 +366,12 @@ const processPlayerName = async (socket, msg) => {
 const sendSkinsToSocket = (socket) => { 
 
     setTimeout(() => {
-        const roomKey = socketIdsToRoomKeys[socket.my_id]
-        if (roomKey == undefined || clientsRoot[roomKey] == undefined) {
+        const gameID = socketIdsToGameIds[socket.my_id]
+        if (gameID == undefined || allGames[gameID] == undefined) {
             return  /// if they disconnect in this 500ms period
         }
         /// Send Skins
-        Object.entries(clientsRoot[roomKey]).filter(([_, data]) => data.skinData).forEach(([socket_id, data]) => {
+        Object.entries(allGames[gameID].players).filter(([_, data]) => data.skinData).forEach(([socket_id, data]) => {
             const skinMsg = new SkinMsg()
             skinMsg.setSocketid(socket_id)
             skinMsg.setSkindata(data.skinData)
@@ -442,9 +387,9 @@ const sendSkinsToSocket = (socket) => {
 }
 const sendSkinsIfUpdated = () => {
 
-    Object.entries(clientsRoot).forEach(([roomKey, roomData]) => {
+    Object.entries(allGames).forEach(([gameID, gameData]) => {
         /// Send Skins
-        Object.entries(roomData).filter(([_, data]) => data.skinData && data.skinDataUpdated).forEach(([socket_id, data]) => {
+        Object.entries(gameData.players).filter(([_, data]) => data.skinData && data.skinDataUpdated).forEach(([socket_id, data]) => {
             const skinMsg = new SkinMsg()
             skinMsg.setSocketid(socket_id)
             skinMsg.setSkindata(data.skinData)
@@ -456,7 +401,7 @@ const sendSkinsIfUpdated = () => {
 
             data.skinDataUpdated = false
 
-            broadcastData(rootMsg.serializeBinary(), roomKey)
+            broadcastData(rootMsg.serializeBinary(), gameID)
         })
     })
 
@@ -464,11 +409,11 @@ const sendSkinsIfUpdated = () => {
 
 const processBasicAttack = (attackerID, attackMsg) => {
 
-    const roomKey = socketIdsToRoomKeys[attackerID]
-    if (roomKey == undefined) return
+    const gameID = socketIdsToGameIds[attackerID]
+    if (gameID == undefined) return
 
-    const clientData = clientsRoot[roomKey][attackerID]
-    if (clientData == undefined) return
+    const playerData = allGames[gameID].players[attackerID]
+    if (playerData == undefined) return
 
     /// redundant
     attackMsg.setAttackerSocketId(attackerID)
@@ -476,13 +421,13 @@ const processBasicAttack = (attackerID, attackMsg) => {
     const flagIndex = attackMsg.getFlagId()
     const targetId = attackMsg.getTargetSocketId()
 
-    const theFlag = flagData[roomKey][flagIndex]
+    const theFlag = allGames[gameID].flagData[flagIndex]
 
     if (theFlag.linkedToPlayer && theFlag.socketID == targetId) {
         theFlag.linkedToPlayer = false
         theFlag.socketID = null
         theFlag.fallmode = true
-        const newFlagLocation = clientData.decodedMario.getPosList()
+        const newFlagLocation = playerData.decodedMario.getPosList()
         newFlagLocation[0] += ((Math.random() * 1000.0) - 500.0)
         newFlagLocation[1] += 600
         newFlagLocation[2] += ((Math.random() * 1000.0) - 500.0)
@@ -494,15 +439,15 @@ const processBasicAttack = (attackerID, attackMsg) => {
 
 const processGrabFlagRequest = (socket_id, grabFlagMsg) => {
 
-    const roomKey = socketIdsToRoomKeys[socket_id]
-    if (roomKey == undefined) return
+    const gameID = socketIdsToGameIds[socket_id]
+    if (gameID == undefined) return
 
-    const clientData = clientsRoot[roomKey][socket_id]
-    if (clientData == undefined) return
+    const playerData = allGames[gameID].players[socket_id]
+    if (playerData == undefined) return
 
     const i = grabFlagMsg.getFlagId()
 
-    const theFlag = flagData[roomKey][i]
+    const theFlag = allGames[gameID].flagData[i]
 
     if (theFlag.linkedToPlayer) return
 
@@ -523,19 +468,17 @@ const processGrabFlagRequest = (socket_id, grabFlagMsg) => {
 
 const checkForFlag = (socket_id) => {
 
-    Object.entries(flagData).forEach(([roomKey, flagRoom]) => {
-        flagRoom.forEach((flag, flagIndex) => {
+    Object.values(allGames).forEach(gameData => {
+        gameData.flagData.forEach(flag => {
             if (flag.socketID == socket_id) {
-                const roomKey = socketIdsToRoomKeys[socket_id]
-                if (roomKey == undefined) return
 
-                const clientData = clientsRoot[roomKey][socket_id]
-                if (clientData == undefined) return
+                const playerData = gameData.players[socket_id]
+                if (playerData == undefined) return
 
                 flag.linkedToPlayer = false
                 flag.socketID = null
                 flag.fallmode = true
-                const newFlagLocation = clientData.decodedMario.getPosList()
+                const newFlagLocation = playerData.decodedMario.getPosList()
                 newFlagLocation[1] += 100
                 flag.heightBeforeFall = newFlagLocation[1]
                 flag.pos = [parseInt(newFlagLocation[0]), parseInt(newFlagLocation[1]), parseInt(newFlagLocation[2])]
@@ -548,8 +491,8 @@ const checkForFlag = (socket_id) => {
 
 const serverSideFlagUpdate = () => {
 
-    Object.entries(flagData).forEach(([roomKey, flagRoom]) => {
-        flagRoom.forEach((flag, flagIndex) => {
+    Object.values(allGames).forEach(gameData => {
+        gameData.flagData.forEach((flag, flagIndex) => {
             if (flag.fallmode) {
                 if (flag.pos[1] > -10000) flag.pos[1] -= 2
             }
@@ -558,8 +501,7 @@ const serverSideFlagUpdate = () => {
                 flag.idleTimer++
                 if (flag.idleTimer > 3000) {
 
-                    const level = flagStarts[roomKey] ? roomKey : customGameMetaData[roomKey].level
-                    flag.pos = [...flagStarts[level][flagIndex]]
+                    flag.pos = [...standardLevels[gameData.level].flagStartPositions[flagIndex]]
                     flag.fallmode = false
                     flag.atStartPosition = true
                     flag.idleTimer = 0
@@ -571,30 +513,28 @@ const serverSideFlagUpdate = () => {
 }
 
 
-
-
 /// 20 times per second
 setInterval(async () => {
 
     serverSideFlagUpdate()
 
-    Object.values(clientsRoot).forEach(roomData => {
-        Object.values(roomData).forEach(clientData => {
-            if (clientData.valid > 0) clientData.valid--
-            else if (clientData.decodedMario) clientData.socket.close()
+    Object.values(allGames).forEach(gameData => {
+        Object.values(gameData.players).forEach(playerData => {
+            if (playerData.valid > 0) playerData.valid--
+            else if (playerData.decodedMario) playerData.socket.close()
         })
     })
 
-    Object.entries(clientsRoot).forEach(async ([roomKey, roomData]) => {
+    Object.entries(allGames).forEach(async ([gameID, gameData]) => {
         const sm64jsMsg = new Sm64JsMsg()
-        const mariolist = Object.values(roomData).filter(data => data.decodedMario).map(data => data.decodedMario)
+        const mariolist = Object.values(gameData.players).filter(data => data.decodedMario).map(data => data.decodedMario)
         const mariolistproto = new MarioListMsg()
         mariolistproto.setMarioList(mariolist)
 
         const flagProtoList = []
 
-        for (let i = 0; i < flagData[roomKey].length; i++) {
-            const theFlag = flagData[roomKey][i]
+        for (let i = 0; i < gameData.flagData.length; i++) {
+            const theFlag = gameData.flagData[i]
             const flagmsg = new FlagMsg()
             flagmsg.setLinkedtoplayer(theFlag.linkedToPlayer)
             if (theFlag.linkedToPlayer) flagmsg.setSocketid(theFlag.socketID)
@@ -612,7 +552,7 @@ setInterval(async () => {
         const compressedBytes = await deflate(bytes)
         const rootMsg = new RootMsg()
         rootMsg.setCompressedSm64jsMsg(compressedBytes)
-        broadcastData(rootMsg.serializeBinary(), roomKey)
+        broadcastData(rootMsg.serializeBinary(), gameID)
     })
 
 
@@ -628,7 +568,7 @@ setInterval(() => {
     })
 }, 1000)
 
-/// Every 10 seconds
+/// Every 10 seconds - send skins
 setInterval(() => {
 
     sendSkinsIfUpdated()
@@ -636,20 +576,18 @@ setInterval(() => {
 }, 10000)
 
 
-/// Every 5 minutes
+/// Every 5 minutes - delete inactive games
 setInterval(() => {
 
-    Object.keys(clientsRoot).forEach(key => {
-        if (allowedLevelRooms.includes(parseInt(key))) return /// Don't delete normal public rooms
+    Object.entries(allGames).forEach(([gameID, gameData]) => {
 
-        if (Object.values(clientsRoot[key]).length == 0) { //inactive game
-            customGameMetaData[key].inactiveCount++
+        if (Object.values(gameData.players).length == 0) { //inactive game
+            gameData.inactiveCount++
 
-            if (customGameMetaData[key].inactiveCount >= 5) {
+            if (gameData.inactiveCount >= 5) {
                 /// delete game
-                delete clientsRoot[key]
-                delete customGameMetaData[key]
-                delete flagData[key]
+                delete allGames[gameID]
+                delete publicLevelsToGameIds[gameData.level]
             }
 
         }
@@ -658,18 +596,13 @@ setInterval(() => {
 
 }, 300000)
 
-/*/// Every other frame - 16 times per second
-setInterval(async () => {
-    const controllerlist = Object.values(allChannels).filter(data => data.decodedController).map(data => data.decodedController)
-    const controllerlistproto = new ControllerListMsg()
-    controllerlistproto.setControllerList(controllerlist)
-    const bytes = controllerlistproto.serializeBinary()
-    const compressedMsg = await deflate(bytes)
-    broadcastDataWithOpcode(compressedMsg, 3)
-
-}, 66)
-*/
-
+//Every 1 day - Auto Delete Old chat entries
+setInterval(() => {
+    const threeDaysAgo = Date.now() - (86400000 * 3)
+    db.get('chats').remove((entry) => {
+        if (entry.timestampMs < threeDaysAgo) return true
+    }).write()
+}, 86400000) //1 Days
 
 
 require('uWebSockets.js').App().ws('/*', {
@@ -784,29 +717,27 @@ require('uWebSockets.js').App().ws('/*', {
                     sm64jsMsg = rootMsg.getUncompressedSm64jsMsg()
                     switch (sm64jsMsg.getMessageCase()) {
                         case Sm64JsMsg.MessageCase.MARIO_MSG:
-                            if (socketIdsToRoomKeys[socket.my_id] == undefined) return 
+                            if (socketIdsToGameIds[socket.my_id] == undefined) return 
                             processPlayerData(socket.my_id, sm64jsMsg.getMarioMsg()); break
                         case Sm64JsMsg.MessageCase.PING_MSG:
-                            if (socketIdsToRoomKeys[socket.my_id] == undefined) return 
+                            if (socketIdsToGameIds[socket.my_id] == undefined) return 
                             sendData(bytes, socket); break
                         case Sm64JsMsg.MessageCase.ATTACK_MSG:
-                            if (socketIdsToRoomKeys[socket.my_id] == undefined) return 
+                            if (socketIdsToGameIds[socket.my_id] == undefined) return 
                             processBasicAttack(socket.my_id, sm64jsMsg.getAttackMsg()); break
                         case Sm64JsMsg.MessageCase.GRAB_MSG:
-                            if (socketIdsToRoomKeys[socket.my_id] == undefined) return 
+                            if (socketIdsToGameIds[socket.my_id] == undefined) return 
                             processGrabFlagRequest(socket.my_id, sm64jsMsg.getGrabMsg()); break
                         case Sm64JsMsg.MessageCase.CHAT_MSG:
-                            if (socketIdsToRoomKeys[socket.my_id] == undefined) return 
+                            if (socketIdsToGameIds[socket.my_id] == undefined) return 
                             processChat(socket.my_id, sm64jsMsg); break
                         case Sm64JsMsg.MessageCase.INIT_MSG:
                             sendSkinsToSocket(socket); break
                         case Sm64JsMsg.MessageCase.SKIN_MSG:
-                            if (socketIdsToRoomKeys[socket.my_id] == undefined) return 
+                            if (socketIdsToGameIds[socket.my_id] == undefined) return 
                             processSkin(socket.my_id, sm64jsMsg.getSkinMsg()); break
                         case Sm64JsMsg.MessageCase.PLAYER_NAME_MSG:
                             processPlayerName(socket, sm64jsMsg.getPlayerNameMsg()); break
-                        //case 3: processControllerUpdate(socket.my_id, bytes.slice(1)); break
-                        //case 4: processKnockUp(socket.my_id, bytes.slice(1)); break
                         default: throw "unknown case for uncompressed proto message"
                     }
                     break
@@ -827,10 +758,10 @@ require('uWebSockets.js').App().ws('/*', {
 
         socketsInLobby = socketsInLobby.filter((lobbySocket) => { return lobbySocket != socket })
 
-        const roomKey = socketIdsToRoomKeys[socket.my_id]
-        if (roomKey) {
-            delete clientsRoot[roomKey][socket.my_id]
-            delete socketIdsToRoomKeys[socket.my_id]
+        const gameID = socketIdsToGameIds[socket.my_id]
+        if (gameID) {
+            delete allGames[gameID].players[socket.my_id]
+            delete socketIdsToGameIds[socket.my_id]
         }
     }
 
@@ -869,8 +800,8 @@ app.get('/banIP/:token/:ip', (req, res) => {
         console.log("Admin BAD Existing IP " + ip + "  " + token)
 
         ///kick
-        Object.values(clientsRoot).forEach(roomData => {
-            Object.values(roomData).forEach(data => {
+        Object.values(allGames).forEach(gameData => {
+            Object.values(gameData.players).forEach(data => {
                 if (data.socket.ip == ip) data.socket.close()
             })
         })
@@ -957,23 +888,9 @@ app.post('/createNewGame', (req, res) => {
 
     const level = parseInt(req.body.level)
 
-    if (!allowedLevelRooms.includes(level)) return res.status(401).send('Invalid Level/Map ID')
+    if (standardLevels[level] == undefined) return res.status(401).send('Invalid Level/Map ID')
 
-    const gameID = uuidv4()
-
-    clientsRoot[gameID] = {}
-    customGameMetaData[gameID] = { level, inactiveCount: 0 }
-
-    flagData[gameID] = new Array(flagStarts[level].length).fill(0).map((_, i) => {
-        return {
-            pos: [...flagStarts[level][i]],
-            linkedToPlayer: false,
-            atStartPosition: true,
-            socketID: null,
-            idleTimer: 0,
-            heightBeforeFall: 20000
-        }
-    })
+    const gameID = initNewLevel(level, false)
 
     return res.send(`Invite Link: <a href="https://sm64js.com/?gameID=${gameID}">https://sm64js.com/?gameID=${gameID}</a>`)
 
