@@ -5,5 +5,4 @@ yarn.lock
 node_modules
 /target
 testdb.json
-.vs*
 .DS_Store
