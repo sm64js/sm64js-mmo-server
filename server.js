@@ -95,17 +95,17 @@ const sendValidUpdate = () => {
 
     const allRooms = []
 
-    Object.entries(clientsRoot).forEach(([roomKey, roomData]) => {
+    Object.entries(clientsRoot).forEach(([roomKeyStr, roomData]) => {
 
         const validPlayers = Object.values(roomData).filter(data => data.valid > 0).map(data => data.socket.my_id)
         const validplayersmsg = new ValidPlayersMsg()
         validplayersmsg.setValidplayersList(validPlayers)
 
-        if (allowedLevelRooms.includes(parseInt(roomKey))) {  /// normal server room
-            validplayersmsg.setLevelId(roomKey)
+        if (roomKeyStr.length < 10) {  /// normal server room
+            validplayersmsg.setLevelId(parseInt(roomKeyStr))
             allRooms.push(validplayersmsg)
         } else { // custom game room
-            validplayersmsg.setLevelId(customGameMetaData[roomKey].level)
+            validplayersmsg.setLevelId(customGameMetaData[roomKeyStr].level)
         }
 
         const playerListsMsg = new PlayerListsMsg()
@@ -114,7 +114,7 @@ const sendValidUpdate = () => {
         sm64jsMsg.setPlayerListsMsg(playerListsMsg)
         const rootMsg = new RootMsg()
         rootMsg.setUncompressedSm64jsMsg(sm64jsMsg)
-        broadcastData(rootMsg.serializeBinary(), roomKey)
+        broadcastData(rootMsg.serializeBinary(), roomKeyStr)
     })
 
     /// send all public room data to lobbbySockets
