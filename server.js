@@ -104,7 +104,7 @@ const sendValidUpdate = () => {
         } 
 
         const playerListsMsg = new PlayerListsMsg()
-        playerListsMsg.setRoomList([validplayersmsg])
+        playerListsMsg.setGameList([validplayersmsg])
         const sm64jsMsg = new Sm64JsMsg()
         sm64jsMsg.setPlayerListsMsg(playerListsMsg)
         const rootMsg = new RootMsg()
@@ -114,7 +114,7 @@ const sendValidUpdate = () => {
 
     /// send all public room data to lobbbySockets
     const playerListsMsg = new PlayerListsMsg()
-    playerListsMsg.setRoomList(allGamesValidPlayers)
+    playerListsMsg.setGameList(allGamesValidPlayers)
     const sm64jsMsg = new Sm64JsMsg()
     sm64jsMsg.setPlayerListsMsg(playerListsMsg)
     const rootMsg = new RootMsg()
