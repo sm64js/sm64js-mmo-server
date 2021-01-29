@@ -6,16 +6,21 @@ extern crate lazy_static;
 #[macro_use]
 extern crate maplit;
 
+mod auth;
 mod chat;
 mod client;
 mod date_format;
 mod game;
+mod identity;
+mod permission;
 mod room;
 mod server;
 mod session;
 
 pub use chat::{ChatError, ChatHistory, ChatHistoryData, ChatResult};
 pub use client::{Client, Clients, Player, Players, WeakPlayers};
+pub use identity::Identity;
+pub use permission::{Permission, Token, Tokens};
 pub use room::{Flag, Room, Rooms};
 pub use server::Message;
 
@@ -53,16 +58,17 @@ async fn ws_index(
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     use parking_lot::RwLock;
-    use std::sync::Arc;
 
     std::env::set_var("RUST_BACKTRACE", "1");
     std::env::set_var("RUST_LOG", "actix_server=info,actix_web=info");
     env_logger::init();
 
-    let chat_history = Arc::new(RwLock::new(ChatHistory::new()));
+    let chat_history = web::Data::new(RwLock::new(ChatHistory::new()));
     let rooms = Room::init_rooms();
     let server = server::Sm64JsServer::new(chat_history.clone(), rooms.clone()).start();
     game::Game::run(rooms.clone());
+
+    let tokens = Token::try_load().unwrap();
 
     HttpServer::new(move || {
         let spec = DefaultApiRaw {
@@ -70,6 +76,13 @@ async fn main() -> std::io::Result<()> {
                 Tag {
                     name: "Hidden".to_string(),
                     description: None,
+                    external_docs: None,
+                },
+                Tag {
+                    name: "Permission".to_string(),
+                    description: Some(
+                        "API for generating new tokens and assigning permissions.".to_string(),
+                    ),
                     external_docs: None,
                 },
                 Tag {
@@ -87,8 +100,9 @@ async fn main() -> std::io::Result<()> {
 
         App::new()
             .wrap_api_with_spec(spec)
-            .data(chat_history.clone())
+            .app_data(chat_history.clone())
             .data(server.clone())
+            .app_data(tokens.clone())
             .wrap(middleware::Logger::default())
             .with_json_spec_at("/api/spec")
             .service(web::resource("/ws/").to(ws_index))
@@ -97,6 +111,8 @@ async fn main() -> std::io::Result<()> {
                     .index_file("index.html"),
             )
             .service(web::resource("/chat").route(web::get().to(chat::get_chat)))
+            .service(permission::service())
+            .wrap(auth::Auth)
             .service(actix_files::Files::new("/", "./dist").index_file("index.html"))
             .build()
     })

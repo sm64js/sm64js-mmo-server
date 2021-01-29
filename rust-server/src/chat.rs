@@ -4,7 +4,6 @@ use indexmap::IndexMap;
 use paperclip::actix::{api_v2_operation, web, Apiv2Schema};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use v_htmlescape::escape;
 
 #[api_v2_operation(tags(Chat))]
@@ -32,7 +31,7 @@ pub struct GetChat {
     player_name: Option<String>,
 }
 
-pub type ChatHistoryData = Arc<RwLock<ChatHistory>>;
+pub type ChatHistoryData = web::Data<RwLock<ChatHistory>>;
 
 #[derive(Debug)]
 pub struct ChatHistory(IndexMap<DateTime<Utc>, ChatMessage>);
