@@ -3,21 +3,20 @@ const {
     MarioListMsg,
     ValidPlayersMsg,
     Sm64JsMsg,
-    ConnectedMsg,
     SkinMsg,
     PlayerListsMsg,
     FlagMsg,
-    PlayerNameMsg,
     AnnouncementMsg,
-    ChatMsg
+    ChatMsg,
+    InitializationMsg,
+    AuthorizedUserMsg,
+    InitGameDataMsg
 } = require("./proto/mario_pb")
 
-const http = require('http')
 const got = require('got')
 const crypto = require('crypto-js')
 const util = require('util')
 const { v4: uuidv4 } = require('uuid')
-const low = require('lowdb')
 const FileSync = require('lowdb/adapters/FileSync')
 const zlib = require('zlib')
 const deflate = util.promisify(zlib.deflate)
@@ -28,8 +27,8 @@ const adminTokens = process.env.PRODUCTION ? process.env.ADMIN_TOKENS.split(":")
 const ip_encryption_key = process.env.PRODUCTION ? process.env.IP_ENCRYPTION_KEY : "abcdef123456"
 
 const adapter = (process.env.PRODUCTION && process.env.CUSTOMSERVER != 1) ? new FileSync('/tmp/data/db.json') : new FileSync('testdb.json')
-const db = low(adapter)
-db.defaults({ chats: [], adminCommands: [], ipList: [] }).write()
+const db = require('lowdb')(adapter)
+db.defaults({ chats: [], adminCommands: [], ipList: [], dicordBans: [] }).write()
 
 const standardLevels = require('./levelData').standardLevels
 
@@ -154,10 +153,24 @@ const processSkin = (socket_id, skinMsg) => {
 }
 
 const rejectPlayerName = (socket) => {
-    const playerNameMsg = new PlayerNameMsg()
-    playerNameMsg.setAccepted(false)
+    const initGameDataMsg = new InitGameDataMsg()
+    initGameDataMsg.setAccepted(false)
+    const initializationMsg = new InitializationMsg()
+    initializationMsg.setInitGameDataMsg(initGameDataMsg)
     const sm64jsMsg = new Sm64JsMsg()
-    sm64jsMsg.setPlayerNameMsg(playerNameMsg)
+    sm64jsMsg.setInitializationMsg(initializationMsg)
+    const rootMsg = new RootMsg()
+    rootMsg.setUncompressedSm64jsMsg(sm64jsMsg)
+    sendData(rootMsg.serializeBinary(), socket)
+}
+
+const rejectAuthorization = (socket) => {
+    const rejectAuthorizationMsg = new AuthorizedUserMsg()
+    rejectAuthorizationMsg.setStatus(0)
+    const initializationMsg = new InitializationMsg()
+    initializationMsg.setAuthorizedUserMsg(rejectAuthorizationMsg)
+    const sm64jsMsg = new Sm64JsMsg()
+    sm64jsMsg.setInitializationMsg(initializationMsg)
     const rootMsg = new RootMsg()
     rootMsg.setUncompressedSm64jsMsg(sm64jsMsg)
     sendData(rootMsg.serializeBinary(), socket)
@@ -287,80 +300,85 @@ const processChat = async (socket_id, sm64jsMsg) => {
 
 }
 
-const processPlayerName = async (socket, msg) => {
+const processJoinGame = async (socket, msg) => {
 
     if (socketIdsToGameIds[socket.my_id] != undefined) return ///already initialized
 
-    const name = msg.getName()
+    if (socket.discord == undefined) return rejectPlayerName(socket)
 
-    if (name.length < 3 || name.length > 14 || name.toUpperCase() == "SERVER") {
-        return rejectPlayerName(socket)
-    }
+    let name
 
-    const sanitizedName = sanitizeChat(name)
+    if (msg.getUseDiscordName()) {
+        name = socket.discord.userData.username + "#" + socket.discord.userData.discriminator
+    } else {
+        name = msg.getName()
 
-    if (sanitizedName != name) {
-        return rejectPlayerName(socket)
-    }
-
-    const playerNameRequest = "http://www.purgomalum.com/service/json?text=" + sanitizedName
-
-    try {
-        const filteredPlayerName = JSON.parse((await got(playerNameRequest)).body).result
-
-        if (sanitizedName != filteredPlayerName) {
+        //// Verify custom name is allowed name 
+        if (name.length < 3 || name.length > 14 || name.toUpperCase() == "SERVER") {
             return rejectPlayerName(socket)
         }
 
-        const level = msg.getLevel()
-        let gameID
+        const sanitizedName = sanitizeChat(name)
+        if (sanitizedName != name) { return rejectPlayerName(socket) }
 
-        if (level == 0) { /// custom game room
-            gameID = msg.getGameId()
-            if (allGames[gameID] == undefined) return rejectPlayerName(socket)
-        } else {  /// normal server room
-            if (standardLevels[level] == undefined) return rejectPlayerName(socket)
-            gameID = publicLevelsToGameIds[level]
-            if (allGames[gameID] == undefined) {  //// public room doesn't exist, create
-                gameID = initNewLevel(level, true)
-                publicLevelsToGameIds[level] = gameID
-            }
+        const playerNameRequest = "http://www.purgomalum.com/service/json?text=" + sanitizedName
+
+        try {
+            const filteredPlayerName = JSON.parse((await got(playerNameRequest)).body).result
+            if (sanitizedName != filteredPlayerName) { return rejectPlayerName(socket) }
+        } catch (e) {
+            console.log(`Got error with profanity api: ${e}`)
+            return rejectPlayerName(socket)
         }
-
-        allGames[gameID].inactiveCount = 0 /// some activity
-
-        //filteredPlayerName should equal the original name at this point
-        const takenPlayerNames = Object.values(allGames[gameID].players).map(obj => obj.playerName)
-        if (takenPlayerNames.includes(filteredPlayerName)) return rejectPlayerName(socket)
-
-        ////Success point - should initialize player
-        allGames[gameID].players[socket.my_id] = {
-            socket, /// also contains socket_id and ip
-            playerName: filteredPlayerName,
-            valid: 0,
-            decodedMario: undefined,
-            skinData: undefined
-        }
-        socketIdsToGameIds[socket.my_id] = gameID
-
-        socketsInLobby = socketsInLobby.filter((lobbySocket) => { return lobbySocket != socket })
-
-        const playerNameMsg = new PlayerNameMsg()
-        playerNameMsg.setName(filteredPlayerName)
-        playerNameMsg.setLevel(allGames[gameID].level)
-        playerNameMsg.setAccepted(true)
-        const sm64jsMsg = new Sm64JsMsg()
-        sm64jsMsg.setPlayerNameMsg(playerNameMsg)
-        const rootMsg = new RootMsg()
-        rootMsg.setUncompressedSm64jsMsg(sm64jsMsg)
-        sendData(rootMsg.serializeBinary(), socket)
-
-    } catch (e) {
-        console.log(`Got error with profanity api: ${e}`)
-        return rejectPlayerName(socket)
     }
 
+    const level = msg.getLevel()
+    let gameID
 
+    if (level == 0) { /// custom game room
+        gameID = msg.getGameId()
+        if (allGames[gameID] == undefined) return rejectPlayerName(socket)
+    } else {  /// normal server room
+        if (standardLevels[level] == undefined) return rejectPlayerName(socket)
+        gameID = publicLevelsToGameIds[level]
+        if (allGames[gameID] == undefined) {  //// public room doesn't exist, create
+            gameID = initNewLevel(level, true)
+            publicLevelsToGameIds[level] = gameID
+        }
+    }
+
+    allGames[gameID].inactiveCount = 0 /// some activity
+
+    //Don't allow duplicate custom names in same room
+    if (!msg.getUseDiscordName()) {
+        const takenPlayerNames = Object.values(allGames[gameID].players).map(obj => obj.playerName)
+        if (takenPlayerNames.includes(name)) return rejectPlayerName(socket)
+    }
+
+    ////Success point - should initialize player
+    allGames[gameID].players[socket.my_id] = {
+        socket, /// also contains socket_id and ip
+        playerName: name,
+        valid: 0,
+        decodedMario: undefined,
+        skinData: undefined
+    }
+    socketIdsToGameIds[socket.my_id] = gameID
+
+    socketsInLobby = socketsInLobby.filter((lobbySocket) => { return lobbySocket != socket })
+
+    const initGameDataMsg = new InitGameDataMsg()
+    initGameDataMsg.setName(name)
+    initGameDataMsg.setLevel(allGames[gameID].level)
+    initGameDataMsg.setAccepted(true)
+    initGameDataMsg.setSocketId(socket.my_id)
+    const initializationMsg = new InitializationMsg()
+    initializationMsg.setInitGameDataMsg(initGameDataMsg)
+    const sm64jsMsg = new Sm64JsMsg()
+    sm64jsMsg.setInitializationMsg(initializationMsg)
+    const rootMsg = new RootMsg()
+    rootMsg.setUncompressedSm64jsMsg(sm64jsMsg)
+    sendData(rootMsg.serializeBinary(), socket)
 }
 
 const sendSkinsToSocket = (socket) => { 
@@ -695,14 +713,6 @@ require('uWebSockets.js').App().ws('/*', {
         connectedIPs[socket.ip].socketIDs[socket.my_id] = 1
 
         socketsInLobby.push(socket)
-        
-        const connectedMsg = new ConnectedMsg()
-        connectedMsg.setSocketid(socket.my_id)
-        const sm64jsMsg = new Sm64JsMsg()
-        sm64jsMsg.setConnectedMsg(connectedMsg)
-        const rootMsg = new RootMsg()
-        rootMsg.setUncompressedSm64jsMsg(sm64jsMsg)
-        sendData(rootMsg.serializeBinary(), socket)
     },
 
     message: async (socket, bytes) => {
@@ -731,13 +741,21 @@ require('uWebSockets.js').App().ws('/*', {
                         case Sm64JsMsg.MessageCase.CHAT_MSG:
                             if (socketIdsToGameIds[socket.my_id] == undefined) return 
                             processChat(socket.my_id, sm64jsMsg); break
-                        case Sm64JsMsg.MessageCase.INIT_MSG:
-                            sendSkinsToSocket(socket); break
                         case Sm64JsMsg.MessageCase.SKIN_MSG:
                             if (socketIdsToGameIds[socket.my_id] == undefined) return 
                             processSkin(socket.my_id, sm64jsMsg.getSkinMsg()); break
-                        case Sm64JsMsg.MessageCase.PLAYER_NAME_MSG:
-                            processPlayerName(socket, sm64jsMsg.getPlayerNameMsg()); break
+                        case Sm64JsMsg.MessageCase.INITIALIZATION_MSG:
+                            const initializationMsg = sm64jsMsg.getInitializationMsg()
+                            switch (initializationMsg.getMessageCase()) {
+                                case InitializationMsg.MessageCase.ACCESS_CODE_MSG:
+                                    processAccessCode(socket, initializationMsg.getAccessCodeMsg()); break
+                                case InitializationMsg.MessageCase.JOIN_GAME_MSG:
+                                    processJoinGame(socket, initializationMsg.getJoinGameMsg()); break
+                                case InitializationMsg.MessageCase.REQUEST_COSMETICS_MSG:
+                                    sendSkinsToSocket(socket); break
+                                default: throw "unknown case for initialization proto message"
+                            }
+                            break
                         default: throw "unknown case for uncompressed proto message"
                     }
                     break
@@ -770,7 +788,7 @@ require('uWebSockets.js').App().ws('/*', {
 //// Express Static serving
 const express = require('express')
 const app = express()
-const server = http.Server(app)
+const server = require('http').Server(app)
 
 app.use(express.urlencoded({ extended: true }))
 
@@ -895,3 +913,61 @@ app.post('/createNewGame', (req, res) => {
     return res.send(`Invite Link: <a href="https://sm64js.com/?gameID=${gameID}">https://sm64js.com/?gameID=${gameID}</a>`)
 
 })
+
+const client_id = process.env.DISCORD_CLIENT_ID
+const client_secret = process.env.DISCORD_CLIENT_SECRET
+
+const processAccessCode = async (socket, msg) => {
+    const access_code = msg.getAccessCode()
+    if (access_code == undefined) return rejectAuthorization(socket)
+
+    if (process.env.PRODUCTION) {
+        const data = {
+            client_id,
+            client_secret,
+            grant_type: 'authorization_code',
+            redirect_uri: process.env.PRODUCTION ? 'https://sm64js.com' : 'http://localhost:9300',
+            code: access_code,
+            scope: 'guilds',
+        }
+
+        const result = await got.post('https://discord.com/api/oauth2/token', {
+            form: data,
+            responseType: 'json'
+        }).catch((err) => { })
+
+        if (result == undefined) return rejectAuthorization(socket)
+
+        const { access_token, token_type } = result.body
+
+        const userData = await got('https://discord.com/api/users/@me', {
+            headers: { authorization: `${token_type} ${access_token}` },
+            responseType: 'json'
+        }).catch((err) => { })
+
+        if (userData == undefined || userData.body == undefined) return rejectAuthorization(socket)
+
+        //// TODO check if userData.body.id (discord ID) is in the ban list
+
+        socket.discord = { userData: userData.body, access_token }
+
+    } else {  /// Testing locally
+        socket.discord = {
+            userData: { username: "snuffysasaTest", discriminator: "1234" }
+        }
+    }
+
+
+
+    const authorizedUserMsg = new AuthorizedUserMsg()
+    authorizedUserMsg.setUsername(socket.discord.userData.username + "#" + socket.discord.userData.discriminator)
+    authorizedUserMsg.setStatus(1)
+    const initializationMsg = new InitializationMsg()
+    initializationMsg.setAuthorizedUserMsg(authorizedUserMsg)
+    const sm64jsMsg = new Sm64JsMsg()
+    sm64jsMsg.setInitializationMsg(initializationMsg)
+    const rootMsg = new RootMsg()
+    rootMsg.setUncompressedSm64jsMsg(sm64jsMsg)
+    sendData(rootMsg.serializeBinary(), socket)
+}
+
