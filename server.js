@@ -304,7 +304,7 @@ const processJoinGame = async (socket, msg) => {
 
     if (socketIdsToGameIds[socket.my_id] != undefined) return ///already initialized
 
-    if (socket.discord == undefined) return rejectPlayerName(socket)
+    if (socket.discord == undefined && socket.googleID == undefined) return rejectPlayerName(socket)
 
     let name
 
@@ -914,42 +914,74 @@ app.post('/createNewGame', (req, res) => {
 
 })
 
-const client_id = process.env.DISCORD_CLIENT_ID
-const client_secret = process.env.DISCORD_CLIENT_SECRET
+
+const jwt = require('jsonwebtoken')
 
 const processAccessCode = async (socket, msg) => {
     const access_code = msg.getAccessCode()
+    const type = msg.getType()
+
     if (access_code == undefined) return rejectAuthorization(socket)
 
     if (process.env.PRODUCTION) {
-        const data = {
-            client_id,
-            client_secret,
-            grant_type: 'authorization_code',
-            redirect_uri: process.env.PRODUCTION ? 'https://sm64js.com' : 'http://localhost:9300',
-            code: access_code,
-            scope: 'guilds',
+
+        if (type == "google") {
+            const data = {
+                client_id: process.env.GOOGLE_CLIENT_ID + ".apps.googleusercontent.com",
+                client_secret: process.env.GOOGLE_CLIENT_SECRET,
+                grant_type: 'authorization_code',
+                redirect_uri: process.env.PRODUCTION ? 'https://sm64js.com' : 'http://localhost:9300',
+                code: access_code
+            }
+
+            const result = await got.post('https://www.googleapis.com/oauth2/v4/token', {
+                form: data,
+                responseType: 'json'
+            }).catch((err) => { })
+
+            if (result == undefined || result.body == undefined) return rejectAuthorization(socket)
+
+            const decoded = jwt.decode(result.body.id_token)
+
+            if (decoded == undefined || decoded.sub == undefined) return rejectAuthorization(socket)
+
+            //// TODO check if decoded.sub (google ID) is in the ban list
+            socket.googleID = decoded.sub
+
+        } else if (type == "discord") {
+
+            const data = {
+                client_id: process.env.DISCORD_CLIENT_ID,
+                client_secret: process.env.DISCORD_CLIENT_SECRET,
+                grant_type: 'authorization_code',
+                redirect_uri: process.env.PRODUCTION ? 'https://sm64js.com' : 'http://localhost:9300',
+                code: access_code,
+                scope: 'guilds',
+            }
+
+            const result = await got.post('https://discord.com/api/oauth2/token', {
+                form: data,
+                responseType: 'json'
+            }).catch((err) => { })
+
+            if (result == undefined) return rejectAuthorization(socket)
+
+            const { access_token, token_type } = result.body
+
+            const userData = await got('https://discord.com/api/users/@me', {
+                headers: { authorization: `${token_type} ${access_token}` },
+                responseType: 'json'
+            }).catch((err) => { })
+
+            if (userData == undefined || userData.body == undefined) return rejectAuthorization(socket)
+
+            //// TODO check if userData.body.id (discord ID) is in the ban list
+
+            socket.discord = { userData: userData.body, access_token }
+
+        } else {
+            return rejectAuthorization(socket)
         }
-
-        const result = await got.post('https://discord.com/api/oauth2/token', {
-            form: data,
-            responseType: 'json'
-        }).catch((err) => { })
-
-        if (result == undefined) return rejectAuthorization(socket)
-
-        const { access_token, token_type } = result.body
-
-        const userData = await got('https://discord.com/api/users/@me', {
-            headers: { authorization: `${token_type} ${access_token}` },
-            responseType: 'json'
-        }).catch((err) => { })
-
-        if (userData == undefined || userData.body == undefined) return rejectAuthorization(socket)
-
-        //// TODO check if userData.body.id (discord ID) is in the ban list
-
-        socket.discord = { userData: userData.body, access_token }
 
     } else {  /// Testing locally
         socket.discord = {
@@ -960,7 +992,9 @@ const processAccessCode = async (socket, msg) => {
 
 
     const authorizedUserMsg = new AuthorizedUserMsg()
-    authorizedUserMsg.setUsername(socket.discord.userData.username + "#" + socket.discord.userData.discriminator)
+    if (socket.discord) {
+        authorizedUserMsg.setUsername(socket.discord.userData.username + "#" + socket.discord.userData.discriminator)
+    }
     authorizedUserMsg.setStatus(1)
     const initializationMsg = new InitializationMsg()
     initializationMsg.setAuthorizedUserMsg(authorizedUserMsg)

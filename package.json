@@ -11,6 +11,7 @@
     "express": "^4.17.1",
     "google-protobuf": "^3.13.0",
     "got": "^11.8.0",
+    "jsonwebtoken": "^8.5.1",
     "lowdb": "^1.0.0",
     "uWebSockets.js": "github:uNetworking/uWebSockets.js#v18.8.0",
     "uuid": "^8.3.2"
