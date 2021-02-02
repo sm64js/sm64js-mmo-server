@@ -29,6 +29,12 @@ module.exports = {
                 [-2384, 260, 6203]
             ]
         },
+        7: {
+            name: "Hazy Maze Cave",
+            flagStartPositions: [
+                [0, 7657, 0]
+            ]
+        },
         5: {
             name: "Cool, Cool Mountain",
             flagStartPositions: [
