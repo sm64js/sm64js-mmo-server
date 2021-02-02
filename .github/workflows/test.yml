@@ -79,32 +79,3 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
-
-  publish:
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        name: Checkout
-
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            /home/runner/.cache/sccache
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Setup cache
-        run: |
-          mkdir sccache
-          sudo mount -o bind /home/runner/.cache/sccache sccache
-
-      - name: Deploy to Docker Hub
-        env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-        run: bash publish-rust-server.sh
-        continue-on-error: true
