@@ -35,6 +35,12 @@ module.exports = {
                 [0, 7657, 0]
             ]
         },
+        4: {
+            name: "Big Boo's Haunt",
+            flagStartPositions: [
+                [0, 7657, 0]
+            ]
+        },
         5: {
             name: "Cool, Cool Mountain",
             flagStartPositions: [
