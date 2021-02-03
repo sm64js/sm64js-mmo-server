@@ -239,6 +239,11 @@ const processChat = async (socket_id, sm64jsMsg) => {
     const playerData = allGames[gameID].players[socket_id]
     if (playerData == undefined) return
 
+    let accountType, accountID
+    if (playerData.socket.discord) { accountType = "discord"; accountID = playerData.socket.discord.userData.id }
+    else if (playerData.socket.googleID) { accountType = "google"; accountID = playerData.socket.googleID }
+    else return
+
     /// Throttle chats by IP
     if (connectedIPs[playerData.socket.ip].chatCooldown > 10) {
         const chatMsg = new ChatMsg()
@@ -275,7 +280,9 @@ const processChat = async (socket_id, sm64jsMsg) => {
         ip: playerData.socket.ip,
         timestampMs: Date.now(),
         message,
-        adminToken
+        adminToken,
+        accountType,
+        accountID
     }).write()
 
     const sanitizedChat = sanitizeChat(message)
@@ -985,7 +992,7 @@ const processAccessCode = async (socket, msg) => {
 
     } else {  /// Testing locally
         socket.discord = {
-            userData: { username: "snuffysasaTest", discriminator: "1234" }
+            userData: { username: "snuffysasaTest", discriminator: "1234", id: 12346 }
         }
     }
 
