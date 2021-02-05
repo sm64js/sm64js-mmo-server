@@ -1,11 +1,15 @@
 use crate::{
-    proto::{root_msg, sm64_js_msg, RootMsg, Sm64JsMsg},
+    proto::{
+        initialization_msg, root_msg, sm64_js_msg, InitGameDataMsg, InitializationMsg, RootMsg,
+        Sm64JsMsg,
+    },
     server,
 };
 
 use actix::prelude::*;
 use actix_web_actors::ws;
 use prost::Message as ProstMessage;
+use server::Sm64JsServer;
 use std::{
     net::SocketAddr,
     time::{Duration, Instant},
@@ -129,8 +133,51 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Sm64JsWsSession {
                             })
                             .wait(ctx);
                     }
-                    Some(sm64_js_msg::Message::InitMsg(_init_msg)) => {
-                        // TODO not necessary
+                    Some(sm64_js_msg::Message::InitializationMsg(init_msg)) => {
+                        match init_msg.message {
+                            Some(initialization_msg::Message::AccessCodeMsg(_)) => todo!(),
+                            Some(initialization_msg::Message::AuthorizedUserMsg(_)) => todo!(),
+                            Some(initialization_msg::Message::InitGameDataMsg(_)) => todo!(),
+                            Some(initialization_msg::Message::JoinGameMsg(join_game_msg)) => {
+                                let socket_id = self.id;
+                                self.addr
+                                .send(server::SendJoinGame {
+                                    socket_id: self.id,
+                                    join_game_msg,
+                                })
+                                .into_actor(self)
+                                .then(move |res, _act, ctx| {
+                                    match res {
+                                        Ok(res) => {
+                                            let init_msg = if let Some(server::JoinGameAccepted { level, name }) = res {
+                                                InitializationMsg {
+                                                    message: Some(initialization_msg::Message::InitGameDataMsg(InitGameDataMsg {
+                                                        accepted: true,
+                                                        level,
+                                                        name,
+                                                        socket_id,
+                                                }))}
+                                            } else {
+                                                InitializationMsg {
+                                                    message: Some(initialization_msg::Message::InitGameDataMsg(InitGameDataMsg {
+                                                        accepted: false,
+                                                        ..Default::default()
+                                                }))}
+                                            };
+                                            let msg = Sm64JsServer::create_uncompressed_msg(sm64_js_msg::Message::InitializationMsg(
+                                                init_msg,
+                                            ));
+                                            ctx.binary(msg);
+                                        }
+                                        Err(_) => {}
+                                    }
+                                    fut::ready(())
+                                })
+                                .wait(ctx);
+                            }
+                            Some(initialization_msg::Message::RequestCosmeticsMsg(_)) => todo!(),
+                            None => {}
+                        }
                     }
                     Some(sm64_js_msg::Message::SkinMsg(skin_msg)) => {
                         self.addr.do_send(server::SendSkin {
@@ -138,47 +185,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Sm64JsWsSession {
                             skin_msg,
                         });
                     }
-                    Some(sm64_js_msg::Message::PlayerNameMsg(mut player_name_msg)) => {
-                        self.addr
-                            .send(server::SendPlayerName {
-                                socket_id: self.id,
-                                player_name_msg: player_name_msg.clone(),
-                            })
-                            .into_actor(self)
-                            .then(move |res, _act, ctx| {
-                                match res {
-                                    Ok(res) => {
-                                        if let Some(accepted) = res {
-                                            player_name_msg.accepted = accepted;
-                                            let root_msg = RootMsg {
-                                                message: Some(
-                                                    root_msg::Message::UncompressedSm64jsMsg(
-                                                        Sm64JsMsg {
-                                                            message: Some(
-                                                                sm64_js_msg::Message::PlayerNameMsg(
-                                                                    player_name_msg,
-                                                                ),
-                                                            ),
-                                                        },
-                                                    ),
-                                                ),
-                                            };
-                                            let mut msg = vec![];
-                                            root_msg.encode(&mut msg).unwrap();
-
-                                            ctx.binary(msg);
-                                        }
-                                    }
-                                    Err(_) => {}
-                                }
-                                fut::ready(())
-                            })
-                            .wait(ctx);
-                    }
                     Some(sm64_js_msg::Message::ListMsg(_)) => {
-                        // TODO clients don't send this
-                    }
-                    Some(sm64_js_msg::Message::ConnectedMsg(_)) => {
                         // TODO clients don't send this
                     }
                     Some(sm64_js_msg::Message::PlayerListsMsg(_player_lists_msg)) => {
