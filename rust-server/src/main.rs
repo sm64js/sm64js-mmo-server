@@ -12,6 +12,7 @@ mod client;
 mod date_format;
 mod game;
 mod identity;
+mod login;
 mod permission;
 mod room;
 mod server;
@@ -79,6 +80,11 @@ async fn main() -> std::io::Result<()> {
                     external_docs: None,
                 },
                 Tag {
+                    name: "Auth".to_string(),
+                    description: Some("Auth stuff".to_string()),
+                    external_docs: None,
+                },
+                Tag {
                     name: "Permission".to_string(),
                     description: Some(
                         "API for generating new tokens and assigning permissions.".to_string(),
@@ -112,6 +118,7 @@ async fn main() -> std::io::Result<()> {
             )
             .service(web::resource("/chat").route(web::get().to(chat::get_chat)))
             .service(permission::service())
+            .service(login::service())
             .wrap(auth::Auth)
             .service(actix_files::Files::new("/", "./dist").index_file("index.html"))
             .build()
