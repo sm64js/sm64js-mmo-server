@@ -577,6 +577,8 @@ const processAccount = (socket, accountType) => {
         }).write()
     }
 
+    db.get('accounts.' + socket.accountID).assign({ lastLoginTime: Date.now() }).write()
+
     return true
 }
 
@@ -934,11 +936,27 @@ const cors = require('cors')
 
 app.use(cors())
 app.use(express.urlencoded({ extended: true }))
+app.use(bodyParser.json())
 
 server.listen(port, () => { console.log('Starting Express server for http requests ' + port) })
 
 
 ////// Admin Commands
+
+
+app.get('/accountList', (req, res) => { ///query params: token, accountID
+
+    const token = req.query.token
+    if (!adminTokens.includes(token)) return res.status(401).send('Invalid Admin Token')
+
+    const jsonResult = []
+    const accounts = db.get('accounts').value()
+    Object.entries(accounts).forEach(([accountID, data]) => {
+        jsonResult.push({ accountID, lastLoginTime: data.lastLoginTime })
+    })
+    return res.send(jsonResult)
+})
+
 
 app.get('/accountLookup', (req, res) => { ///query params: token, accountID
 
@@ -954,20 +972,20 @@ app.get('/accountLookup', (req, res) => { ///query params: token, accountID
 
 })
 
-app.get('/manageAccount', (req, res) => { ///query params: token, accountID, ban, mute, comments, modName, durationInHours
+app.post('/manageAccount', (req, res) => { ///query params: token, accountID, ban, mute, comments, modName, durationInHours
 
-    const { token, comments, modName, durationInHours, accountID } = req.query
+    const { token, comments, modName, durationInHours, accountID } = req.body
     if (!adminTokens.includes(token)) return res.status(401).send('Invalid Admin Token')
 
-    if (req.query.ban == undefined || req.query.ban == "")
+    if (req.body.ban == undefined || req.body.ban == "")
         return res.send("Missing Param 'ban': You must specifiy whether the account should be left in banned or unbanned state")
-    if (req.query.mute == undefined || req.query.mute == "")
+    if (req.body.mute == undefined || req.body.mute == "")
         return res.send("Missing Param 'mute': You must specifiy whether the account should be left in muted or unmuted state")
     if (comments == undefined || comments == "") return res.send("Missing Param 'comments': You must include comments about the account status update")
     if (modName == undefined || modName == "") return res.send("Missing Param 'modName': You must include the moderator name (your name), nickname is fine")
 
-    const ban = req.query.ban != 0 && req.query.ban != "false"
-    const mute = req.query.mute != 0 && req.query.mute != "false" 
+    const ban = req.body.ban != 0 && req.body.ban != "false"
+    const mute = req.body.mute != 0 && req.body.mute != "false" 
 
     if (ban && mute) return res.send("You cannot ban and mute someone, try again with just ban")
 
@@ -990,7 +1008,7 @@ app.get('/manageAccount', (req, res) => { ///query params: token, accountID, ban
 
         db.get('adminCommands').push({ token, timestampMs: currentTimeStamp, command: 'manageAccount', args: [accountID] }).write()
 
-        db.get('accounts.' + req.query.accountID + '.banHistory').push({
+        db.get('accounts.' + accountID + '.banHistory').push({
             timestamp: currentTimeStamp,
             ban,
             mute,
@@ -999,12 +1017,12 @@ app.get('/manageAccount', (req, res) => { ///query params: token, accountID, ban
             durationInHours
         }).write()
 
-        db.get('accounts.' + req.query.accountID).assign({ banned: ban, muted: mute, tempBanTimestamp }).write()
+        db.get('accounts.' + accountID).assign({ banned: ban, muted: mute, tempBanTimestamp }).write()
 
         if (account.banned) { ///disconnect current session
             Object.values(allGames).forEach(gameData => {
                 Object.values(gameData.players).forEach(data => {
-                    if (data.socket.accountID == req.query.accountID) data.socket.close()
+                    if (data.socket.accountID == accountID) data.socket.close()
                 })
             })
         }
@@ -1025,7 +1043,7 @@ app.get('/chatLog', (req, res) => { ///query params token, timestamp, range, pla
     const timestamp = (req.query.timestamp) ? parseInt(req.query.timestamp) * 1000 : Date.now()
     const range = parseInt(req.query.range ? req.query.range : 60) * 1000
 
-    let jsonResult = []
+    const jsonResult = []
 
     const dbQuery = {}
     if (req.query.accountID) dbQuery.accountID = req.query.accountID
@@ -1034,7 +1052,7 @@ app.get('/chatLog', (req, res) => { ///query params token, timestamp, range, pla
     db.get('chats').filter(dbQuery).filter(entry => {
         return entry.timestampMs >= timestamp - range && entry.timestampMs <= timestamp + range
     }).forEach((entry) => {
-        jsonResult.push({ chatID: entry.chatID, accountID: entry.accountID, playerName: entry.playerName, message: entry.message })
+        jsonResult.push(entry)
     }).value()
         
     return res.send(jsonResult)
