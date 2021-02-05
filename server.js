@@ -948,7 +948,7 @@ app.get('/accountLookup', (req, res) => { ///query params: token, accountID
 
     const account = db.get('accounts.' + req.query.accountID).value()
     if (account) {
-        return res.send(account)
+        return res.send({ accountID: req.query.accountID, account })
     } else {
         return res.send("Account ID not found")
     }
