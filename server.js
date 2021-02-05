@@ -767,7 +767,7 @@ setInterval(() => {
 }, 86400000) //1 Days
 
 
-require('uWebSockets.js').App().ws('*', {
+require('uWebSockets.js').App().ws('/*', {
 
     upgrade: async (res, req, context) => { // a request was made to open websocket, res req have all the properties for the request, cookies etc
 
