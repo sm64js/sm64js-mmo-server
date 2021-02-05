@@ -10,18 +10,16 @@ message RootMsg {
 
 message Sm64JsMsg {
 	oneof message {
-		MarioListMsg list_msg = 1;
-		ConnectedMsg connected_msg = 2;
+		InitializationMsg initialization_msg = 1;
+		MarioListMsg list_msg = 2;
 		PingMsg ping_msg = 3;
 		MarioMsg mario_msg = 4;
 		PlayerListsMsg player_lists_msg = 5;
 		AttackMsg attack_msg = 6;
 		GrabFlagMsg grab_msg = 7;
 		ChatMsg chat_msg = 8;
-		InitMsg init_msg = 9;
-		SkinMsg skin_msg = 10;
-		PlayerNameMsg player_name_msg = 11;
-		AnnouncementMsg announcement_msg = 12;
+		SkinMsg skin_msg = 9;
+		AnnouncementMsg announcement_msg = 10;  // TODO merge into ChatMsg
 	}
 }
 
@@ -30,9 +28,42 @@ message MarioListMsg {
 	repeated MarioMsg mario = 2;
 }
 
-message ConnectedMsg {
-	uint32 socketID = 1;
+message InitializationMsg {
+	oneof message {
+		AccessCodeMsg access_code_msg = 1;
+		AuthorizedUserMsg authorized_user_msg = 2;
+		JoinGameMsg join_game_msg = 3;
+		InitGameDataMsg init_game_data_msg = 4;
+		RequestCosmeticsMsg request_cosmetics_msg = 5;
+	}
 }
+
+message AccessCodeMsg {
+	string access_code = 1;
+	string type = 2;
+}
+
+message AuthorizedUserMsg {
+	string username = 1;
+	uint32 status = 2;
+	string message = 3;
+}
+
+message JoinGameMsg {
+	string name = 1;
+	uint32 level = 2;
+	string game_id = 3;
+	bool use_discord_name = 4;
+}
+
+message InitGameDataMsg {
+	string name = 1;
+	uint32 level = 2;
+	bool accepted = 3;
+	uint32 socket_id = 4;
+}
+
+message RequestCosmeticsMsg {}
 
 message PingMsg {
 	float time = 1;
@@ -106,9 +137,6 @@ message ChatMsg {
 	bool isAdmin = 5;
 }
 
-message InitMsg {
-}
-
 message SkinMsg {
 	uint32 socketID = 1;
 	SkinData skinData = 2;
@@ -134,13 +162,6 @@ message SkinValue {
 		uint64 bytes = 1;
 		SpecialSkinValues special = 2;
 	}
-}
-
-message PlayerNameMsg {
-	string name = 1;
-	uint32 level = 2;
-	bool accepted = 3;
-	string game_id = 4;
 }
 
 message AnnouncementMsg {

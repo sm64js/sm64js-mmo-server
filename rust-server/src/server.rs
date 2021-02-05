@@ -1,7 +1,7 @@
 use crate::{
     proto::{
-        root_msg, sm64_js_msg, AnnouncementMsg, AttackMsg, ChatMsg, ConnectedMsg, GrabFlagMsg,
-        MarioMsg, PlayerNameMsg, RootMsg, SkinMsg, Sm64JsMsg,
+        root_msg, sm64_js_msg, AnnouncementMsg, AttackMsg, ChatMsg, GrabFlagMsg, JoinGameMsg,
+        MarioMsg, RootMsg, SkinMsg, Sm64JsMsg,
     },
     ChatError, ChatHistoryData, ChatResult, Client, Clients, Player, Players, Rooms,
 };
@@ -60,18 +60,6 @@ impl Handler<Connect> for Sm64JsServer {
         let socket_id = rand::thread_rng().gen::<u32>();
         let client = Client::new(msg.addr, msg.ip, msg.real_ip, socket_id);
 
-        let root_msg = RootMsg {
-            message: Some(root_msg::Message::UncompressedSm64jsMsg(Sm64JsMsg {
-                message: Some(sm64_js_msg::Message::ConnectedMsg(ConnectedMsg {
-                    socket_id,
-                })),
-            })),
-        };
-
-        let mut msg = vec![];
-        root_msg.encode(&mut msg).unwrap();
-
-        client.send(Message(msg)).unwrap();
         self.clients.insert(socket_id, client);
         socket_id
     }
@@ -222,44 +210,60 @@ impl Handler<SendSkin> for Sm64JsServer {
 }
 
 #[derive(Message)]
-#[rtype(result = "Option<bool>")]
-pub struct SendPlayerName {
+#[rtype(result = "Option<JoinGameAccepted>")]
+pub struct SendJoinGame {
     pub socket_id: u32,
-    pub player_name_msg: PlayerNameMsg,
+    pub join_game_msg: JoinGameMsg,
 }
 
-impl Handler<SendPlayerName> for Sm64JsServer {
-    type Result = Option<bool>;
+impl Handler<SendJoinGame> for Sm64JsServer {
+    type Result = Option<JoinGameAccepted>;
 
-    fn handle(&mut self, send_player_name: SendPlayerName, _: &mut Context<Self>) -> Self::Result {
-        let player_name_msg = send_player_name.player_name_msg;
-        let socket_id = send_player_name.socket_id;
-        if let Some(mut room) = self.rooms.get_mut(&player_name_msg.level) {
+    fn handle(&mut self, send_join_game: SendJoinGame, _: &mut Context<Self>) -> Self::Result {
+        let join_game_msg = send_join_game.join_game_msg;
+        let socket_id = send_join_game.socket_id;
+        if let Some(mut room) = self.rooms.get_mut(&join_game_msg.level) {
             if room.has_player(socket_id) {
                 None
             } else {
-                if Self::is_name_valid(&player_name_msg.name) {
-                    let level = player_name_msg.level;
+                let name = if join_game_msg.use_discord_name {
+                    // TODO get Discord name
+                    todo!()
+                } else {
+                    if !Self::is_name_valid(&join_game_msg.name) {
+                        return None;
+                    }
+                    join_game_msg.name
+                };
+                let level = join_game_msg.level;
+                if level == 0 {
+                    // TODO is custom game
+                    todo!()
+                } else {
                     let player = Arc::new(RwLock::new(Player::new(
                         self.clients.clone(),
                         socket_id,
                         level,
-                        player_name_msg.name,
+                        name.clone(),
                     )));
+                    // TODO check duplicate custom name
                     room.add_player(socket_id, Arc::downgrade(&player));
                     self.clients
                         .get_mut(&socket_id)
                         .map(|mut client| client.set_level(level));
                     self.players.insert(socket_id, player);
-                    Some(true)
-                } else {
-                    Some(false)
+                    Some(JoinGameAccepted { level, name })
                 }
             }
         } else {
             None
         }
     }
+}
+
+pub struct JoinGameAccepted {
+    pub level: u32,
+    pub name: String,
 }
 
 impl Sm64JsServer {
@@ -278,6 +282,18 @@ impl Sm64JsServer {
             rooms,
             chat_history,
         }
+    }
+
+    pub fn create_uncompressed_msg(msg: sm64_js_msg::Message) -> Vec<u8> {
+        let root_msg = RootMsg {
+            message: Some(root_msg::Message::UncompressedSm64jsMsg(Sm64JsMsg {
+                message: Some(msg),
+            })),
+        };
+        let mut msg = vec![];
+        root_msg.encode(&mut msg).unwrap();
+
+        msg
     }
 
     fn handle_command(chat_msg: ChatMsg) -> Option<Vec<u8>> {
