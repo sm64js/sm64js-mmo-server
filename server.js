@@ -15,6 +15,7 @@ const {
 
 const got = require('got')
 const crypto = require('crypto-js')
+const jwt = require('jsonwebtoken')
 const util = require('util')
 const { v4: uuidv4 } = require('uuid')
 const FileSync = require('lowdb/adapters/FileSync')
@@ -24,7 +25,6 @@ const port = 3080
 const ws_port = 3000
 
 const adminTokens = process.env.PRODUCTION ? process.env.ADMIN_TOKENS.split(":") : ["testAdminToken"]
-const ip_encryption_key = process.env.PRODUCTION ? process.env.IP_ENCRYPTION_KEY : "abcdef123456"
 
 const adapter = (process.env.PRODUCTION) ? new FileSync('/tmp/data/db.json') : new FileSync('testdb.json')
 const db = require('lowdb')(adapter)
@@ -580,8 +580,6 @@ const processAccount = (socket, accountType) => {
     return true
 }
 
-const jwt = require('jsonwebtoken')
-
 const processAccessCode = async (socket, msg) => {
 
     const access_code = msg.getAccessCode()
@@ -799,9 +797,10 @@ require('uWebSockets.js').App().ws('/*', {
                 const domainStr = url.hostname.substring(url.hostname.length - 11, url.hostname.length)
                 if (domainStr != ".sm64js.com" && url.hostname != "sm64js.com") return res.writeStatus('418').end()
 
+                //// Going to remove
                 const ipStatus = db.get('ipList').find({ ip }).value()
 
-                if (ipStatus == undefined) {
+                if (ipStatus == undefined && process.env.USE_VPN) {
 
                     //console.log("trying to hit vpn api")
                     const vpnCheckRequest = `http://v2.api.iphub.info/ip/${ip}`
@@ -824,11 +823,8 @@ require('uWebSockets.js').App().ws('/*', {
                         db.get('ipList').push({ ip, value: 'ALLOWED' }).write()
                     }
 
-                } else if (ipStatus.value == "BANNED") {  /// BANNED or NOT ALLOWED IP
-                    //console.log("BANNED IP tried to connect")
+                } else if (ipStatus.value == "BANNED") {  /// BANNED or NOT ALLOWED IP - Going to remove
                     return res.writeStatus('403').end()
-                } else if (ipStatus.value == "ALLOWED") { /// Whitelisted IP - OKAY
-                    //console.log("Known Whitelisted IP connecting")
                 }
 
             } catch (e) {
@@ -1049,7 +1045,7 @@ app.get('/adminLog', (req, res) => { ///query params token,
 
     const token = req.query.token
 
-    if (token != process.env.IP_ENCRYPTION_KEY) return
+    if (token != process.env.SENIOR_ADMIN_KEY) return res.status(401).send('Invalid Senior Admin Token')
 
     let stringResult = ""
 
@@ -1078,7 +1074,7 @@ app.post('/createNewGame', (req, res) => {
 
 })
 
-
+/*
 //// Deprecated
 app.get('/banIP', (req, res) => { ///query params: token, ip
 
@@ -1115,6 +1111,7 @@ app.get('/banIP', (req, res) => { ///query params: token, ip
 
 })
 
+//// Deprecated
 app.get('/allowIP', (req, res) => { ///query params: token, ip, plaintext
 
     const token = req.query.token
@@ -1141,3 +1138,4 @@ app.get('/allowIP', (req, res) => { ///query params: token, ip, plaintext
     }
 
 })
+*/
