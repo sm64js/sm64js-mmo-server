@@ -957,7 +957,7 @@ app.get('/accountLookup', (req, res) => { ///query params: token, accountID
 
 app.get('/manageAccount', (req, res) => { ///query params: token, accountID, ban, mute, comments, modName
 
-    const { token, comments, modName, durationInHours } = req.query
+    const { token, comments, modName, durationInHours, accountID } = req.query
     if (!adminTokens.includes(token)) return res.status(401).send('Invalid Admin Token')
 
     if (req.query.ban == undefined || req.query.ban == "")
@@ -975,7 +975,7 @@ app.get('/manageAccount', (req, res) => { ///query params: token, accountID, ban
     if (!ban && !mute && durationInHours != undefined)
         return res.send("Invalid request: You can not include a duration with neither ban nor mute set")
 
-    const account = db.get('accounts.' + req.query.accountID).value()
+    const account = db.get('accounts.' + accountID).value()
     if (account) {
 
         const currentTimeStamp = Date.now()
