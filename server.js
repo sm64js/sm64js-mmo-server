@@ -14,7 +14,6 @@ const {
 } = require("./proto/mario_pb")
 
 const got = require('got')
-const crypto = require('crypto-js')
 const jwt = require('jsonwebtoken')
 const util = require('util')
 const { v4: uuidv4 } = require('uuid')
@@ -292,7 +291,6 @@ const processChat = async (socket_id, sm64jsMsg) => {
         chatID: uuidv4(),
         accountID: playerData.socket.accountID,
         playerName: playerData.playerName,
-        ip: playerData.socket.ip,
         timestampMs: Date.now(),
         message
     }).write()
@@ -942,8 +940,6 @@ server.listen(port, () => { console.log('Starting Express server for http reques
 
 
 ////// Admin Commands
-
-
 app.get('/accountList', (req, res) => { ///query params: token, accountID
 
     const token = req.query.token
