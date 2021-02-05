@@ -936,7 +936,7 @@ const cors = require('cors')
 
 app.use(cors())
 app.use(express.urlencoded({ extended: true }))
-app.use(bodyParser.json())
+app.use(express.json())
 
 server.listen(port, () => { console.log('Starting Express server for http requests ' + port) })
 
@@ -954,6 +954,7 @@ app.get('/accountList', (req, res) => { ///query params: token, accountID
     Object.entries(accounts).forEach(([accountID, data]) => {
         jsonResult.push({ accountID, lastLoginTime: data.lastLoginTime })
     })
+    jsonResult.sort((a, b) => { return b.lastLoginTime - a.lastLoginTime })
     return res.send(jsonResult)
 })
 
@@ -1155,5 +1156,4 @@ app.get('/allowIP', (req, res) => { ///query params: token, ip, plaintext
         return res.send("This IP is already marked as allowed")
     }
 
-})
-*/
+})*/
