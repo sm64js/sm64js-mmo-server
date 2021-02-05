@@ -289,6 +289,7 @@ const processChat = async (socket_id, sm64jsMsg) => {
 
     /// record chat to DB
     db.get('chats').push({
+        chatID: uuidv4(),
         accountID: playerData.socket.accountID,
         playerName: playerData.playerName,
         ip: playerData.socket.ip,
@@ -957,7 +958,7 @@ app.get('/accountLookup', (req, res) => { ///query params: token, accountID
 
 })
 
-app.get('/manageAccount', (req, res) => { ///query params: token, accountID, ban, mute, comments, modName
+app.get('/manageAccount', (req, res) => { ///query params: token, accountID, ban, mute, comments, modName, durationInHours
 
     const { token, comments, modName, durationInHours, accountID } = req.query
     if (!adminTokens.includes(token)) return res.status(401).send('Invalid Admin Token')
@@ -1028,7 +1029,6 @@ app.get('/chatLog', (req, res) => { ///query params token, timestamp, range, pla
     const timestamp = (req.query.timestamp) ? parseInt(req.query.timestamp) * 1000 : Date.now()
     const range = parseInt(req.query.range ? req.query.range : 60) * 1000
 
-    let stringResult = 'accountID,playerName,ip,message <br />'
     let jsonResult = []
 
     const dbQuery = {}
@@ -1038,9 +1038,7 @@ app.get('/chatLog', (req, res) => { ///query params token, timestamp, range, pla
     db.get('chats').filter(dbQuery).filter(entry => {
         return entry.timestampMs >= timestamp - range && entry.timestampMs <= timestamp + range
     }).forEach((entry) => {
-        const encrypted_ip = encodeURIComponent(crypto.AES.encrypt(entry.ip, ip_encryption_key).toString())
-        stringResult += `${entry.accountID},${entry.playerName},${encrypted_ip},${entry.message} <br />`
-        jsonResult.push({ accountID: entry.accountID, playerName: entry.playerName, message: entry.message })
+        jsonResult.push({ chatID: entry.chatID, accountID: entry.accountID, playerName: entry.playerName, message: entry.message })
     }).value()
         
     return res.send(jsonResult)
