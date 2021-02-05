@@ -26,9 +26,9 @@ const ws_port = 3000
 const adminTokens = process.env.PRODUCTION ? process.env.ADMIN_TOKENS.split(":") : ["testAdminToken"]
 const ip_encryption_key = process.env.PRODUCTION ? process.env.IP_ENCRYPTION_KEY : "abcdef123456"
 
-const adapter = (process.env.PRODUCTION && process.env.CUSTOMSERVER != 1) ? new FileSync('/tmp/data/db.json') : new FileSync('testdb.json')
+const adapter = (process.env.PRODUCTION) ? new FileSync('/tmp/data/db.json') : new FileSync('testdb.json')
 const db = require('lowdb')(adapter)
-db.defaults({ chats: [], adminCommands: [], ipList: [], dicordBans: [] }).write()
+db.defaults({ chats: [], adminCommands: [], ipList: [], accounts: {} }).write()
 
 const standardLevels = require('./levelData').standardLevels
 
@@ -164,9 +164,10 @@ const rejectPlayerName = (socket) => {
     sendData(rootMsg.serializeBinary(), socket)
 }
 
-const rejectAuthorization = (socket) => {
+const rejectAuthorization = (socket, status, rejectMessage) => {
     const rejectAuthorizationMsg = new AuthorizedUserMsg()
-    rejectAuthorizationMsg.setStatus(0)
+    if (rejectMessage) rejectAuthorizationMsg.setMessage(rejectMessage)
+    rejectAuthorizationMsg.setStatus(status)
     const initializationMsg = new InitializationMsg()
     initializationMsg.setAuthorizedUserMsg(rejectAuthorizationMsg)
     const sm64jsMsg = new Sm64JsMsg()
@@ -174,6 +175,7 @@ const rejectAuthorization = (socket) => {
     const rootMsg = new RootMsg()
     rootMsg.setUncompressedSm64jsMsg(sm64jsMsg)
     sendData(rootMsg.serializeBinary(), socket)
+    return false
 }
 
 const sanitizeChat = (string) => {
@@ -229,6 +231,18 @@ const processAdminCommand = (msg, token, gameID) => {
     db.get('adminCommands').push({ token, gameID, timestampMs: Date.now(), command, args }).write()
 }
 
+const sendServerChatMsgToSocket = (socket, message) => {
+    const chatMsg = new ChatMsg()
+    chatMsg.setSocketid(socket.my_id)
+    chatMsg.setMessage(message)
+    chatMsg.setSender("Server")
+    const sm64jsMsg = new Sm64JsMsg()
+    sm64jsMsg.setChatMsg(chatMsg)
+    const rootMsg = new RootMsg()
+    rootMsg.setUncompressedSm64jsMsg(sm64jsMsg)
+    sendData(rootMsg.serializeBinary(), socket)
+}
+
 const processChat = async (socket_id, sm64jsMsg) => {
     const chatMsg = sm64jsMsg.getChatMsg()
     const message = chatMsg.getMessage()
@@ -239,23 +253,23 @@ const processChat = async (socket_id, sm64jsMsg) => {
     const playerData = allGames[gameID].players[socket_id]
     if (playerData == undefined) return
 
-    let accountType, accountID
-    if (playerData.socket.discord) { accountType = "discord"; accountID = playerData.socket.discord.userData.id }
-    else if (playerData.socket.googleID) { accountType = "google"; accountID = playerData.socket.googleID }
-    else return
-
     /// Throttle chats by IP
     if (connectedIPs[playerData.socket.ip].chatCooldown > 10) {
-        const chatMsg = new ChatMsg()
-        chatMsg.setSocketid(socket_id)
-        chatMsg.setMessage("Chat message ignored: You have to wait longer between sending chat messages")
-        chatMsg.setSender("Server")
-        const sm64jsMsg = new Sm64JsMsg()
-        sm64jsMsg.setChatMsg(chatMsg)
-        const rootMsg = new RootMsg()
-        rootMsg.setUncompressedSm64jsMsg(sm64jsMsg)
-        sendData(rootMsg.serializeBinary(), playerData.socket)
+        sendServerChatMsgToSocket(playerData.socket, "Chat message ignored: You have to wait longer between sending chat messages")
         return
+    }
+
+    const account = db.get('accounts.' + playerData.socket.accountID).value()
+    if (account.muted) {
+        if (account.tempBanTimestamp < Date.now()) {
+            ///account.muted = false
+            db.get('accounts.' + playerData.socket.accountID).assign({ muted: false }).write()
+            //delete account.tempBanTimestamp
+            db.unset('accounts.' + playerData.socket.accountID + '.tempBanTimestamp').write()
+        } else { /// still muted
+            sendServerChatMsgToSocket(playerData.socket, "Chat message ignored: Your account is muted, please contact a moderator")
+            return
+        }
     }
 
     if (message.length == 0) return
@@ -275,14 +289,11 @@ const processChat = async (socket_id, sm64jsMsg) => {
 
     /// record chat to DB
     db.get('chats').push({
-        socketID: socket_id,
+        accountID: playerData.socket.accountID,
         playerName: playerData.playerName,
         ip: playerData.socket.ip,
         timestampMs: Date.now(),
-        message,
-        adminToken,
-        accountType,
-        accountID
+        message
     }).write()
 
     const sanitizedChat = sanitizeChat(message)
@@ -311,12 +322,13 @@ const processJoinGame = async (socket, msg) => {
 
     if (socketIdsToGameIds[socket.my_id] != undefined) return ///already initialized
 
-    if (socket.discord == undefined && socket.googleID == undefined) return rejectPlayerName(socket)
+    //// account has been authorized
+    if (socket.accountID == undefined) return rejectPlayerName(socket)
 
     let name
 
     if (msg.getUseDiscordName()) {
-        name = socket.discord.userData.username + "#" + socket.discord.userData.discriminator
+        name = socket.discord.username
     } else {
         name = msg.getName()
 
@@ -538,6 +550,131 @@ const serverSideFlagUpdate = () => {
 }
 
 
+
+const processAccount = (socket, accountType) => {
+    const account = db.get('accounts.' + socket.accountID).value()
+    if (account) { /// account exists
+        if (account.banned) {
+            if (account.tempBanTimestamp) { // temp ban
+                if (account.tempBanTimestamp > Date.now()) {  /// still temp banned
+                    return rejectAuthorization(socket, 2, `Your account: ${socket.accountID} is temporaily banned, try again later`)
+                } else { /// temp ban expired
+                    ///account.banned = false
+                    db.get('accounts.' + socket.accountID).assign({ banned: false }).write()
+                    //delete account.tempBanTimestamp
+                    db.unset('accounts.' + socket.accountID + '.tempBanTimestamp').write()
+                }
+            } else return rejectAuthorization(socket, 2, `Your account: ${socket.accountID} is banned, contact a moderator`)
+        }
+    } else {  /// account doesn't exist
+        /// init new account
+        db.set('accounts.' + socket.accountID, {
+            type: accountType,
+            banned: false,
+            muted: false,
+            banHistory: []
+        }).write()
+    }
+
+    return true
+}
+
+const jwt = require('jsonwebtoken')
+
+const processAccessCode = async (socket, msg) => {
+
+    const access_code = msg.getAccessCode()
+    const type = msg.getType()
+
+    if (access_code == undefined) return rejectAuthorization(socket, 2, "No Access Code Provided")
+
+    if (process.env.PRODUCTION) {
+
+        if (type == "google") {
+            const data = {
+                client_id: process.env.GOOGLE_CLIENT_ID + ".apps.googleusercontent.com",
+                client_secret: process.env.GOOGLE_CLIENT_SECRET,
+                grant_type: 'authorization_code',
+                redirect_uri: process.env.PRODUCTION_LOCAL ? 'http://localhost:9300' : 'https://sm64js.com',
+                code: access_code
+            }
+
+            const result = await got.post('https://www.googleapis.com/oauth2/v4/token', {
+                form: data,
+                responseType: 'json'
+            }).catch((err) => { })
+
+            if (result == undefined || result.body == undefined) return rejectAuthorization(socket, 0, "Failed to get Google Account Authorization Token")
+
+            const decoded = jwt.decode(result.body.id_token)
+
+            if (decoded == undefined || decoded.sub == undefined) return rejectAuthorization(socket, 0, "Failed to get Google Account Info")
+
+            socket.accountID = "google-" + decoded.sub
+
+            const success = processAccount(socket, "google")
+            if (!success) return
+
+        } else if (type == "discord") {
+
+            const data = {
+                client_id: process.env.DISCORD_CLIENT_ID,
+                client_secret: process.env.DISCORD_CLIENT_SECRET,
+                grant_type: 'authorization_code',
+                redirect_uri: process.env.PRODUCTION_LOCAL ? 'http://localhost:9300' : 'https://sm64js.com',
+                code: access_code,
+                scope: 'guilds',
+            }
+
+            const result = await got.post('https://discord.com/api/oauth2/token', {
+                form: data,
+                responseType: 'json'
+            }).catch((err) => { })
+
+            if (result == undefined) return rejectAuthorization(socket, 0, "Failed to get Discord Account Authorization Token")
+
+            const { access_token, token_type } = result.body
+
+            const userData = await got('https://discord.com/api/users/@me', {
+                headers: { authorization: `${token_type} ${access_token}` },
+                responseType: 'json'
+            }).catch((err) => { })
+
+            if (userData == undefined || userData.body == undefined) return rejectAuthorization(socket, 0, "Failed to get Discord Account Info")
+
+            socket.accountID = "discord-" + userData.body.id
+            socket.discord = { userData: userData.body, access_token }
+            socket.discord.username = userData.body.username + "#" + userData.body.discriminator
+
+            const success = processAccount(socket, "discord")
+            if (!success) return
+
+        } else {
+            return rejectAuthorization(socket, 2, "Unknown Account Type")
+        }
+
+    } else {  /// Testing locally
+        socket.accountID = "discord-12356789"
+        socket.discord = { username: "SnuffysasaTest#1234" }
+    }
+
+    const authorizedUserMsg = new AuthorizedUserMsg()
+    if (socket.discord) {
+        authorizedUserMsg.setUsername(socket.discord.username)
+    }
+    authorizedUserMsg.setStatus(1)
+    const initializationMsg = new InitializationMsg()
+    initializationMsg.setAuthorizedUserMsg(authorizedUserMsg)
+    const sm64jsMsg = new Sm64JsMsg()
+    sm64jsMsg.setInitializationMsg(initializationMsg)
+    const rootMsg = new RootMsg()
+    rootMsg.setUncompressedSm64jsMsg(sm64jsMsg)
+    sendData(rootMsg.serializeBinary(), socket)
+}
+
+
+
+
 /// 20 times per second
 setInterval(async () => {
 
@@ -630,7 +767,7 @@ setInterval(() => {
 }, 86400000) //1 Days
 
 
-require('uWebSockets.js').App().ws('/*', {
+require('uWebSockets.js').App().ws('*', {
 
     upgrade: async (res, req, context) => { // a request was made to open websocket, res req have all the properties for the request, cookies etc
 
@@ -649,7 +786,7 @@ require('uWebSockets.js').App().ws('/*', {
 
         res.onAborted(() => {})
 
-        if (process.env.PRODUCTION) {
+        if (process.env.PRODUCTION && process.env.PRODUCTION_LOCAL != 1) {
 
             try {
 
@@ -803,94 +940,112 @@ server.listen(port, () => { console.log('Starting Express server for http reques
 
 
 ////// Admin Commands
-app.get('/banIP/:token/:ip', (req, res) => {
 
-    const token = req.params.token
-    const ip = crypto.AES.decrypt(decodeURIComponent(req.params.ip), ip_encryption_key).toString(crypto.enc.Utf8)
+app.get('/accountLookup', (req, res) => { ///query params: token, accountID
 
+    const token = req.query.token
     if (!adminTokens.includes(token)) return res.status(401).send('Invalid Admin Token')
 
-    const ipObject = db.get('ipList').find({ ip })
-    const ipValue = ipObject.value()
-
-    db.get('adminCommands').push({ token, timestampMs: Date.now(), command: 'banIP', args: [ ip ] }).write()
-
-    if (ipValue == undefined) {
-        db.get('ipList').push({ ip, value: 'BANNED', reason: 'Manual' }).write()
-        console.log("Admin BAD IP " + ip + "  " + token)
-
-        return res.send("IP BAN SUCCESS")
-    } else if (ipValue.value == "ALLOWED") {
-        ipObject.assign({ value: 'BANNED', reason: 'Manual'  }).write()
-        console.log("Admin BAD Existing IP " + ip + "  " + token)
-
-        ///kick
-        Object.values(allGames).forEach(gameData => {
-            Object.values(gameData.players).forEach(data => {
-                if (data.socket.ip == ip) data.socket.close()
-            })
-        })
-
-        return res.send("IP BAN SUCCESS")
-    } else if (ipValue.value == "BANNED") {
-        return res.send("This IP is already BANNED")
-    }
-
-})
-
-app.get('/allowIP/:token/:ip/:plaintext?', (req, res) => {
-
-    const token = req.params.token
-    const ip = req.params.plaintext ? req.params.ip : crypto.AES.decrypt(decodeURIComponent(req.params.ip), ip_encryption_key).toString(crypto.enc.Utf8)
-
-    if (!adminTokens.includes(token)) return res.status(401).send('Invalid Admin Token')
-
-    const ipObject = db.get('ipList').find({ ip })
-    const ipValue = ipObject.value()
-
-    db.get('adminCommands').push({ token, timestampMs: Date.now(), command: 'allowIP', args: [ip] }).write()
-
-    if (ipValue == undefined) {
-        console.log("admin allowIP could not find")
-        return res.send("This IP was not found in the banned list")
-    } else if (ipValue.value == "BANNED") {
-        ipObject.assign({ value: 'ALLOWED' }).write()
-        console.log("Admin - Allowing Existing IP " + ip + "  " + token)
-
-        return res.send("SUCCESS - Unbanning Requested IP")
-    } else if (ipValue.value == "ALLOWED") {
-        console.log("Admin Allow - already allowed")
-        return res.send("This IP is already marked as allowed")
-    }
-
-})
-
-app.get('/chatLog/:token/:timestamp?/:range?', (req, res) => {
-
-    const token = req.params.token
-    const timestamp = (req.params.timestamp && req.params.timestamp != '0') ? parseInt(req.params.timestamp) * 1000 : Date.now()
-    const range = parseInt(req.params.range ? req.params.range : 60) * 1000
-
-    if (adminTokens.includes(token)) {
-        let stringResult = 'socketID,playerName,ip,message <br />'
-
-        db.get('chats').forEach((entry) => {
-            if (entry.timestampMs >= timestamp - range && entry.timestampMs <= timestamp + range) {
-                const encrypted_ip = encodeURIComponent(crypto.AES.encrypt(entry.ip, ip_encryption_key).toString())
-                stringResult += `${entry.socketID},${entry.playerName},${encrypted_ip},${entry.message} <br />`
-            }
-        }).value()
-        
-        return res.send(stringResult)
+    const account = db.get('accounts.' + req.query.accountID).value()
+    if (account) {
+        return res.send(account)
     } else {
-        res.status(401).send('Invalid Admin Token')
+        return res.send("Account ID not found")
     }
 
 })
 
-app.get('/adminLog/:token', (req, res) => {
+app.get('/manageAccount', (req, res) => { ///query params: token, accountID, ban, mute, comments, modName
 
-    const token = req.params.token
+    const { token, comments, modName, durationInHours } = req.query
+    if (!adminTokens.includes(token)) return res.status(401).send('Invalid Admin Token')
+
+    if (req.query.ban == undefined || req.query.ban == "")
+        return res.send("Missing Param 'ban': You must specifiy whether the account should be left in banned or unbanned state")
+    if (req.query.mute == undefined || req.query.mute == "")
+        return res.send("Missing Param 'mute': You must specifiy whether the account should be left in muted or unmuted state")
+    if (comments == undefined || comments == "") return res.send("Missing Param 'comments': You must include comments about the account status update")
+    if (modName == undefined || modName == "") return res.send("Missing Param 'modName': You must include the moderator name (your name), nickname is fine")
+
+    const ban = req.query.ban != 0 && req.query.ban != "false"
+    const mute = req.query.mute != 0 && req.query.mute != "false" 
+
+    if (ban && mute) return res.send("You cannot ban and mute someone, try again with just ban")
+
+    if (!ban && !mute && durationInHours != undefined)
+        return res.send("Invalid request: You can not include a duration with neither ban nor mute set")
+
+    const account = db.get('accounts.' + req.query.accountID).value()
+    if (account) {
+
+        const currentTimeStamp = Date.now()
+
+        if (account.banned == ban && account.muted == mute)
+            return res.send({ message: "Error: account is already in the requested state, no changes have been made", account }) 
+
+        let tempBanTimestamp
+        if (durationInHours) {
+            if (Number(durationInHours) == NaN) return res.send("Invalid param durationInHours: resulted in NaN")
+            else tempBanTimestamp = currentTimeStamp + (Number(durationInHours) * 3600000)
+        }
+
+        db.get('adminCommands').push({ token, timestampMs: currentTimeStamp, command: 'manageAccount', args: [accountID] }).write()
+
+        db.get('accounts.' + req.query.accountID + '.banHistory').push({
+            timestamp: currentTimeStamp,
+            ban,
+            mute,
+            comments,
+            modName,
+            durationInHours
+        }).write()
+
+        db.get('accounts.' + req.query.accountID).assign({ banned: ban, muted: mute, tempBanTimestamp }).write()
+
+        if (account.banned) { ///disconnect current session
+            Object.values(allGames).forEach(gameData => {
+                Object.values(gameData.players).forEach(data => {
+                    if (data.socket.accountID == req.query.accountID) data.socket.close()
+                })
+            })
+        }
+
+        return res.send({ message: "Successfully updated account", account })
+    } else {
+        return res.send("Account ID not found")
+    }
+
+})
+
+
+app.get('/chatLog', (req, res) => { ///query params token, timestamp, range, playerName, accountID
+
+    const token = req.query.token
+    if (!adminTokens.includes(token)) return res.status(401).send('Invalid Admin Token')
+
+    const timestamp = (req.query.timestamp) ? parseInt(req.query.timestamp) * 1000 : Date.now()
+    const range = parseInt(req.query.range ? req.query.range : 60) * 1000
+
+    let stringResult = 'accountID,playerName,ip,message <br />'
+
+    const dbQuery = {}
+    if (req.query.accountID) dbQuery.accountID = req.query.accountID
+    if (req.query.playerName) dbQuery.playerName = req.query.playerName
+
+    db.get('chats').filter(dbQuery).filter(entry => {
+        return entry.timestampMs >= timestamp - range && entry.timestampMs <= timestamp + range
+    }).forEach((entry) => {
+        const encrypted_ip = encodeURIComponent(crypto.AES.encrypt(entry.ip, ip_encryption_key).toString())
+        stringResult += `${entry.accountID},${entry.playerName},${encrypted_ip},${entry.message} <br />`
+    }).value()
+        
+    return res.send(stringResult)
+
+})
+
+app.get('/adminLog', (req, res) => { ///query params token, 
+
+    const token = req.query.token
 
     if (token != process.env.IP_ENCRYPTION_KEY) return
 
@@ -922,93 +1077,65 @@ app.post('/createNewGame', (req, res) => {
 })
 
 
-const jwt = require('jsonwebtoken')
+//// Deprecated
+app.get('/banIP', (req, res) => { ///query params: token, ip
 
-const processAccessCode = async (socket, msg) => {
-    const access_code = msg.getAccessCode()
-    const type = msg.getType()
+    const token = req.query.token
+    const ip = crypto.AES.decrypt(decodeURIComponent(req.query.ip), ip_encryption_key).toString(crypto.enc.Utf8)
 
-    if (access_code == undefined) return rejectAuthorization(socket)
+    if (!adminTokens.includes(token)) return res.status(401).send('Invalid Admin Token')
 
-    if (process.env.PRODUCTION) {
+    const ipObject = db.get('ipList').find({ ip })
+    const ipValue = ipObject.value()
 
-        if (type == "google") {
-            const data = {
-                client_id: process.env.GOOGLE_CLIENT_ID + ".apps.googleusercontent.com",
-                client_secret: process.env.GOOGLE_CLIENT_SECRET,
-                grant_type: 'authorization_code',
-                redirect_uri: process.env.PRODUCTION ? 'https://sm64js.com' : 'http://localhost:9300',
-                code: access_code
-            }
+    db.get('adminCommands').push({ token, timestampMs: Date.now(), command: 'banIP', args: [ip] }).write()
 
-            const result = await got.post('https://www.googleapis.com/oauth2/v4/token', {
-                form: data,
-                responseType: 'json'
-            }).catch((err) => { })
+    if (ipValue == undefined) {
+        db.get('ipList').push({ ip, value: 'BANNED', reason: 'Manual' }).write()
+        console.log("Admin BAD IP " + ip + "  " + token)
 
-            if (result == undefined || result.body == undefined) return rejectAuthorization(socket)
+        return res.send("IP BAN SUCCESS")
+    } else if (ipValue.value == "ALLOWED") {
+        ipObject.assign({ value: 'BANNED', reason: 'Manual' }).write()
+        console.log("Admin BAD Existing IP " + ip + "  " + token)
 
-            const decoded = jwt.decode(result.body.id_token)
+        ///kick
+        Object.values(allGames).forEach(gameData => {
+            Object.values(gameData.players).forEach(data => {
+                if (data.socket.ip == ip) data.socket.close()
+            })
+        })
 
-            if (decoded == undefined || decoded.sub == undefined) return rejectAuthorization(socket)
-
-            //// TODO check if decoded.sub (google ID) is in the ban list
-            socket.googleID = decoded.sub
-
-        } else if (type == "discord") {
-
-            const data = {
-                client_id: process.env.DISCORD_CLIENT_ID,
-                client_secret: process.env.DISCORD_CLIENT_SECRET,
-                grant_type: 'authorization_code',
-                redirect_uri: process.env.PRODUCTION ? 'https://sm64js.com' : 'http://localhost:9300',
-                code: access_code,
-                scope: 'guilds',
-            }
-
-            const result = await got.post('https://discord.com/api/oauth2/token', {
-                form: data,
-                responseType: 'json'
-            }).catch((err) => { })
-
-            if (result == undefined) return rejectAuthorization(socket)
-
-            const { access_token, token_type } = result.body
-
-            const userData = await got('https://discord.com/api/users/@me', {
-                headers: { authorization: `${token_type} ${access_token}` },
-                responseType: 'json'
-            }).catch((err) => { })
-
-            if (userData == undefined || userData.body == undefined) return rejectAuthorization(socket)
-
-            //// TODO check if userData.body.id (discord ID) is in the ban list
-
-            socket.discord = { userData: userData.body, access_token }
-
-        } else {
-            return rejectAuthorization(socket)
-        }
-
-    } else {  /// Testing locally
-        socket.discord = {
-            userData: { username: "snuffysasaTest", discriminator: "1234", id: 12346 }
-        }
+        return res.send("IP BAN SUCCESS")
+    } else if (ipValue.value == "BANNED") {
+        return res.send("This IP is already BANNED")
     }
 
+})
 
+app.get('/allowIP', (req, res) => { ///query params: token, ip, plaintext
 
-    const authorizedUserMsg = new AuthorizedUserMsg()
-    if (socket.discord) {
-        authorizedUserMsg.setUsername(socket.discord.userData.username + "#" + socket.discord.userData.discriminator)
+    const token = req.query.token
+    const ip = req.query.plaintext ? req.query.ip : crypto.AES.decrypt(decodeURIComponent(req.query.ip), ip_encryption_key).toString(crypto.enc.Utf8)
+
+    if (!adminTokens.includes(token)) return res.status(401).send('Invalid Admin Token')
+
+    const ipObject = db.get('ipList').find({ ip })
+    const ipValue = ipObject.value()
+
+    db.get('adminCommands').push({ token, timestampMs: Date.now(), command: 'allowIP', args: [ip] }).write()
+
+    if (ipValue == undefined) {
+        console.log("admin allowIP could not find")
+        return res.send("This IP was not found in the banned list")
+    } else if (ipValue.value == "BANNED") {
+        ipObject.assign({ value: 'ALLOWED' }).write()
+        console.log("Admin - Allowing Existing IP " + ip + "  " + token)
+
+        return res.send("SUCCESS - Unbanning Requested IP")
+    } else if (ipValue.value == "ALLOWED") {
+        console.log("Admin Allow - already allowed")
+        return res.send("This IP is already marked as allowed")
     }
-    authorizedUserMsg.setStatus(1)
-    const initializationMsg = new InitializationMsg()
-    initializationMsg.setAuthorizedUserMsg(authorizedUserMsg)
-    const sm64jsMsg = new Sm64JsMsg()
-    sm64jsMsg.setInitializationMsg(initializationMsg)
-    const rootMsg = new RootMsg()
-    rootMsg.setUncompressedSm64jsMsg(sm64jsMsg)
-    sendData(rootMsg.serializeBinary(), socket)
-}
 
+})
