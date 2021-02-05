@@ -1027,6 +1027,7 @@ app.get('/chatLog', (req, res) => { ///query params token, timestamp, range, pla
     const range = parseInt(req.query.range ? req.query.range : 60) * 1000
 
     let stringResult = 'accountID,playerName,ip,message <br />'
+    let jsonResult = []
 
     const dbQuery = {}
     if (req.query.accountID) dbQuery.accountID = req.query.accountID
@@ -1037,9 +1038,10 @@ app.get('/chatLog', (req, res) => { ///query params token, timestamp, range, pla
     }).forEach((entry) => {
         const encrypted_ip = encodeURIComponent(crypto.AES.encrypt(entry.ip, ip_encryption_key).toString())
         stringResult += `${entry.accountID},${entry.playerName},${encrypted_ip},${entry.message} <br />`
+        jsonResult.push({ accountID: entry.accountID, playerName: entry.playerName, message: entry.message })
     }).value()
         
-    return res.send(stringResult)
+    return res.send(jsonResult)
 
 })
 
