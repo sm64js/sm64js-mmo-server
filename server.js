@@ -933,7 +933,9 @@ require('uWebSockets.js').App().ws('/*', {
 const express = require('express')
 const app = express()
 const server = require('http').Server(app)
+const cors = require('cors')
 
+app.use(cors())
 app.use(express.urlencoded({ extended: true }))
 
 server.listen(port, () => { console.log('Starting Express server for http requests ' + port) })
