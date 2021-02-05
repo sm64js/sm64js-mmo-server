@@ -800,27 +800,30 @@ require('uWebSockets.js').App().ws('/*', {
                 //// Going to remove
                 const ipStatus = db.get('ipList').find({ ip }).value()
 
-                if (ipStatus == undefined && process.env.USE_VPN) {
+                if (ipStatus == undefined) {
 
-                    //console.log("trying to hit vpn api")
-                    const vpnCheckRequest = `http://v2.api.iphub.info/ip/${ip}`
-                    const initApiReponse = await got(vpnCheckRequest, {
-                        headers: { 'X-Key': process.env.VPN_API_KEY }
-                    })
-                    const response = JSON.parse(initApiReponse.body)
+                    if (process.env.USE_VPN) {
 
-                    if (response.block == undefined) {
-                        console.log("iphub reponse invalid")
-                        return res.writeStatus('500').end()
-                    }
+                        //console.log("trying to hit vpn api")
+                        const vpnCheckRequest = `http://v2.api.iphub.info/ip/${ip}`
+                        const initApiReponse = await got(vpnCheckRequest, {
+                            headers: { 'X-Key': process.env.VPN_API_KEY }
+                        })
+                        const response = JSON.parse(initApiReponse.body)
 
-                    if (response.block == 1) {
-                        db.get('ipList').push({ ip, value: 'BANNED', reason: 'AutoVPN' }).write()
-                       // console.log("Adding new VPN BAD IP " + ip)
-                        return res.writeStatus('403').end()
-                    } else {
-                        //console.log("Adding new Legit IP")
-                        db.get('ipList').push({ ip, value: 'ALLOWED' }).write()
+                        if (response.block == undefined) {
+                            console.log("iphub reponse invalid")
+                            return res.writeStatus('500').end()
+                        }
+
+                        if (response.block == 1) {
+                            db.get('ipList').push({ ip, value: 'BANNED', reason: 'AutoVPN' }).write()
+                            // console.log("Adding new VPN BAD IP " + ip)
+                            return res.writeStatus('403').end()
+                        } else {
+                            //console.log("Adding new Legit IP")
+                            db.get('ipList').push({ ip, value: 'ALLOWED' }).write()
+                        }
                     }
 
                 } else if (ipStatus.value == "BANNED") {  /// BANNED or NOT ALLOWED IP - Going to remove
