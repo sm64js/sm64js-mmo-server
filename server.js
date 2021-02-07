@@ -373,6 +373,8 @@ const processJoinGame = async (socket, msg) => {
         if (takenPlayerNames.includes(name)) return rejectPlayerName(socket)
     }
 
+    db.get('accounts.' + socket.accountID).assign({ lastKnownPlayerName: name }).write()
+
     ////Success point - should initialize player
     allGames[gameID].players[socket.my_id] = {
         socket, /// also contains socket_id and ip
@@ -943,15 +945,23 @@ server.listen(port, () => { console.log('Starting Express server for http reques
 
 
 ////// Admin Commands
+app.post("/validateAdminToken", function (req, res) {
+    let valid = true
+    const token = req.body.token
+    if (!adminTokens.includes(token)) valid = false
+
+    res.send({ "valid": valid, "token": token })
+})
+
 app.get('/accountList', (req, res) => { ///query params: token, accountID
 
     const token = req.query.token
-    if (!adminTokens.includes(token)) return res.status(401).send('Invalid Admin Token')
+    if (!adminTokens.includes(token)) return res.status(401).send({ error: 'Invalid Admin Token' })
 
     const jsonResult = []
     const accounts = db.get('accounts').value()
     Object.entries(accounts).forEach(([accountID, data]) => {
-        jsonResult.push({ accountID, lastLoginTime: data.lastLoginTime })
+        jsonResult.push({ accountID, lastLoginTime: data.lastLoginTime, lastKnownPlayerName: data.lastKnownPlayerName })
     })
     jsonResult.sort((a, b) => { return b.lastLoginTime - a.lastLoginTime })
     return res.send(jsonResult)
@@ -961,36 +971,33 @@ app.get('/accountList', (req, res) => { ///query params: token, accountID
 app.get('/accountLookup', (req, res) => { ///query params: token, accountID
 
     const token = req.query.token
-    if (!adminTokens.includes(token)) return res.status(401).send('Invalid Admin Token')
+    if (!adminTokens.includes(token)) return res.status(401).send({ error: 'Invalid Admin Token' })
 
     const account = db.get('accounts.' + req.query.accountID).value()
     if (account) {
-        return res.send({ accountID: req.query.accountID, account })
+        account.accountID = req.query.accountID
+        return res.send(account)
     } else {
-        return res.send("Account ID not found")
+        return res.send({ error: "Account ID not found" })
     }
 
 })
 
 app.post('/manageAccount', (req, res) => { ///query params: token, accountID, ban, mute, comments, modName, durationInHours
 
-    const { token, comments, modName, durationInHours, accountID } = req.body
-    if (!adminTokens.includes(token)) return res.status(401).send('Invalid Admin Token')
+    const token = req.query.token
+    const { comments, modName, durationInHours, accountID, ban, mute } = req.body
+    if (!adminTokens.includes(token)) return res.status(401).send({ error: 'Invalid Admin Token' })
 
-    if (req.body.ban == undefined || req.body.ban == "")
-        return res.send("Missing Param 'ban': You must specifiy whether the account should be left in banned or unbanned state")
-    if (req.body.mute == undefined || req.body.mute == "")
-        return res.send("Missing Param 'mute': You must specifiy whether the account should be left in muted or unmuted state")
-    if (comments == undefined || comments == "") return res.send("Missing Param 'comments': You must include comments about the account status update")
-    if (modName == undefined || modName == "") return res.send("Missing Param 'modName': You must include the moderator name (your name), nickname is fine")
+    if (comments == undefined || comments == "")
+        return res.send({ error: "Missing Param 'comments': You must include comments about the account status update" })
+    if (modName == undefined || modName == "")
+        return res.send({ error: "Missing Param 'modName': You must include the moderator name (your name), nickname is fine" })
 
-    const ban = req.body.ban != 0 && req.body.ban != "false"
-    const mute = req.body.mute != 0 && req.body.mute != "false" 
-
-    if (ban && mute) return res.send("You cannot ban and mute someone, try again with just ban")
+    if (ban && mute) return res.send({ error: "You cannot ban and mute someone, try again with just ban" })
 
     if (!ban && !mute && durationInHours != undefined)
-        return res.send("Invalid request: You can not include a duration with neither ban nor mute set")
+        return res.send({ error: "Invalid request: You can not include a duration with neither ban nor mute set" })
 
     const account = db.get('accounts.' + accountID).value()
     if (account) {
@@ -998,11 +1005,11 @@ app.post('/manageAccount', (req, res) => { ///query params: token, accountID, ba
         const currentTimeStamp = Date.now()
 
         if (account.banned == ban && account.muted == mute)
-            return res.send({ message: "Error: account is already in the requested state, no changes have been made", account }) 
+            return res.send({ error: "account is already in the requested state, no changes have been made", account }) 
 
         let tempBanTimestamp
-        if (durationInHours) {
-            if (Number(durationInHours) == NaN) return res.send("Invalid param durationInHours: resulted in NaN")
+        if (durationInHours != 0) {
+            if (Number(durationInHours) == NaN) return res.send({ error: "Invalid param durationInHours: resulted in NaN" })
             else tempBanTimestamp = currentTimeStamp + (Number(durationInHours) * 3600000)
         }
 
@@ -1029,7 +1036,7 @@ app.post('/manageAccount', (req, res) => { ///query params: token, accountID, ba
 
         return res.send({ message: "Successfully updated account", account })
     } else {
-        return res.send("Account ID not found")
+        return res.send({ error: "Account ID not found" })
     }
 
 })
@@ -1038,7 +1045,7 @@ app.post('/manageAccount', (req, res) => { ///query params: token, accountID, ba
 app.get('/chatLog', (req, res) => { ///query params token, timestamp, range, playerName, accountID
 
     const token = req.query.token
-    if (!adminTokens.includes(token)) return res.status(401).send('Invalid Admin Token')
+    if (!adminTokens.includes(token)) return res.status(401).send({ error: 'Invalid Admin Token' })
 
     const timestamp = (req.query.timestamp) ? parseInt(req.query.timestamp) * 1000 : Date.now()
     const range = parseInt(req.query.range ? req.query.range : 60) * 1000
