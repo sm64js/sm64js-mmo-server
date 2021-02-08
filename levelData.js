@@ -23,6 +23,12 @@ module.exports = {
                 [-4200, -1300, -5300]
             ]
         },
+        26: {
+            name: "Castle Courtyard",
+            flagStartPositions: [
+                [0, 7657, 0]
+            ]
+        },
         9: {
             name: "Bob-omb Battlefield",
             flagStartPositions: [
@@ -37,6 +43,12 @@ module.exports = {
         },
         4: {
             name: "Big Boo's Haunt",
+            flagStartPositions: [
+                [0, 7657, 0]
+            ]
+        },
+        8: {
+            name: "Shifting Sand Land",
             flagStartPositions: [
                 [0, 7657, 0]
             ]
