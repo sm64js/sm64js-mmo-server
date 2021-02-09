@@ -1097,43 +1097,6 @@ app.post('/createNewGame', (req, res) => {
 
 })
 
-/*
-//// Deprecated
-app.get('/banIP', (req, res) => { ///query params: token, ip
-
-    const token = req.query.token
-    const ip = crypto.AES.decrypt(decodeURIComponent(req.query.ip), ip_encryption_key).toString(crypto.enc.Utf8)
-
-    if (!adminTokens.includes(token)) return res.status(401).send('Invalid Admin Token')
-
-    const ipObject = db.get('ipList').find({ ip })
-    const ipValue = ipObject.value()
-
-    db.get('adminCommands').push({ token, timestampMs: Date.now(), command: 'banIP', args: [ip] }).write()
-
-    if (ipValue == undefined) {
-        db.get('ipList').push({ ip, value: 'BANNED', reason: 'Manual' }).write()
-        console.log("Admin BAD IP " + ip + "  " + token)
-
-        return res.send("IP BAN SUCCESS")
-    } else if (ipValue.value == "ALLOWED") {
-        ipObject.assign({ value: 'BANNED', reason: 'Manual' }).write()
-        console.log("Admin BAD Existing IP " + ip + "  " + token)
-
-        ///kick
-        Object.values(allGames).forEach(gameData => {
-            Object.values(gameData.players).forEach(data => {
-                if (data.socket.ip == ip) data.socket.close()
-            })
-        })
-
-        return res.send("IP BAN SUCCESS")
-    } else if (ipValue.value == "BANNED") {
-        return res.send("This IP is already BANNED")
-    }
-
-})
-
 //// Deprecated
 app.get('/allowIP', (req, res) => { ///query params: token, ip, plaintext
 
@@ -1160,4 +1123,4 @@ app.get('/allowIP', (req, res) => { ///query params: token, ip, plaintext
         return res.send("This IP is already marked as allowed")
     }
 
-})*/
+})
