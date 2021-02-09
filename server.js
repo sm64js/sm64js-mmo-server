@@ -20,6 +20,7 @@ const { v4: uuidv4 } = require('uuid')
 const FileSync = require('lowdb/adapters/FileSync')
 const zlib = require('zlib')
 const deflate = util.promisify(zlib.deflate)
+const inflate = util.promisify(zlib.inflate)
 const port = 3080
 const ws_port = 3000
 
@@ -133,9 +134,32 @@ const processPlayerData = (socket_id, decodedMario) => {
     const gameID = socketIdsToGameIds[socket_id]
 
     /// Data is Valid
-    allGames[gameID].players[socket_id].decodedMario = decodedMario
+    if (allGames[gameID].players[socket_id].decodedMario) {
+        allGames[gameID].players[socket_id].decodedMario.setController(decodedMario.getController())
+        allGames[gameID].players[socket_id].controllerPackets++
+        console.log(allGames[gameID].players[socket_id].controllerPackets)
+    }
+    else { //init
+        allGames[gameID].players[socket_id].decodedMario = decodedMario
+        allGames[gameID].players[socket_id].controllerPackets = 1
+    }
+
     allGames[gameID].players[socket_id].valid = 100
 
+}
+
+const processMasterMarioList = (list) => {
+    list.forEach(mario => {
+        const socket_id = mario.getSocketid()
+
+        const gameID = socketIdsToGameIds[socket_id]
+        if (gameID == undefined) return 
+
+        const saveController = allGames[gameID].players[socket_id].decodedMario.getController()
+        allGames[gameID].players[socket_id].decodedMario = mario
+        allGames[gameID].players[socket_id].decodedMario.setController(saveController)
+
+    })
 }
 
 const processSkin = (socket_id, skinMsg) => {
@@ -657,6 +681,7 @@ const processAccessCode = async (socket, msg) => {
     } else {  /// Testing locally
         socket.accountID = "discord-12356789"
         socket.discord = { username: "SnuffysasaTest#1234" }
+        if (access_code == "master") socket.master = true
     }
 
     const authorizedUserMsg = new AuthorizedUserMsg()
@@ -676,21 +701,23 @@ const processAccessCode = async (socket, msg) => {
 
 
 
-/// 20 times per second
+/// 30 times per second
 setInterval(async () => {
 
     serverSideFlagUpdate()
 
     Object.values(allGames).forEach(gameData => {
         Object.values(gameData.players).forEach(playerData => {
-            if (playerData.valid > 0) playerData.valid--
-            else if (playerData.decodedMario) playerData.socket.close()
+            //// TEMP
+            //if (playerData.valid > 0) playerData.valid--
+            //else if (playerData.decodedMario) playerData.socket.close()
         })
     })
 
     Object.entries(allGames).forEach(async ([gameID, gameData]) => {
         const sm64jsMsg = new Sm64JsMsg()
         const mariolist = Object.values(gameData.players).filter(data => data.decodedMario).map(data => data.decodedMario)
+        Object.values(gameData.players).forEach(data => data.controllerPackets--)
         const mariolistproto = new MarioListMsg()
         mariolistproto.setMarioList(mariolist)
 
@@ -719,7 +746,7 @@ setInterval(async () => {
     })
 
 
-}, 33)
+}, 31)  /// 31 seems to be sweet spot
 
 /// Every 33 frames / once per second
 setInterval(() => {
@@ -868,6 +895,13 @@ require('uWebSockets.js').App().ws('/*', {
             const rootMsg = RootMsg.deserializeBinary(bytes)
 
             switch (rootMsg.getMessageCase()) {
+                case RootMsg.MessageCase.COMPRESSED_SM64JS_MSG:
+                    const compressedBytes = rootMsg.getCompressedSm64jsMsg()
+                    const buffer = await inflate(compressedBytes)
+                    sm64jsMsg = Sm64JsMsg.deserializeBinary(buffer)
+                    const listMsg = sm64jsMsg.getListMsg()
+                    processMasterMarioList(listMsg.getMarioList())
+                    break
                 case RootMsg.MessageCase.UNCOMPRESSED_SM64JS_MSG:
 
                     sm64jsMsg = rootMsg.getUncompressedSm64jsMsg()
@@ -1097,67 +1131,3 @@ app.post('/createNewGame', (req, res) => {
 
 })
 
-/*
-//// Deprecated
-app.get('/banIP', (req, res) => { ///query params: token, ip
-
-    const token = req.query.token
-    const ip = crypto.AES.decrypt(decodeURIComponent(req.query.ip), ip_encryption_key).toString(crypto.enc.Utf8)
-
-    if (!adminTokens.includes(token)) return res.status(401).send('Invalid Admin Token')
-
-    const ipObject = db.get('ipList').find({ ip })
-    const ipValue = ipObject.value()
-
-    db.get('adminCommands').push({ token, timestampMs: Date.now(), command: 'banIP', args: [ip] }).write()
-
-    if (ipValue == undefined) {
-        db.get('ipList').push({ ip, value: 'BANNED', reason: 'Manual' }).write()
-        console.log("Admin BAD IP " + ip + "  " + token)
-
-        return res.send("IP BAN SUCCESS")
-    } else if (ipValue.value == "ALLOWED") {
-        ipObject.assign({ value: 'BANNED', reason: 'Manual' }).write()
-        console.log("Admin BAD Existing IP " + ip + "  " + token)
-
-        ///kick
-        Object.values(allGames).forEach(gameData => {
-            Object.values(gameData.players).forEach(data => {
-                if (data.socket.ip == ip) data.socket.close()
-            })
-        })
-
-        return res.send("IP BAN SUCCESS")
-    } else if (ipValue.value == "BANNED") {
-        return res.send("This IP is already BANNED")
-    }
-
-})
-
-//// Deprecated
-app.get('/allowIP', (req, res) => { ///query params: token, ip, plaintext
-
-    const token = req.query.token
-    const ip = req.query.plaintext ? req.query.ip : crypto.AES.decrypt(decodeURIComponent(req.query.ip), ip_encryption_key).toString(crypto.enc.Utf8)
-
-    if (!adminTokens.includes(token)) return res.status(401).send('Invalid Admin Token')
-
-    const ipObject = db.get('ipList').find({ ip })
-    const ipValue = ipObject.value()
-
-    db.get('adminCommands').push({ token, timestampMs: Date.now(), command: 'allowIP', args: [ip] }).write()
-
-    if (ipValue == undefined) {
-        console.log("admin allowIP could not find")
-        return res.send("This IP was not found in the banned list")
-    } else if (ipValue.value == "BANNED") {
-        ipObject.assign({ value: 'ALLOWED' }).write()
-        console.log("Admin - Allowing Existing IP " + ip + "  " + token)
-
-        return res.send("SUCCESS - Unbanning Requested IP")
-    } else if (ipValue.value == "ALLOWED") {
-        console.log("Admin Allow - already allowed")
-        return res.send("This IP is already marked as allowed")
-    }
-
-})*/
