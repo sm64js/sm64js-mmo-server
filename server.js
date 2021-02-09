@@ -589,7 +589,7 @@ const processAccessCode = async (socket, msg) => {
 
     if (access_code == undefined) return rejectAuthorization(socket, 2, "No Access Code Provided")
 
-    if (process.env.PRODUCTION) {
+    if (process.env.PRODUCTION == 1) {
 
         if (type == "google") {
             const data = {
