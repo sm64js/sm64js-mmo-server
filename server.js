@@ -136,12 +136,9 @@ const processPlayerData = (socket_id, decodedMario) => {
     /// Data is Valid
     if (allGames[gameID].players[socket_id].decodedMario) {
         allGames[gameID].players[socket_id].decodedMario.setController(decodedMario.getController())
-        allGames[gameID].players[socket_id].controllerPackets++
-        console.log(allGames[gameID].players[socket_id].controllerPackets)
     }
     else { //init
         allGames[gameID].players[socket_id].decodedMario = decodedMario
-        allGames[gameID].players[socket_id].controllerPackets = 1
     }
 
     allGames[gameID].players[socket_id].valid = 100
@@ -717,7 +714,6 @@ setInterval(async () => {
     Object.entries(allGames).forEach(async ([gameID, gameData]) => {
         const sm64jsMsg = new Sm64JsMsg()
         const mariolist = Object.values(gameData.players).filter(data => data.decodedMario).map(data => data.decodedMario)
-        Object.values(gameData.players).forEach(data => data.controllerPackets--)
         const mariolistproto = new MarioListMsg()
         mariolistproto.setMarioList(mariolist)
 
@@ -897,10 +893,15 @@ require('uWebSockets.js').App().ws('/*', {
             switch (rootMsg.getMessageCase()) {
                 case RootMsg.MessageCase.COMPRESSED_SM64JS_MSG:
                     const compressedBytes = rootMsg.getCompressedSm64jsMsg()
-                    const buffer = await inflate(compressedBytes)
-                    sm64jsMsg = Sm64JsMsg.deserializeBinary(buffer)
-                    const listMsg = sm64jsMsg.getListMsg()
-                    processMasterMarioList(listMsg.getMarioList())
+                    try {
+                        const buffer = await inflate(compressedBytes)
+                        sm64jsMsg = Sm64JsMsg.deserializeBinary(buffer)
+                        const listMsg = sm64jsMsg.getListMsg()
+                        processMasterMarioList(listMsg.getMarioList())
+                    } catch (err) {
+                        console.log("HERE")
+                        console.log(err)
+                    }
                     break
                 case RootMsg.MessageCase.UNCOMPRESSED_SM64JS_MSG:
 
