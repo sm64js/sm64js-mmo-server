@@ -1,21 +1,29 @@
 use actix_http::{body::Body, client::SendRequestError};
 use actix_session::Session;
-use actix_web::{client::Client, dev, error::ResponseError, http::StatusCode, HttpResponse};
+use actix_web::{dev, error::ResponseError, http::StatusCode, HttpResponse};
 use awc::{error::JsonPayloadError, SendClientRequest};
-use paperclip::actix::{api_v2_errors, api_v2_operation, web, Mountable};
-use serde::Deserialize;
+use paperclip::actix::{api_v2_errors, api_v2_operation, web, Apiv2Schema, Mountable};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct Login {
-    token_obj: TokenObj,
+    code: String,
+}
+
+#[derive(Debug, Serialize)]
+struct GoogleOAuthRequest {
+    client_id: String,
+    client_secret: String,
+    code: String,
+    grant_type: String,
+    redirect_uri: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct TokenObj {
+struct GoogleOAuthResponse {
     id_token: String,
-    expires_at: i64,
+    expires_in: i64,
 }
 
 pub fn service() -> impl dev::HttpServiceFactory + Mountable {
@@ -26,7 +34,7 @@ pub fn service() -> impl dev::HttpServiceFactory + Mountable {
 }
 
 #[api_v2_operation(tags(Auth))]
-fn login() -> HttpResponse {
+async fn login() -> String {
     // TODO persist session
     todo!()
 }
@@ -35,7 +43,7 @@ pub static GOOGLE_CLIENT_ID: &str =
     "1000892686951-dkp1vpqohmbq64h7jiiop9v6ic4t1mul.apps.googleusercontent.com";
 
 #[derive(Debug, Deserialize)]
-pub struct IdInfo {
+pub struct IdToken {
     pub iss: String,
     pub sub: String,
     pub azp: String,
@@ -55,36 +63,53 @@ pub struct IdInfo {
 #[api_v2_operation(tags(Auth))]
 async fn login_with_google(
     json: web::Json<Login>,
-    client: web::Data<Client>,
     _session: Session,
-) -> Result<web::Json<()>, LoginError> {
-    let id_token = json.token_obj.id_token.clone();
-    let request: SendClientRequest = client
+) -> Result<web::Json<AuthorizedUserMessage>, LoginError> {
+    let req = GoogleOAuthRequest {
+        client_id: GOOGLE_CLIENT_ID.to_string(),
+        client_secret: std::env::var("GOOGLE_CLIENT_SECRET").unwrap(),
+        code: json.code.clone(),
+        grant_type: "authorization_code".to_string(),
+        redirect_uri: "http://localhost:3060".to_string(),
+    };
+    let request: SendClientRequest = awc::Client::default()
+        .post("https://oauth2.googleapis.com/token")
+        .send_form(&req);
+    let mut response = request.await?;
+    if !response.status().is_success() {
+        return Err(LoginError::TokenExpired);
+    };
+    let response: GoogleOAuthResponse = response.json().await?;
+
+    let request: SendClientRequest = awc::Client::default()
         .get(&format!(
             "https://oauth2.googleapis.com/tokeninfo?id_token={}",
-            id_token
+            response.id_token
         ))
         .send();
     let mut response = request.await?;
-
-    // TODO handle bad status codes
-    match response.status() {
-        x if x.is_success() => {}
-        x if x.is_client_error() => {}
-        x if x.is_server_error() => {}
-        _ => {}
+    if !response.status().is_success() {
+        return Err(LoginError::TokenExpired);
     };
-    let id_info: IdInfo = response.json().await?;
-    if GOOGLE_CLIENT_ID != id_info.aud {
-        Err(LoginError::ClientIdInvalid(id_info.aud).into())
-    } else {
-        // TODO store session and send AuthorizedUserMsg
-        todo!()
-    }
+    let _response: IdToken = response.json().await?;
+
+    // TODO store session
+    Ok(web::Json(AuthorizedUserMessage {
+        username: None,
+        code: 1,
+        message: None,
+    }))
+}
+
+#[derive(Apiv2Schema, Debug, Serialize)]
+struct AuthorizedUserMessage {
+    username: Option<String>,
+    code: u8,
+    message: Option<String>,
 }
 
 #[api_v2_operation(tags(Auth))]
-fn login_with_discord() -> HttpResponse {
+async fn login_with_discord() -> String {
     // TODO
     todo!()
 }
@@ -94,8 +119,8 @@ fn login_with_discord() -> HttpResponse {
 enum LoginError {
     #[error("[SendRequest]: {0}")]
     SendRequest(#[from] SendRequestError),
-    #[error("[ClientIdInvalid]: {0}")]
-    ClientIdInvalid(String),
+    #[error("[TokenExpired]")]
+    TokenExpired,
     #[error("[SerdeJson]: {0}")]
     SerdeJson(#[from] serde_json::Error),
     #[error("[JsonPayload]: {0}")]
@@ -106,7 +131,7 @@ impl ResponseError for LoginError {
     fn error_response(&self) -> HttpResponse {
         let res = match *self {
             Self::SendRequest(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
-            Self::ClientIdInvalid(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
+            Self::TokenExpired => HttpResponse::new(StatusCode::BAD_REQUEST),
             Self::SerdeJson(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
             Self::JsonPayload(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
         };

@@ -6,3 +6,4 @@ node_modules
 /target
 testdb.json
 .DS_Store
+.env
