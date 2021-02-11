@@ -600,7 +600,7 @@ const processAccessCode = async (socket, msg) => {
                 code: access_code
             }
 
-            const result = await got.post('https://www.googleapis.com/oauth2/v4/token', {
+            const result = await got.post('https://oauth2.googleapis.com/token', {
                 form: data,
                 responseType: 'json'
             }).catch((err) => { })
