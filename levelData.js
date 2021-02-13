@@ -53,6 +53,24 @@ module.exports = {
                 [0, 7657, 0]
             ]
         },
+        10: {
+            name: "Snowman's Land",
+            flagStartPositions: [
+                [0, 7657, 0]
+            ]
+        },
+        6: {
+            name: "Castle Inside First Level",
+            flagStartPositions: [
+                [0, 7657, 0]
+            ]
+        },
+        6.2: {
+            name: "Castle Inside Second Level",
+            flagStartPositions: [
+                [0, 7657, 0]
+            ]
+        },
         5: {
             name: "Cool, Cool Mountain",
             flagStartPositions: [
