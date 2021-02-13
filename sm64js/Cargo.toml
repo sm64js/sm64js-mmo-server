@@ -15,18 +15,21 @@ actix_derive = "0.5"
 actix-files = "0.5"
 actix-http = { version = "2", features = [ "rustls" ] }
 actix-service = "1"
+actix-session = "0.4"
 actix-web = "3"
 actix-web-actors = "3"
+awc = "2"
 censor = "0.2"
 chrono = "0.4"
 dashmap = { version = "4", features = ["rayon"] }
+dotenv = "0.15"
 env_logger = "0.8"
 flate2 = "1"
 futures = "0.3"
 indexmap = "1"
 lazy_static = "1"
 maplit = "1"
-paperclip = { git = "https://github.com/Tarnadas/paperclip.git", commit = "57173df635435946eb0265f2706b34ab5492d0b7", features = ["actix-nightly", "actix-files", "chrono"] }
+paperclip = { git = "https://github.com/Tarnadas/paperclip.git", commit = "57173df635435946eb0265f2706b34ab5492d0b7", features = ["actix-nightly", "actix-files", "actix-session", "chrono"] }
 parking_lot = "0.11"
 prost = "0.6"
 rand = "0.8"

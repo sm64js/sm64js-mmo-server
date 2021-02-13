@@ -135,8 +135,6 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Sm64JsWsSession {
                     }
                     Some(sm64_js_msg::Message::InitializationMsg(init_msg)) => {
                         match init_msg.message {
-                            Some(initialization_msg::Message::AccessCodeMsg(_)) => todo!(),
-                            Some(initialization_msg::Message::AuthorizedUserMsg(_)) => todo!(),
                             Some(initialization_msg::Message::InitGameDataMsg(_)) => todo!(),
                             Some(initialization_msg::Message::JoinGameMsg(join_game_msg)) => {
                                 let socket_id = self.id;
@@ -169,7 +167,9 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Sm64JsWsSession {
                                             ));
                                             ctx.binary(msg);
                                         }
-                                        Err(_) => {}
+                                        Err(_) => {
+                                            todo!()
+                                        }
                                     }
                                     fut::ready(())
                                 })

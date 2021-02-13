@@ -12,6 +12,7 @@ mod client;
 mod date_format;
 mod game;
 mod identity;
+mod login;
 mod permission;
 mod room;
 mod server;
@@ -59,6 +60,8 @@ async fn ws_index(
 async fn main() -> std::io::Result<()> {
     use parking_lot::RwLock;
 
+    dotenv::dotenv().ok();
+
     std::env::set_var("RUST_BACKTRACE", "1");
     std::env::set_var("RUST_LOG", "actix_server=info,actix_web=info");
     env_logger::init();
@@ -70,12 +73,26 @@ async fn main() -> std::io::Result<()> {
 
     let tokens = Token::try_load().unwrap();
 
+    // TODO fetch Discovery document and cache it
+    // let request = awc::Client::default()
+    //     .get("https://accounts.google.com/.well-known/openid-configuration")
+    //     .send();
+    // let response = request.await.unwrap();
+    // if !response.status().is_success() {
+    //     panic!("Could not fetch Google Discovery document");
+    // }
+
     HttpServer::new(move || {
         let spec = DefaultApiRaw {
             tags: vec![
                 Tag {
                     name: "Hidden".to_string(),
                     description: None,
+                    external_docs: None,
+                },
+                Tag {
+                    name: "Auth".to_string(),
+                    description: Some("Auth stuff".to_string()),
                     external_docs: None,
                 },
                 Tag {
@@ -112,8 +129,10 @@ async fn main() -> std::io::Result<()> {
             )
             .service(web::resource("/chat").route(web::get().to(chat::get_chat)))
             .service(permission::service())
+            .service(login::service())
             .wrap(auth::Auth)
-            .service(actix_files::Files::new("/", "./dist").index_file("index.html"))
+            // TODO serve_from for Docker container
+            .service(actix_files::Files::new("/", "../client/dist").index_file("index.html"))
             .build()
     })
     .bind("0.0.0.0:3060")?

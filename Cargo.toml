@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "rust-server"
+    "sm64js"
 ]
 
 [profile]

@@ -30,23 +30,10 @@ message MarioListMsg {
 
 message InitializationMsg {
 	oneof message {
-		AccessCodeMsg access_code_msg = 1;
-		AuthorizedUserMsg authorized_user_msg = 2;
 		JoinGameMsg join_game_msg = 3;
 		InitGameDataMsg init_game_data_msg = 4;
 		RequestCosmeticsMsg request_cosmetics_msg = 5;
 	}
-}
-
-message AccessCodeMsg {
-	string access_code = 1;
-	string type = 2;
-}
-
-message AuthorizedUserMsg {
-	string username = 1;
-	uint32 status = 2;
-	string message = 3;
 }
 
 message JoinGameMsg {
