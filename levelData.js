@@ -65,7 +65,7 @@ module.exports = {
                 [0, 7657, 0]
             ]
         },
-        6.2: {
+        602: {
             name: "Castle Inside Second Level",
             flagStartPositions: [
                 [0, 7657, 0]
