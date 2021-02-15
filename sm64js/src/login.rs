@@ -83,13 +83,13 @@ pub fn service() -> impl dev::HttpServiceFactory + Mountable {
         .service(web::resource("/discord").route(web::post().to(login_with_discord)))
 }
 
-#[api_v2_operation(tags(Auth))]
+#[api_v2_operation(tags(Hidden))]
 async fn login() -> String {
     // TODO persist session
     todo!()
 }
 
-#[api_v2_operation(tags(Auth))]
+#[api_v2_operation(tags(Hidden))]
 async fn login_with_google(
     json: web::Json<Login>,
     _session: Session,
@@ -131,7 +131,7 @@ async fn login_with_google(
     }))
 }
 
-#[api_v2_operation(tags(Auth))]
+#[api_v2_operation(tags(Hidden))]
 async fn login_with_discord(
     json: web::Json<Login>,
     _session: Session,

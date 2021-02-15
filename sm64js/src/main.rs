@@ -73,7 +73,7 @@ async fn main() -> std::io::Result<()> {
 
     let tokens = Token::try_load().unwrap();
 
-    // TODO fetch Discovery document and cache it
+    // TODO fetch Google Discovery document and cache it
     // let request = awc::Client::default()
     //     .get("https://accounts.google.com/.well-known/openid-configuration")
     //     .send();
@@ -88,11 +88,6 @@ async fn main() -> std::io::Result<()> {
                 Tag {
                     name: "Hidden".to_string(),
                     description: None,
-                    external_docs: None,
-                },
-                Tag {
-                    name: "Auth".to_string(),
-                    description: Some("Auth stuff".to_string()),
                     external_docs: None,
                 },
                 Tag {
