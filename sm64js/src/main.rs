@@ -56,6 +56,11 @@ async fn ws_index(
     )
 }
 
+#[cfg(feature = "docker")]
+const DIST_FOLDER: &str = "./dist";
+#[cfg(not(feature = "docker"))]
+const DIST_FOLDER: &str = "../client/dist";
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     use parking_lot::RwLock;
@@ -127,7 +132,7 @@ async fn main() -> std::io::Result<()> {
             .service(login::service())
             .wrap(auth::Auth)
             // TODO serve_from for Docker container
-            .service(actix_files::Files::new("/", "../client/dist").index_file("index.html"))
+            .service(actix_files::Files::new("/", DIST_FOLDER).index_file("index.html"))
             .build()
     })
     .bind("0.0.0.0:3060")?
