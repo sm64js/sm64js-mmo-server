@@ -181,13 +181,13 @@ impl Room {
         Ok(())
     }
 
-    pub fn broadcast_message(&self, msg: &Vec<u8>) {
+    pub fn broadcast_message(&self, msg: &[u8]) {
         self.players
             .values()
             .par_bridge()
             .map(|player| -> Result<()> {
                 if let Some(player) = player.upgrade() {
-                    player.read().send_message(msg.clone())?
+                    player.read().send_message(msg.to_vec())?
                 }
                 Ok(())
             })

@@ -1,7 +1,7 @@
 use chrono::prelude::*;
 use serde::{self, Deserialize, Deserializer};
 
-const FORMAT: &'static str = "%Y-%m-%d %H:%M:%S";
+const FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 
 #[derive(Debug, Deserialize)]
 struct WrappedDateTime(#[serde(deserialize_with = "deserialize")] DateTime<Utc>);

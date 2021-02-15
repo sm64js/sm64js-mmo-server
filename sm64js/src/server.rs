@@ -91,9 +91,9 @@ impl Handler<SetData> for Sm64JsServer {
     type Result = ();
 
     fn handle(&mut self, msg: SetData, _: &mut Context<Self>) {
-        self.clients
-            .get_mut(&msg.socket_id)
-            .map(|mut client| client.set_data(msg.data));
+        if let Some(mut client) = self.clients.get_mut(&msg.socket_id) {
+            client.set_data(msg.data);
+        }
     }
 }
 
@@ -169,12 +169,10 @@ impl Handler<SendChat> for Sm64JsServer {
 
         let msg = if chat_msg.message.starts_with('/') {
             Ok(Self::handle_command(chat_msg))
+        } else if let Some(player) = self.players.get(&socket_id) {
+            self.handle_chat(player, chat_msg)
         } else {
-            if let Some(player) = self.players.get(&socket_id) {
-                self.handle_chat(player, chat_msg)
-            } else {
-                Ok(None)
-            }
+            Ok(None)
         };
 
         match msg {
@@ -248,9 +246,9 @@ impl Handler<SendJoinGame> for Sm64JsServer {
                     )));
                     // TODO check duplicate custom name
                     room.add_player(socket_id, Arc::downgrade(&player));
-                    self.clients
-                        .get_mut(&socket_id)
-                        .map(|mut client| client.set_level(level));
+                    if let Some(mut client) = self.clients.get_mut(&socket_id) {
+                        client.set_level(level);
+                    }
                     self.players.insert(socket_id, player);
                     Some(JoinGameAccepted { level, name })
                 }
@@ -372,13 +370,13 @@ impl Sm64JsServer {
         })
     }
 
-    fn is_name_valid(name: &String) -> bool {
+    fn is_name_valid(name: &str) -> bool {
         if name.len() < 3 || name.len() > 14 || name.to_ascii_uppercase() == "SERVER" {
             return false;
         }
         let mut sanitized_name = format!("{}", escape(&name));
         let censor = Censor::Standard;
         sanitized_name = censor.censor(&sanitized_name);
-        &sanitized_name == name
+        sanitized_name == name
     }
 }

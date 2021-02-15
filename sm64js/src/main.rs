@@ -66,7 +66,7 @@ async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "actix_server=info,actix_web=info");
     env_logger::init();
 
-    let chat_history = web::Data::new(RwLock::new(ChatHistory::new()));
+    let chat_history = web::Data::new(RwLock::new(ChatHistory::default()));
     let rooms = Room::init_rooms();
     let server = server::Sm64JsServer::new(chat_history.clone(), rooms.clone()).start();
     game::Game::run(rooms.clone());

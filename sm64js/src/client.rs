@@ -113,11 +113,7 @@ impl Player {
             .send(Message(msg))
     }
 
-    pub fn add_chat_message(
-        &mut self,
-        chat_history: ChatHistoryData,
-        message: &String,
-    ) -> ChatResult {
+    pub fn add_chat_message(&mut self, chat_history: ChatHistoryData, message: &str) -> ChatResult {
         let (ip, real_ip) = if let Some(client) = self.clients.get(&self.socket_id) {
             (client.ip.map(|ip| ip.to_string()), client.real_ip.clone())
         } else {

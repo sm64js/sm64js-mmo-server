@@ -36,20 +36,22 @@ pub type ChatHistoryData = web::Data<RwLock<ChatHistory>>;
 #[derive(Debug)]
 pub struct ChatHistory(IndexMap<DateTime<Utc>, ChatMessage>);
 
-impl ChatHistory {
-    pub fn new() -> Self {
+impl Default for ChatHistory {
+    fn default() -> Self {
         Self(IndexMap::new())
     }
+}
 
+impl ChatHistory {
     pub fn add_message(
         &mut self,
-        message: &String,
+        message: &str,
         player_name: String,
         ip: Option<String>,
         real_ip: Option<String>,
     ) -> ChatResult {
         let escaped_message = format!("{}", escape(message));
-        let is_escaped = &escaped_message != message;
+        let is_escaped = escaped_message != message;
 
         let censor = Censor::Standard;
         let censored_message = censor.censor(&escaped_message);
@@ -67,7 +69,7 @@ impl ChatHistory {
         self.0.insert(
             Utc::now(),
             ChatMessage {
-                message: message.clone(),
+                message: message.to_string(),
                 player_name,
                 ip,
                 real_ip,
