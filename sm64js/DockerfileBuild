@@ -40,7 +40,7 @@ RUN set -eux; \
 # set up project
 RUN cd / && \
     mkdir -p sm64js && \
-    mkdir -p sm64js/rust-server && \
+    mkdir -p sm64js/sm64js && \
     USER=root cargo init --bin sm64js
 WORKDIR /sm64js
 
@@ -55,19 +55,16 @@ RUN sccache --start-server
 
 # copy files for dependency compilation
 COPY ./Cargo.toml ./Cargo.toml
-COPY ./rust-server/Cargo.toml ./rust-server/Cargo.toml
+COPY ./sm64js/Cargo.toml ./sm64js/Cargo.toml
 COPY ./Cargo.lock ./Cargo.lock
 RUN rm ./src/main.rs && \
-    mkdir -p ./rust-server/src && \
-    echo "fn main() {}" >> ./rust-server/src/main.rs
+    mkdir -p ./sm64js/src && \
+    echo "fn main() {}" >> ./sm64js/src/main.rs
 
 # compile dependencies
 RUN cargo fetch
 RUN cargo build --release
-RUN rm ./rust-server/src/*.rs
 
 # compile project
 COPY . .
-RUN rm ./target/release/deps/sm64js* && \
-    rm -r ./target/release/.fingerprint/sm64js*
-RUN cargo build --release
+RUN cargo build --release --features docker
