@@ -152,7 +152,6 @@ async fn login_with_discord(
         return Err(LoginError::TokenExpired);
     };
     let response: DiscordOAuth2Response = response.json().await?;
-    dbg!(&response);
 
     let request: SendClientRequest = awc::Client::default()
         .get("https://discord.com/api/users/@me")
@@ -166,7 +165,6 @@ async fn login_with_discord(
         return Err(LoginError::TokenExpired);
     };
     let response: DiscordUser = response.json().await?;
-    dbg!(&response);
 
     // TODO store session and account
     Ok(web::Json(AuthorizedUserMessage {
