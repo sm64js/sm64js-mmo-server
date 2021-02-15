@@ -123,17 +123,15 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Logger::default())
             .with_json_spec_at("/api/spec")
             .service(web::resource("/ws/").to(ws_index))
-            .service(
-                actix_files::Files::new("/api", "./rust-server/src/openapi")
-                    .index_file("index.html"),
-            )
             .service(web::resource("/chat").route(web::get().to(chat::get_chat)))
             .service(permission::service())
             .service(login::service())
             .wrap(auth::Auth)
-            // TODO serve_from for Docker container
-            .service(actix_files::Files::new("/", DIST_FOLDER).index_file("index.html"))
             .build()
+            .service(
+                actix_files::Files::new("/api", "./sm64js/src/openapi").index_file("index.html"),
+            )
+            .service(actix_files::Files::new("/", DIST_FOLDER).index_file("index.html"))
     })
     .bind("0.0.0.0:3060")?
     .run()
