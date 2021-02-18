@@ -1,6 +1,7 @@
 [workspace]
 members = [
-    "sm64js"
+    "crates/sm64js",
+    "crates/sm64js-db"
 ]
 
 [profile]

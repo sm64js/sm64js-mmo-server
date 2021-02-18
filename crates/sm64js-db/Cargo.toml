@@ -1,0 +1,9 @@
+[package]
+name = "sm64js-db"
+version = "0.1.0"
+authors = ["Mario Reder <mreder1289@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+diesel = { version = "1", features = ["postgres"] }
+dotenv = "0.15"
