@@ -2223,6 +2223,7 @@ dependencies = [
 name = "sm64js-db"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "diesel",
  "dotenv",
 ]

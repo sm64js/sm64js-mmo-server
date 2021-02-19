@@ -2,14 +2,14 @@ table! {
     accounts (id) {
         id -> Int4,
         username -> Nullable<Varchar>,
-        discord_id -> Nullable<Int4>,
-        google_id -> Nullable<Int4>,
+        discord_username -> Nullable<Varchar>,
+        discord_discriminator -> Nullable<Varchar>,
+        google_sub -> Nullable<Varchar>,
     }
 }
 
 table! {
-    discord_accounts (id) {
-        id -> Int4,
+    discord_accounts (username, discriminator) {
         username -> Varchar,
         discriminator -> Varchar,
         avatar -> Nullable<Varchar>,
@@ -32,8 +32,8 @@ table! {
 }
 
 table! {
-    google_accounts (id) {
-        id -> Int4,
+    google_accounts (sub) {
+        sub -> Varchar,
         session -> Nullable<Int4>,
     }
 }
@@ -45,6 +45,10 @@ table! {
         expires_in -> Int8,
     }
 }
+
+joinable!(accounts -> google_accounts (google_sub));
+joinable!(discord_accounts -> discord_sessions (session));
+joinable!(google_accounts -> google_sessions (session));
 
 allow_tables_to_appear_in_same_query!(
     accounts,
