@@ -125,8 +125,8 @@ const sendValidUpdate = () => {
 const processPlayerData = (socket_id, decodedMario) => {
 
     // ignoring validation for now
-    if (decodedMario.getSocketid() != decodedMario.getController().getSocketid()) return
-    if (decodedMario.getSocketid() != socket_id) return
+    //if (decodedMario.getSocketid() != decodedMario.getController().getSocketid()) return
+    //if (decodedMario.getSocketid() != socket_id) return
 
     /// server should always force the socket_id - not needed if checking
     decodedMario.setSocketid(socket_id)
@@ -135,7 +135,8 @@ const processPlayerData = (socket_id, decodedMario) => {
 
     /// Data is Valid
     if (allGames[gameID].players[socket_id].decodedMario) {
-        allGames[gameID].players[socket_id].decodedMario.setController(decodedMario.getController())
+        throw "should not be here"
+        allGames[gameID].players[socket_id].decodedMario.setControllerToServer(decodedMario.getControllerToServer())
     }
     else { //init
         allGames[gameID].players[socket_id].decodedMario = decodedMario
@@ -145,6 +146,14 @@ const processPlayerData = (socket_id, decodedMario) => {
 
 }
 
+const processInputData = (socket_id, controllerProto) => {
+    const gameID = socketIdsToGameIds[socket_id]
+
+    if (allGames[gameID].players[socket_id].decodedMario) {
+        allGames[gameID].players[socket_id].decodedMario.setControllerToServer(controllerProto)
+    } else console.log("not initalized yet")
+}
+
 const processMasterMarioList = (list) => {
     list.forEach(mario => {
         const socket_id = mario.getSocketid()
@@ -152,9 +161,9 @@ const processMasterMarioList = (list) => {
         const gameID = socketIdsToGameIds[socket_id]
         if (gameID == undefined) return 
 
-        const saveController = allGames[gameID].players[socket_id].decodedMario.getController()
+        //const saveController = allGames[gameID].players[socket_id].decodedMario.getController()
         allGames[gameID].players[socket_id].decodedMario = mario
-        allGames[gameID].players[socket_id].decodedMario.setController(saveController)
+        //allGames[gameID].players[socket_id].decodedMario.setController(saveController)
 
     })
 }
@@ -715,6 +724,7 @@ setInterval(async () => {
         const sm64jsMsg = new Sm64JsMsg()
         const mariolist = Object.values(gameData.players).filter(data => data.decodedMario).map(data => data.decodedMario)
         const mariolistproto = new MarioListMsg()
+
         mariolistproto.setMarioList(mariolist)
 
         const flagProtoList = []
@@ -910,6 +920,9 @@ require('uWebSockets.js').App().ws('/*', {
                         case Sm64JsMsg.MessageCase.MARIO_MSG:
                             if (socketIdsToGameIds[socket.my_id] == undefined) return 
                             processPlayerData(socket.my_id, sm64jsMsg.getMarioMsg()); break
+                        case Sm64JsMsg.MessageCase.CONTROLLER_MSG:
+                            if (socketIdsToGameIds[socket.my_id] == undefined) return
+                            processInputData(socket.my_id, sm64jsMsg.getControllerMsg()); break
                         case Sm64JsMsg.MessageCase.PING_MSG:
                             if (socketIdsToGameIds[socket.my_id] == undefined) return 
                             sendData(bytes, socket); break
