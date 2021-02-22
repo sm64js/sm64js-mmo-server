@@ -26,7 +26,7 @@ const ws_port = 3000
 
 const adminTokens = process.env.PRODUCTION ? process.env.ADMIN_TOKENS.split(":") : ["testAdminToken"]
 
-const adapter = (process.env.PRODUCTION) ? new FileSync('/tmp/data/db.json') : new FileSync('testdb.json')
+const adapter = (process.env.PRODUCTION == 1) ? new FileSync('/tmp/data/db.json') : new FileSync('testdb.json')
 const db = require('lowdb')(adapter)
 db.defaults({ chats: [], adminCommands: [], ipList: [], accounts: {} }).write()
 
