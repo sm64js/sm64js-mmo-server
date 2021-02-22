@@ -27,7 +27,7 @@ table! {
         id -> Int4,
         access_token -> Varchar,
         token_type -> Varchar,
-        expires_in -> Int8,
+        expires_at -> Timestamp,
     }
 }
 
@@ -42,7 +42,7 @@ table! {
     google_sessions (id) {
         id -> Int4,
         id_token -> Varchar,
-        expires_in -> Int8,
+        expires_at -> Timestamp,
     }
 }
 

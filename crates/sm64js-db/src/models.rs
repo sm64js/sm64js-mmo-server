@@ -1,5 +1,8 @@
 use crate::schema::*;
 
+use chrono::prelude::*;
+use serde::Deserialize;
+
 #[derive(Queryable)]
 pub struct Account {
     pub id: i32,
@@ -30,7 +33,7 @@ pub struct DiscordAccount {
     pub session: Option<i32>,
 }
 
-#[derive(Insertable)]
+#[derive(AsChangeset, Deserialize, Insertable)]
 #[table_name = "discord_accounts"]
 pub struct NewDiscordAccount {
     pub username: String,
@@ -61,7 +64,7 @@ pub struct DiscordSession {
     pub id: i32,
     pub access_token: String,
     pub token_type: String,
-    pub expires_in: i64,
+    pub expires_at: NaiveDateTime,
 }
 
 #[derive(Insertable)]
@@ -69,19 +72,19 @@ pub struct DiscordSession {
 pub struct NewDiscordSession {
     pub access_token: String,
     pub token_type: String,
-    pub expires_in: i64,
+    pub expires_at: NaiveDateTime,
 }
 
 #[derive(Queryable)]
 pub struct GoogleSession {
     pub id: i32,
     pub id_token: String,
-    pub expires_in: i64,
+    pub expires_at: NaiveDateTime,
 }
 
 #[derive(Insertable)]
 #[table_name = "google_sessions"]
 pub struct NewGoogleSession {
     pub id_token: String,
-    pub expires_in: i64,
+    pub expires_at: NaiveDateTime,
 }

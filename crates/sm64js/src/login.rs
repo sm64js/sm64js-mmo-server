@@ -1,3 +1,5 @@
+use crate::DbPool;
+
 use actix_http::{body::Body, client::SendRequestError};
 use actix_session::Session;
 use actix_web::{dev, error::ResponseError, http::StatusCode, HttpResponse};
@@ -134,6 +136,7 @@ async fn login_with_google(
 #[api_v2_operation(tags(Hidden))]
 async fn login_with_discord(
     json: web::Json<Login>,
+    pool: web::Data<DbPool>,
     _session: Session,
 ) -> Result<web::Json<AuthorizedUserMessage>, LoginError> {
     let req = OAuth2Request {
@@ -152,23 +155,31 @@ async fn login_with_discord(
         return Err(LoginError::TokenExpired);
     };
     let response: DiscordOAuth2Response = response.json().await?;
+    let access_token = response.access_token;
+    let token_type = response.token_type;
+    let expires_in = response.expires_in;
 
     let request: SendClientRequest = awc::Client::default()
         .get("https://discord.com/api/users/@me")
         .header(
             awc::http::header::AUTHORIZATION,
-            format!("{} {}", response.token_type, response.access_token),
+            format!("{} {}", token_type, access_token),
         )
         .send();
     let mut response = request.await?;
     if !response.status().is_success() {
         return Err(LoginError::TokenExpired);
     };
-    let response: DiscordUser = response.json().await?;
+    let response: sm64js_db::models::NewDiscordAccount = response.json().await?;
+    let username = response.username.clone();
+    let discriminator = response.discriminator.clone();
 
-    // TODO store session and account
+    let conn = pool.get().unwrap();
+    sm64js_db::insert_discord_session(&conn, access_token, token_type, expires_in, response)
+        .unwrap();
+
     Ok(web::Json(AuthorizedUserMessage {
-        username: Some(format!("{}#{}", response.username, response.discriminator)),
+        username: Some(format!("{}#{}", username, discriminator)),
         code: 1,
         message: None,
     }))

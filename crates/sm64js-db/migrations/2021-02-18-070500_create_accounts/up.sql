@@ -3,6 +3,12 @@ CREATE TABLE accounts (
   username VARCHAR,
   discord_username VARCHAR,
   discord_discriminator VARCHAR,
-  google_sub VARCHAR REFERENCES google_accounts ON DELETE RESTRICT,
-  FOREIGN KEY (discord_username, discord_discriminator) REFERENCES discord_accounts ON DELETE RESTRICT
+  google_sub VARCHAR
+    CONSTRAINT google
+    REFERENCES google_accounts
+    ON DELETE RESTRICT,
+  CONSTRAINT discord
+    FOREIGN KEY (discord_username, discord_discriminator)
+    REFERENCES discord_accounts
+    ON DELETE RESTRICT
 )

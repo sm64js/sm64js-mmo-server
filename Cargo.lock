@@ -817,8 +817,10 @@ checksum = "3e2de9deab977a153492a1468d1b1c0662c1cf39e5ea87d0c060ecd59ef18d8c"
 dependencies = [
  "bitflags",
  "byteorder",
+ "chrono",
  "diesel_derives",
  "pq-sys",
+ "r2d2",
 ]
 
 [[package]]
@@ -1836,6 +1838,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "r2d2"
+version = "0.8.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "545c5bc2b880973c9c10e4067418407a0ccaa3091781d1671d46eb35107cb26f"
+dependencies = [
+ "log",
+ "parking_lot",
+ "scheduled-thread-pool",
+]
+
+[[package]]
 name = "rand"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2048,6 +2061,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71d301d4193d031abdd79ff7e3dd721168a9572ef3fe51a1517aba235bd8f86e"
 
 [[package]]
+name = "scheduled-thread-pool"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc6f74fd1204073fa02d5d5d68bec8021be4c38690b61264b2fdb48083d0e7d7"
+dependencies = [
+ "parking_lot",
+]
+
+[[package]]
 name = "scopeguard"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2198,6 +2220,7 @@ dependencies = [
  "censor",
  "chrono",
  "dashmap",
+ "diesel",
  "dotenv",
  "env_logger",
  "flate2",
@@ -2209,11 +2232,13 @@ dependencies = [
  "parking_lot",
  "prost",
  "prost-build",
+ "r2d2",
  "rand 0.8.3",
  "rayon",
  "ron",
  "serde",
  "serde_json",
+ "sm64js-db",
  "strum 0.20.0",
  "thiserror",
  "v_htmlescape",
@@ -2224,8 +2249,9 @@ name = "sm64js-db"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "chrono",
  "diesel",
- "dotenv",
+ "serde",
 ]
 
 [[package]]
