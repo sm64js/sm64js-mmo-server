@@ -827,10 +827,12 @@ require('uWebSockets.js').App().ws('/*', {
                 //console.log("someone trying to connect: " + ip)
 
                 ///// check CORS
-                let originHeader = req.getHeader('origin')
-                const url = new URL(originHeader)
-                const domainStr = url.hostname.substring(url.hostname.length - 11, url.hostname.length)
-                if (domainStr != ".sm64js.com" && url.hostname != "sm64js.com") return res.writeStatus('418').end()
+                if (process.env.ENFORCE_CORS_ON_WS == 1) {
+                    let originHeader = req.getHeader('origin')
+                    const url = new URL(originHeader)
+                    const domainStr = url.hostname.substring(url.hostname.length - 11, url.hostname.length)
+                    if (domainStr != ".sm64js.com" && url.hostname != "sm64js.com") return res.writeStatus('418').end()
+                }
 
                 //// Going to remove
                 const ipStatus = db.get('ipList').find({ ip }).value()
