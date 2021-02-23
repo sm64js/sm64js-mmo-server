@@ -37,6 +37,8 @@ const publicLevelsToGameIds = {}
 const socketIdsToGameIds = {}
 let socketsInLobby = []
 
+let masterSocket
+
 const connectedIPs = {}
 const stats = {}
 
@@ -146,15 +148,15 @@ const processPlayerData = (socket_id, decodedMario) => {
 
 }
 
-const processInputData = (socket_id, controllerProto) => {
+/*const processInputData = (socket_id, controllerProto) => {
     const gameID = socketIdsToGameIds[socket_id]
 
     if (allGames[gameID].players[socket_id].decodedMario) {
         allGames[gameID].players[socket_id].decodedMario.setControllerToServer(controllerProto)
     } else console.log("not initalized yet")
-}
+}*/
 
-const processMasterMarioList = (list) => {
+/*const processMasterMarioList = (list) => {
     list.forEach(mario => {
         const socket_id = mario.getSocketid()
 
@@ -166,7 +168,7 @@ const processMasterMarioList = (list) => {
         //allGames[gameID].players[socket_id].decodedMario.setController(saveController)
 
     })
-}
+}*/
 
 const processSkin = (socket_id, skinMsg) => {
 
@@ -348,6 +350,21 @@ const processChat = async (socket_id, sm64jsMsg) => {
 }
 
 const processJoinGame = async (socket, msg) => {
+
+    if (socket == masterSocket) {
+        const initGameDataMsg = new InitGameDataMsg()
+        initGameDataMsg.setName("master")
+        initGameDataMsg.setLevel(16)
+        initGameDataMsg.setAccepted(true)
+        initGameDataMsg.setSocketId(socket.my_id)
+        const initializationMsg = new InitializationMsg()
+        initializationMsg.setInitGameDataMsg(initGameDataMsg)
+        const sm64jsMsg = new Sm64JsMsg()
+        sm64jsMsg.setInitializationMsg(initializationMsg)
+        const rootMsg = new RootMsg()
+        rootMsg.setUncompressedSm64jsMsg(sm64jsMsg)
+        sendData(rootMsg.serializeBinary(), socket)
+    }
 
     if (socketIdsToGameIds[socket.my_id] != undefined) return ///already initialized
 
@@ -687,7 +704,7 @@ const processAccessCode = async (socket, msg) => {
     } else {  /// Testing locally
         socket.accountID = "discord-12356789"
         socket.discord = { username: "SnuffysasaTest#1234" }
-        if (access_code == "master") socket.master = true
+        if (access_code == "master") masterSocket = socket
     }
 
     const authorizedUserMsg = new AuthorizedUserMsg()
@@ -748,7 +765,8 @@ setInterval(async () => {
         const compressedBytes = await deflate(bytes)
         const rootMsg = new RootMsg()
         rootMsg.setCompressedSm64jsMsg(compressedBytes)
-        broadcastData(rootMsg.serializeBinary(), gameID)
+        //sendData(rootMsg.serializeBinary(), masterSocket)
+        //broadcastData(rootMsg.serializeBinary(), gameID)   dont send this way
     })
 
 
@@ -904,12 +922,13 @@ require('uWebSockets.js').App().ws('/*', {
 
             switch (rootMsg.getMessageCase()) {
                 case RootMsg.MessageCase.COMPRESSED_SM64JS_MSG:
-                    const compressedBytes = rootMsg.getCompressedSm64jsMsg()
+                    //const compressedBytes = rootMsg.getCompressedSm64jsMsg()
                     try {
-                        const buffer = await inflate(compressedBytes)
-                        sm64jsMsg = Sm64JsMsg.deserializeBinary(buffer)
-                        const listMsg = sm64jsMsg.getListMsg()
-                        processMasterMarioList(listMsg.getMarioList())
+                        broadcastData(bytes)  /// send to all but the gameMaster
+                        //const buffer = await inflate(compressedBytes)
+                        //sm64jsMsg = Sm64JsMsg.deserializeBinary(buffer)
+                        //const listMsg = sm64jsMsg.getListMsg()
+                        //processMasterMarioList(listMsg.getMarioList())
                     } catch (err) {
                         console.log("HERE")
                         console.log(err)
@@ -920,11 +939,13 @@ require('uWebSockets.js').App().ws('/*', {
                     sm64jsMsg = rootMsg.getUncompressedSm64jsMsg()
                     switch (sm64jsMsg.getMessageCase()) {
                         case Sm64JsMsg.MessageCase.MARIO_MSG:
-                            if (socketIdsToGameIds[socket.my_id] == undefined) return 
-                            processPlayerData(socket.my_id, sm64jsMsg.getMarioMsg()); break
+                            //if (socketIdsToGameIds[socket.my_id] == undefined) return 
+                            //processPlayerData(socket.my_id, sm64jsMsg.getMarioMsg()); break
                         case Sm64JsMsg.MessageCase.CONTROLLER_MSG:
-                            if (socketIdsToGameIds[socket.my_id] == undefined) return
-                            processInputData(socket.my_id, sm64jsMsg.getControllerMsg()); break
+                            if (masterSocket) sendData(bytes, masterSocket)
+                            break
+                            //if (socketIdsToGameIds[socket.my_id] == undefined) return
+                            //processInputData(socket.my_id, sm64jsMsg.getControllerMsg()); break
                         case Sm64JsMsg.MessageCase.PING_MSG:
                             if (socketIdsToGameIds[socket.my_id] == undefined) return 
                             sendData(bytes, socket); break
