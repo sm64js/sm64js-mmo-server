@@ -3,25 +3,29 @@ use crate::schema::*;
 use chrono::prelude::*;
 use serde::Deserialize;
 
-#[derive(Queryable)]
+#[derive(Clone, Debug)]
+pub struct AccountInfo {
+    pub account: Account,
+    pub discord_account: Option<DiscordAccount>,
+    pub google_account: Option<GoogleAccount>,
+}
+
+#[derive(Clone, Debug, Identifiable, Queryable)]
 pub struct Account {
     pub id: i32,
     pub username: Option<String>,
-    pub discord_id: Option<i32>,
-    pub google_id: Option<i32>,
 }
 
 #[derive(Insertable)]
 #[table_name = "accounts"]
 pub struct NewAccount {
     pub username: Option<String>,
-    pub discord_username: Option<String>,
-    pub discord_discriminator: Option<String>,
-    pub google_sub: Option<String>,
 }
 
-#[derive(Queryable)]
+#[derive(AsChangeset, Associations, Clone, Debug, Identifiable, Insertable, Queryable)]
+#[belongs_to(Account)]
 pub struct DiscordAccount {
+    pub id: String,
     pub username: String,
     pub discriminator: String,
     pub avatar: Option<String>,
@@ -30,12 +34,12 @@ pub struct DiscordAccount {
     pub flags: Option<i32>,
     pub premium_type: Option<i16>,
     pub public_flags: Option<i32>,
-    pub session: Option<i32>,
+    pub account_id: i32,
 }
 
-#[derive(AsChangeset, Deserialize, Insertable)]
-#[table_name = "discord_accounts"]
+#[derive(Clone, Deserialize)]
 pub struct NewDiscordAccount {
+    pub id: String,
     pub username: String,
     pub discriminator: String,
     pub avatar: Option<String>,
@@ -44,27 +48,24 @@ pub struct NewDiscordAccount {
     pub flags: Option<i32>,
     pub premium_type: Option<i16>,
     pub public_flags: Option<i32>,
-    pub session: Option<i32>,
 }
 
-#[derive(Queryable)]
+#[derive(Associations, Clone, Debug, Identifiable, Insertable, Queryable)]
+#[primary_key(sub)]
+#[belongs_to(Account)]
 pub struct GoogleAccount {
-    pub id: i32,
-    pub session: Option<i32>,
+    pub sub: String,
+    pub account_id: i32,
 }
 
-#[derive(Insertable)]
-#[table_name = "google_accounts"]
-pub struct NewGoogleAccount {
-    pub session: Option<i32>,
-}
-
-#[derive(Queryable)]
+#[derive(Associations, Identifiable, Queryable)]
+#[belongs_to(DiscordAccount)]
 pub struct DiscordSession {
     pub id: i32,
     pub access_token: String,
     pub token_type: String,
     pub expires_at: NaiveDateTime,
+    pub discord_account_id: String,
 }
 
 #[derive(Insertable)]
@@ -73,13 +74,16 @@ pub struct NewDiscordSession {
     pub access_token: String,
     pub token_type: String,
     pub expires_at: NaiveDateTime,
+    pub discord_account_id: String,
 }
 
-#[derive(Queryable)]
+#[derive(Associations, Identifiable, Queryable)]
+#[belongs_to(GoogleAccount)]
 pub struct GoogleSession {
     pub id: i32,
     pub id_token: String,
     pub expires_at: NaiveDateTime,
+    pub google_account_id: String,
 }
 
 #[derive(Insertable)]
@@ -87,4 +91,5 @@ pub struct GoogleSession {
 pub struct NewGoogleSession {
     pub id_token: String,
     pub expires_at: NaiveDateTime,
+    pub google_account_id: String,
 }

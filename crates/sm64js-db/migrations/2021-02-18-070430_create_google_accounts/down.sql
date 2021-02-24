@@ -1,1 +1,1 @@
-DROP TABLE google_accounts
+DROP TABLE google_accounts 

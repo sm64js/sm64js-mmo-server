@@ -5,7 +5,10 @@ authors = ["Mario Reder <mreder1289@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-anyhow = "1"
+actix-session = "0.4"
+actix-web = "3"
 chrono = "0.4"
 diesel = { version = "1", features = ["chrono", "postgres", "r2d2"] }
+paperclip = { git = "https://github.com/wafflespeanut/paperclip.git", commit = "a64cabbb13ad9d51a67c12d3dbf9c986a1ff6585", features = ["actix-nightly", "actix-session", "chrono"] }
 serde = "1"
+thiserror = "1"

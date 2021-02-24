@@ -1,22 +1,23 @@
 // use crate::Token;
-
-use crate::{Identity, Token, Tokens};
+use crate::{DbPool, Identity};
 use actix_service::{Service, Transform};
+use actix_session::UserSession;
 use actix_web::{
     dev::{RequestHead, ServiceRequest, ServiceResponse},
     http::header,
-    Error,
+    web, Error,
 };
 use futures::future::{ok, Future, Ready};
 use std::{
-    convert::TryFrom,
+    cell::RefCell,
     pin::Pin,
+    rc::Rc,
     task::{Context, Poll},
 };
 
 pub struct Auth;
 
-impl<S, B> Transform<S> for Auth
+impl<S: 'static, B> Transform<S> for Auth
 where
     S: Service<Request = ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
     S::Future: 'static,
@@ -30,17 +31,19 @@ where
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        ok(AuthMiddleware { service })
+        ok(AuthMiddleware {
+            service: Rc::new(RefCell::new(service)),
+        })
     }
 }
 
 pub struct AuthMiddleware<S> {
-    service: S,
+    service: Rc<RefCell<S>>,
 }
 
 impl<S, B> Service for AuthMiddleware<S>
 where
-    S: Service<Request = ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
+    S: Service<Request = ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     S::Future: 'static,
     B: 'static,
 {
@@ -55,40 +58,43 @@ where
     }
 
     fn call(&mut self, mut req: ServiceRequest) -> Self::Future {
-        let data: Option<&Tokens> = req.app_data();
-        if let (Some(data), Ok(auth_req)) = (data, AuthReq::try_from(req.head())) {
-            if let Some(token) = Token::find(data, auth_req.apikey) {
-                Identity::set_identity(token, &mut req);
-            }
-        }
+        let mut svc = self.service.clone();
 
-        let fut = self.service.call(req);
         Box::pin(async move {
-            let res = fut.await?;
+            let session = req.get_session();
+            let pool: Option<&web::Data<DbPool>> = req.app_data();
+            if let Some(pool) = pool {
+                let conn = pool.get().expect("couldn't get db connection from pool");
+                match sm64js_db::get_account_info(&conn, session) {
+                    Ok(Some(account)) => {
+                        Identity::set_identity(account, &mut req);
+                    }
+                    Ok(None) => {}
+                    Err(err) => {
+                        return Err(actix_web::Error::from(err));
+                    }
+                }
+                // TODO apikey auth
+                // if let Some(apikey) = get_apikey_from_head(req.head()) {
+                //     if let Some(token) = Token::find(data, apikey) {
+                //         Identity::set_identity(token, &mut req);
+                //     }
+                // }
+            }
+            let res = svc.call(req).await?;
             Ok(res)
         })
     }
 }
 
-#[derive(Debug)]
-pub struct AuthReq {
-    apikey: String,
-}
-
-impl TryFrom<&RequestHead> for AuthReq {
-    type Error = ();
-
-    fn try_from(header: &RequestHead) -> Result<Self, Self::Error> {
-        if let Some(authorization) = header.headers().get(header::AUTHORIZATION) {
-            if let Ok(authorization) = authorization.to_str() {
-                let s: Vec<&str> = authorization.split(' ').collect();
-                if let (Some("APIKEY"), Some(apikey)) = (s.get(0).copied(), s.get(1)) {
-                    return Ok(AuthReq {
-                        apikey: (*apikey).to_string(),
-                    });
-                }
+fn _get_apikey_from_head(header: &RequestHead) -> Option<String> {
+    if let Some(authorization) = header.headers().get(header::AUTHORIZATION) {
+        if let Ok(authorization) = authorization.to_str() {
+            let s: Vec<&str> = authorization.split(' ').collect();
+            if let (Some("APIKEY"), Some(apikey)) = (s.get(0).copied(), s.get(1)) {
+                return Some((*apikey).to_string());
             }
         }
-        Err(())
     }
+    None
 }

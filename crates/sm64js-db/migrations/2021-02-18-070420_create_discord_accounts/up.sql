@@ -1,4 +1,5 @@
 CREATE TABLE discord_accounts (
+  id VARCHAR PRIMARY KEY,
   username VARCHAR NOT NULL,
   discriminator VARCHAR NOT NULL,
   avatar VARCHAR,
@@ -7,6 +8,5 @@ CREATE TABLE discord_accounts (
   flags INTEGER,
   premium_type SMALLINT,
   public_flags INTEGER,
-  session INTEGER REFERENCES discord_sessions ON DELETE SET NULL,
-  PRIMARY KEY (username, discriminator)
+  account_id INTEGER NOT NULL REFERENCES accounts ON DELETE CASCADE
 )

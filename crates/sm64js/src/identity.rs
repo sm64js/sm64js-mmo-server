@@ -1,4 +1,4 @@
-use crate::Token;
+// use crate::Token;
 
 use actix_http::{HttpMessage, Payload};
 use actix_web::{
@@ -9,6 +9,7 @@ use actix_web::{
 };
 use futures::future::{err, ok, Ready};
 use paperclip::actix::Apiv2Security;
+use sm64js_db::AccountInfo;
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Apiv2Security, Debug)]
@@ -18,21 +19,21 @@ use std::{cell::RefCell, rc::Rc};
     name = "Authorization",
     description = "Use format 'APIKEY TOKEN'"
 )]
-pub struct Identity(Rc<RefCell<Option<Token>>>);
+pub struct Identity(Rc<RefCell<Option<AccountInfo>>>);
 
 impl Identity {
-    pub fn get_token(&self) -> Token {
+    pub fn get_account(&self) -> AccountInfo {
         self.0.borrow().as_ref().unwrap().clone()
     }
 
-    pub fn set_identity(token: Token, req: &mut ServiceRequest) {
+    pub fn set_identity(account: AccountInfo, req: &mut ServiceRequest) {
         let identity = Identity::get_identity(&mut *req.extensions_mut());
         let mut inner = identity.0.borrow_mut();
-        *inner = Some(token);
+        *inner = Some(account);
     }
 
     fn get_identity(extensions: &mut Extensions) -> Identity {
-        if let Some(s_impl) = extensions.get::<Rc<RefCell<Option<Token>>>>() {
+        if let Some(s_impl) = extensions.get::<Rc<RefCell<Option<AccountInfo>>>>() {
             return Identity(Rc::clone(&s_impl));
         }
         let inner = Rc::new(RefCell::new(None));
@@ -53,6 +54,8 @@ impl FromRequest for Identity {
         if inner.is_some() {
             drop(inner);
             ok(identity)
+        } else if req.path().contains("/login") {
+            err(HttpResponse::new(StatusCode::NO_CONTENT).into())
         } else {
             err(HttpResponse::new(StatusCode::UNAUTHORIZED).into())
         }

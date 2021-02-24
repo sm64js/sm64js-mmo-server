@@ -2,14 +2,12 @@ table! {
     accounts (id) {
         id -> Int4,
         username -> Nullable<Varchar>,
-        discord_username -> Nullable<Varchar>,
-        discord_discriminator -> Nullable<Varchar>,
-        google_sub -> Nullable<Varchar>,
     }
 }
 
 table! {
-    discord_accounts (username, discriminator) {
+    discord_accounts (id) {
+        id -> Varchar,
         username -> Varchar,
         discriminator -> Varchar,
         avatar -> Nullable<Varchar>,
@@ -18,7 +16,7 @@ table! {
         flags -> Nullable<Int4>,
         premium_type -> Nullable<Int2>,
         public_flags -> Nullable<Int4>,
-        session -> Nullable<Int4>,
+        account_id -> Int4,
     }
 }
 
@@ -28,13 +26,14 @@ table! {
         access_token -> Varchar,
         token_type -> Varchar,
         expires_at -> Timestamp,
+        discord_account_id -> Varchar,
     }
 }
 
 table! {
     google_accounts (sub) {
         sub -> Varchar,
-        session -> Nullable<Int4>,
+        account_id -> Int4,
     }
 }
 
@@ -43,12 +42,14 @@ table! {
         id -> Int4,
         id_token -> Varchar,
         expires_at -> Timestamp,
+        google_account_id -> Varchar,
     }
 }
 
-joinable!(accounts -> google_accounts (google_sub));
-joinable!(discord_accounts -> discord_sessions (session));
-joinable!(google_accounts -> google_sessions (session));
+joinable!(discord_accounts -> accounts (account_id));
+joinable!(discord_sessions -> discord_accounts (discord_account_id));
+joinable!(google_accounts -> accounts (account_id));
+joinable!(google_sessions -> google_accounts (google_account_id));
 
 allow_tables_to_appear_in_same_query!(
     accounts,

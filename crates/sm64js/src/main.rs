@@ -13,7 +13,7 @@ mod date_format;
 mod game;
 mod identity;
 mod login;
-mod permission;
+// mod permission;
 mod room;
 mod server;
 mod session;
@@ -21,7 +21,7 @@ mod session;
 pub use chat::{ChatError, ChatHistory, ChatHistoryData, ChatResult};
 pub use client::{Client, Clients, Player, Players, WeakPlayers};
 pub use identity::Identity;
-pub use permission::{Permission, Token, Tokens};
+// pub use permission::{Permission, Token, Tokens};
 pub use room::{Flag, Room, Rooms};
 pub use server::Message;
 
@@ -69,6 +69,7 @@ const DIST_FOLDER: &str = "../client/dist";
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    use actix_session::CookieSession;
     use parking_lot::RwLock;
     use std::env;
 
@@ -88,7 +89,7 @@ async fn main() -> std::io::Result<()> {
     let server = server::Sm64JsServer::new(chat_history.clone(), rooms.clone()).start();
     game::Game::run(rooms.clone());
 
-    let tokens = Token::try_load().unwrap();
+    // let tokens = Token::try_load().unwrap();
 
     // TODO fetch Google Discovery document and cache it
     // let request = awc::Client::default()
@@ -132,14 +133,21 @@ async fn main() -> std::io::Result<()> {
             .data(pool.clone())
             .app_data(chat_history.clone())
             .data(server.clone())
-            .app_data(tokens.clone())
+            // .app_data(tokens.clone())
             .wrap(middleware::Logger::default())
             .with_json_spec_at("/api/spec")
             .service(web::resource("/ws/").to(ws_index))
             .service(web::resource("/chat").route(web::get().to(chat::get_chat)))
-            .service(permission::service())
+            // .service(permission::service())
             .service(login::service())
             .wrap(auth::Auth)
+            .wrap(
+                CookieSession::signed(&[0; 32])
+                    .name("sm64js")
+                    .path("/")
+                    .max_age(3600 * 24 * 7)
+                    .secure(false),
+            )
             .build()
             .service(
                 actix_files::Files::new("/api", "./sm64js/src/openapi").index_file("index.html"),

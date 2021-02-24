@@ -1,5 +1,4 @@
-use crate::DbPool;
-
+use crate::{DbPool, Identity};
 use actix_http::{body::Body, client::SendRequestError};
 use actix_session::Session;
 use actix_web::{dev, error::ResponseError, http::StatusCode, HttpResponse};
@@ -86,9 +85,22 @@ pub fn service() -> impl dev::HttpServiceFactory + Mountable {
 }
 
 #[api_v2_operation(tags(Hidden))]
-async fn login() -> String {
-    // TODO persist session
-    todo!()
+async fn login(identity: Identity) -> Result<web::Json<AuthorizedUserMessage>, LoginError> {
+    let account_info = identity.get_account();
+    let username = if let Some(discord_account) = account_info.discord_account {
+        Some(format!(
+            "{}#{}",
+            discord_account.username, discord_account.discriminator
+        ))
+    } else {
+        None
+    };
+
+    Ok(web::Json(AuthorizedUserMessage {
+        username,
+        code: 1,
+        message: None,
+    }))
 }
 
 #[api_v2_operation(tags(Hidden))]
@@ -137,7 +149,7 @@ async fn login_with_google(
 async fn login_with_discord(
     json: web::Json<Login>,
     pool: web::Data<DbPool>,
-    _session: Session,
+    session: Session,
 ) -> Result<web::Json<AuthorizedUserMessage>, LoginError> {
     let req = OAuth2Request {
         client_id: DISCORD_CLIENT_ID.to_string(),
@@ -175,8 +187,15 @@ async fn login_with_discord(
     let discriminator = response.discriminator.clone();
 
     let conn = pool.get().unwrap();
-    sm64js_db::insert_discord_session(&conn, access_token, token_type, expires_in, response)
-        .unwrap();
+    let discord_session =
+        sm64js_db::insert_discord_session(&conn, access_token, token_type, expires_in, response)
+            .unwrap();
+
+    session.set("discord_session_id", discord_session.id)?;
+    session.set("discord_account_id", discord_session.discord_account_id)?;
+    session.set("access_token", discord_session.access_token)?;
+    session.set("token_type", discord_session.token_type)?;
+    session.set("expires_at", discord_session.expires_at.timestamp())?;
 
     Ok(web::Json(AuthorizedUserMessage {
         username: Some(format!("{}#{}", username, discriminator)),
@@ -196,15 +215,18 @@ enum LoginError {
     SerdeJson(#[from] serde_json::Error),
     #[error("[JsonPayload]: {0}")]
     JsonPayload(#[from] JsonPayloadError),
+    #[error("[HttpError]: {0}")]
+    HttpError(#[from] actix_http::Error),
 }
 
 impl ResponseError for LoginError {
     fn error_response(&self) -> HttpResponse {
-        let res = match *self {
+        let res = match self {
             Self::SendRequest(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
             Self::TokenExpired => HttpResponse::new(StatusCode::BAD_REQUEST),
             Self::SerdeJson(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
             Self::JsonPayload(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
+            Self::HttpError(err) => return err.as_response_error().error_response(),
         };
         res.set_body(Body::from(format!("{}", self)))
     }

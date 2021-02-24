@@ -2248,10 +2248,13 @@ dependencies = [
 name = "sm64js-db"
 version = "0.1.0"
 dependencies = [
- "anyhow",
+ "actix-session",
+ "actix-web",
  "chrono",
  "diesel",
+ "paperclip",
  "serde",
+ "thiserror",
 ]
 
 [[package]]
