@@ -3,9 +3,8 @@ use crate::{
         root_msg, sm64_js_msg, AnnouncementMsg, AttackMsg, ChatMsg, GrabFlagMsg, JoinGameMsg,
         MarioMsg, RootMsg, SkinMsg, Sm64JsMsg,
     },
-    ChatError, ChatHistoryData, ChatResult, Client, Clients, Player, Players, Rooms,
+    Client, Clients, Player, Players, Rooms,
 };
-
 use actix::{prelude::*, Recipient};
 use anyhow::Result;
 use censor::Censor;
@@ -14,6 +13,7 @@ use parking_lot::RwLock;
 use prost::Message as ProstMessage;
 use rand::{self, Rng};
 use rayon::prelude::*;
+use sm64js_api::{ChatError, ChatHistoryData, ChatResult};
 use std::{
     collections::{HashMap, HashSet},
     env,

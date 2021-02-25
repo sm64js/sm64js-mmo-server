@@ -4,9 +4,6 @@ version = "0.1.0"
 authors = ["Mario Reder <mreder1289@gmail.com>"]
 edition = "2018"
 
-[build-dependencies]
-prost-build = "0.6"
-
 [dependencies]
 anyhow = "1"
 actix = "0.10"
@@ -28,19 +25,18 @@ env_logger = "0.8"
 flate2 = "1"
 futures = "0.3"
 indexmap = "1"
-lazy_static = "1"
-maplit = "1"
-paperclip = { git = "https://github.com/wafflespeanut/paperclip.git", commit = "a64cabbb13ad9d51a67c12d3dbf9c986a1ff6585", features = ["actix-nightly", "actix-session", "chrono"] }
+paperclip = { git = "https://github.com/wafflespeanut/paperclip.git", rev = "a64cabbb13ad9d51a67c12d3dbf9c986a1ff6585", features = ["actix-nightly", "actix-session", "chrono"] }
 parking_lot = "0.11"
 prost = "0.6"
 r2d2 = "0.8"
 rand = "0.8"
 rayon = "1"
-ron = "0.6"
 serde = "1"
 serde_json = "1"
+sm64js-api = { path = "../sm64js-api" }
+sm64js-auth = { path = "../sm64js-auth" }
 sm64js-db = { path = "../sm64js-db" }
-strum = { version = "0.20", features = ["derive"] }
+sm64js-ws = { path = "../sm64js-ws" }
 thiserror = "1"
 v_htmlescape = "0.12"
 

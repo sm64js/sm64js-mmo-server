@@ -1,36 +1,3 @@
-#![feature(try_blocks)]
-
-#[macro_use]
-extern crate lazy_static;
-
-#[macro_use]
-extern crate maplit;
-
-mod auth;
-mod chat;
-mod client;
-mod date_format;
-mod game;
-mod identity;
-mod login;
-// mod permission;
-mod room;
-mod server;
-mod session;
-
-pub use chat::{ChatError, ChatHistory, ChatHistoryData, ChatResult};
-pub use client::{Client, Clients, Player, Players, WeakPlayers};
-pub use identity::Identity;
-// pub use permission::{Permission, Token, Tokens};
-pub use room::{Flag, Room, Rooms};
-pub use server::Message;
-
-pub type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
-
-pub mod proto {
-    include!(concat!(env!("OUT_DIR"), "/sm64js.rs"));
-}
-
 use actix::prelude::*;
 use actix_web::{middleware, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_web_actors::ws;
@@ -42,13 +9,14 @@ use paperclip::{
     actix::{api_v2_operation, web, OpenApiExt},
     v2::models::{DefaultApiRaw, Info, Tag},
 };
-use session::Sm64JsWsSession;
+use sm64js_api::ChatHistory;
+use sm64js_ws::{Sm64JsServer, Sm64JsWsSession, Room, Game};
 
 #[api_v2_operation(tags(Hidden))]
 async fn ws_index(
     req: HttpRequest,
     stream: web::Payload,
-    srv: web::Data<Addr<server::Sm64JsServer>>,
+    srv: web::Data<Addr<Sm64JsServer>>,
 ) -> Result<HttpResponse, Error> {
     let ip = req.peer_addr();
     let real_ip = req
@@ -86,10 +54,8 @@ async fn main() -> std::io::Result<()> {
         .expect("Failed to create pool.");
     let chat_history = web::Data::new(RwLock::new(ChatHistory::default()));
     let rooms = Room::init_rooms();
-    let server = server::Sm64JsServer::new(chat_history.clone(), rooms.clone()).start();
-    game::Game::run(rooms.clone());
-
-    // let tokens = Token::try_load().unwrap();
+    let server = Sm64JsServer::new(chat_history.clone(), rooms.clone()).start();
+    Game::run(rooms.clone());
 
     // TODO fetch Google Discovery document and cache it
     // let request = awc::Client::default()
@@ -133,14 +99,11 @@ async fn main() -> std::io::Result<()> {
             .data(pool.clone())
             .app_data(chat_history.clone())
             .data(server.clone())
-            // .app_data(tokens.clone())
             .wrap(middleware::Logger::default())
             .with_json_spec_at("/api/spec")
             .service(web::resource("/ws/").to(ws_index))
-            .service(web::resource("/chat").route(web::get().to(chat::get_chat)))
-            // .service(permission::service())
-            .service(login::service())
-            .wrap(auth::Auth)
+            .service(sm64js_api::service())
+            .wrap(sm64js_auth::Auth)
             .wrap(
                 CookieSession::signed(&[0; 32])
                     .name("sm64js")

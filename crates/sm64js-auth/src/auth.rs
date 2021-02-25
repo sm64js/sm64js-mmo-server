@@ -1,5 +1,5 @@
 // use crate::Token;
-use crate::{DbPool, Identity};
+use crate::{Identity};
 use actix_service::{Service, Transform};
 use actix_session::UserSession;
 use actix_web::{
@@ -8,6 +8,7 @@ use actix_web::{
     web, Error,
 };
 use futures::future::{ok, Future, Ready};
+use sm64js_db::DbPool;
 use std::{
     cell::RefCell,
     pin::Pin,

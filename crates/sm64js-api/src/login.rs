@@ -1,10 +1,11 @@
-use crate::{DbPool, Identity};
 use actix_http::{body::Body, client::SendRequestError};
 use actix_session::Session;
 use actix_web::{dev, error::ResponseError, http::StatusCode, HttpResponse};
 use awc::{error::JsonPayloadError, SendClientRequest};
 use paperclip::actix::{api_v2_errors, api_v2_operation, web, Apiv2Schema, Mountable};
 use serde::{Deserialize, Serialize};
+use sm64js_auth::Identity;
+use sm64js_db::DbPool;
 use thiserror::Error;
 
 pub static GOOGLE_CLIENT_ID: &str =

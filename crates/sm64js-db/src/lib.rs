@@ -6,13 +6,12 @@ pub mod schema;
 
 pub use models::{Account, AccountInfo};
 
+pub type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
+
 use actix_session::Session;
 use actix_web::{dev::Body, http::StatusCode, HttpResponse, ResponseError};
 use chrono::{prelude::*, Duration};
-use diesel::{
-    pg::{upsert::on_constraint, PgConnection},
-    prelude::*,
-};
+use diesel::{pg::{upsert::on_constraint, PgConnection}, prelude::*, r2d2::ConnectionManager};
 use paperclip::actix::api_v2_errors;
 use thiserror::Error;
 

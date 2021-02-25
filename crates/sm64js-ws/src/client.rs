@@ -1,12 +1,12 @@
 use crate::{
     proto::{MarioMsg, SkinData},
-    ChatHistoryData, ChatResult, Message,
+    Message,
 };
-
 use actix::Recipient;
 use anyhow::Result;
 use dashmap::DashMap;
 use parking_lot::RwLock;
+use sm64js_api::{ChatHistoryData, ChatResult};
 use std::{
     collections::HashMap,
     net::SocketAddr,
