@@ -4,14 +4,18 @@ extern crate diesel;
 pub mod models;
 pub mod schema;
 
-pub use models::{Account, AccountInfo};
+pub use models::{Account, AuthInfo, DiscordAuthInfo, GoogleAuthInfo};
 
 pub type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
 use actix_session::Session;
 use actix_web::{dev::Body, http::StatusCode, HttpResponse, ResponseError};
 use chrono::{prelude::*, Duration};
-use diesel::{pg::{upsert::on_constraint, PgConnection}, prelude::*, r2d2::ConnectionManager};
+use diesel::{
+    pg::{upsert::on_constraint, PgConnection},
+    prelude::*,
+    r2d2::ConnectionManager,
+};
 use paperclip::actix::api_v2_errors;
 use thiserror::Error;
 
@@ -81,7 +85,7 @@ pub fn insert_google_session(
     Ok(session)
 }
 
-pub fn get_account_info(conn: &PgConnection, req_session: &Session) -> Result<Option<AccountInfo>> {
+pub fn get_account_info(conn: &PgConnection, req_session: &Session) -> Result<Option<AuthInfo>> {
     if let (Ok(Some(account_id)), Ok(Some(session_id)), Ok(Some(token))) = (
         req_session.get::<String>("discord_account_id"),
         req_session.get::<i32>("discord_session_id"),
@@ -89,10 +93,8 @@ pub fn get_account_info(conn: &PgConnection, req_session: &Session) -> Result<Op
     ) {
         use schema::discord_sessions::dsl::*;
 
-        let session = discord_sessions
-            .find(session_id)
-            .first(conn);
-        
+        let session = discord_sessions.find(session_id).first(conn);
+
         let session: models::DiscordSession = match session {
             Ok(session) => session,
             Err(diesel::result::Error::NotFound) => return Ok(None),
@@ -115,10 +117,13 @@ pub fn get_account_info(conn: &PgConnection, req_session: &Session) -> Result<Op
 
         let discord_account = get_discord_account(conn, &account_id)?;
         let account = get_account(conn, discord_account.account_id)?;
-        return Ok(Some(AccountInfo {
+        return Ok(Some(AuthInfo {
             account,
-            discord_account: Some(discord_account),
-            google_account: None,
+            discord: Some(models::DiscordAuthInfo {
+                account: discord_account,
+                session,
+            }),
+            google: None,
         }));
     } else if let (Ok(Some(account_id)), Ok(Some(session_id)), Ok(Some(token))) = (
         req_session.get::<String>("google_account_id"),
@@ -127,10 +132,8 @@ pub fn get_account_info(conn: &PgConnection, req_session: &Session) -> Result<Op
     ) {
         use schema::google_sessions::dsl::*;
 
-        let session = google_sessions
-            .find(session_id)
-            .first(conn);
-        
+        let session = google_sessions.find(session_id).first(conn);
+
         let session: models::GoogleSession = match session {
             Ok(session) => session,
             Err(diesel::result::Error::NotFound) => return Ok(None),
@@ -153,14 +156,40 @@ pub fn get_account_info(conn: &PgConnection, req_session: &Session) -> Result<Op
 
         let google_account = get_google_account(conn, &account_id)?;
         let account = get_account(conn, google_account.account_id)?;
-        return Ok(Some(AccountInfo {
+        return Ok(Some(AuthInfo {
             account,
-            discord_account: None,
-            google_account: Some(google_account),
+            discord: None,
+            google: Some(models::GoogleAuthInfo {
+                account: google_account,
+                session,
+            }),
         }));
     }
 
     Ok(None)
+}
+
+pub fn delete_session(conn: &PgConnection, auth_info: AuthInfo) -> Result<()> {
+    match auth_info {
+        AuthInfo {
+            discord:
+                Some(models::DiscordAuthInfo {
+                    account: _,
+                    session,
+                }),
+            ..
+        } => delete_discord_session(conn, session.id)?,
+        AuthInfo {
+            google:
+                Some(models::GoogleAuthInfo {
+                    account: _,
+                    session,
+                }),
+            ..
+        } => delete_google_session(conn, session.id)?,
+        _ => {}
+    }
+    Ok(())
 }
 
 fn get_account(conn: &PgConnection, account_id: i32) -> Result<models::Account> {
@@ -271,10 +300,7 @@ fn upsert_google_account(
     } else {
         insert_account(conn)?
     };
-    let google_account = models::GoogleAccount {
-        sub,
-        account_id,
-    };
+    let google_account = models::GoogleAccount { sub, account_id };
 
     let account: models::GoogleAccount = diesel::insert_into(google_accounts::table)
         .values(&google_account)
@@ -311,9 +337,9 @@ pub enum DbError {
 impl ResponseError for DbError {
     fn error_response(&self) -> HttpResponse {
         let res = match self {
-            Self::SessionExpired
-            | Self::AccessTokenInvalid
-            | Self::AccountIdInvalid => HttpResponse::new(StatusCode::BAD_REQUEST),
+            Self::SessionExpired | Self::AccessTokenInvalid | Self::AccountIdInvalid => {
+                HttpResponse::new(StatusCode::BAD_REQUEST)
+            }
             Self::Diesel(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
         };
         res.set_body(Body::from(format!("{}", self)))

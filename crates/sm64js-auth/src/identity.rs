@@ -9,7 +9,7 @@ use actix_web::{
 };
 use futures::future::{err, ok, Ready};
 use paperclip::actix::Apiv2Security;
-use sm64js_db::AccountInfo;
+use sm64js_db::AuthInfo;
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Apiv2Security, Debug)]
@@ -19,21 +19,21 @@ use std::{cell::RefCell, rc::Rc};
     name = "Authorization",
     description = "Use format 'APIKEY TOKEN'"
 )]
-pub struct Identity(Rc<RefCell<Option<AccountInfo>>>);
+pub struct Identity(Rc<RefCell<Option<AuthInfo>>>);
 
 impl Identity {
-    pub fn get_account(&self) -> AccountInfo {
+    pub fn get_account(&self) -> AuthInfo {
         self.0.borrow().as_ref().unwrap().clone()
     }
 
-    pub fn set_identity(account: AccountInfo, req: &mut ServiceRequest) {
+    pub fn set_identity(account: AuthInfo, req: &mut ServiceRequest) {
         let identity = Identity::get_identity(&mut *req.extensions_mut());
         let mut inner = identity.0.borrow_mut();
         *inner = Some(account);
     }
 
     fn get_identity(extensions: &mut Extensions) -> Identity {
-        if let Some(s_impl) = extensions.get::<Rc<RefCell<Option<AccountInfo>>>>() {
+        if let Some(s_impl) = extensions.get::<Rc<RefCell<Option<AuthInfo>>>>() {
             return Identity(Rc::clone(&s_impl));
         }
         let inner = Rc::new(RefCell::new(None));

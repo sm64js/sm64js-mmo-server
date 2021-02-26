@@ -4,10 +4,22 @@ use chrono::prelude::*;
 use serde::Deserialize;
 
 #[derive(Clone, Debug)]
-pub struct AccountInfo {
+pub struct AuthInfo {
     pub account: Account,
-    pub discord_account: Option<DiscordAccount>,
-    pub google_account: Option<GoogleAccount>,
+    pub discord: Option<DiscordAuthInfo>,
+    pub google: Option<GoogleAuthInfo>,
+}
+
+#[derive(Clone, Debug)]
+pub struct DiscordAuthInfo {
+    pub account: DiscordAccount,
+    pub session: DiscordSession,
+}
+
+#[derive(Clone, Debug)]
+pub struct GoogleAuthInfo {
+    pub account: GoogleAccount,
+    pub session: GoogleSession,
 }
 
 #[derive(Clone, Debug, Identifiable, Queryable)]
@@ -63,7 +75,7 @@ pub struct NewGoogleAccount {
     pub sub: String,
 }
 
-#[derive(Associations, Identifiable, Queryable)]
+#[derive(Associations, Clone, Debug, Identifiable, Queryable)]
 #[belongs_to(DiscordAccount)]
 pub struct DiscordSession {
     pub id: i32,
@@ -82,7 +94,7 @@ pub struct NewDiscordSession {
     pub discord_account_id: String,
 }
 
-#[derive(Associations, Identifiable, Queryable)]
+#[derive(Associations, Clone, Debug, Identifiable, Queryable)]
 #[belongs_to(GoogleAccount)]
 pub struct GoogleSession {
     pub id: i32,

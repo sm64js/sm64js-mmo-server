@@ -88,11 +88,8 @@ pub fn service() -> impl dev::HttpServiceFactory + Mountable {
 #[api_v2_operation(tags(Hidden))]
 async fn login(identity: Identity) -> Result<web::Json<AuthorizedUserMessage>, LoginError> {
     let account_info = identity.get_account();
-    let username = if let Some(discord_account) = account_info.discord_account {
-        Some(format!(
-            "{}#{}",
-            discord_account.username, discord_account.discriminator
-        ))
+    let username = if let Some(sm64js_db::DiscordAuthInfo { account, .. }) = account_info.discord {
+        Some(format!("{}#{}", account.username, account.discriminator))
     } else {
         None
     };
@@ -201,8 +198,7 @@ async fn login_with_google(
 
     let conn = pool.get().unwrap();
     let google_session =
-        sm64js_db::insert_google_session(&conn, jwt_token, id_token.exp, id_token.sub)
-            .unwrap();
+        sm64js_db::insert_google_session(&conn, jwt_token, id_token.exp, id_token.sub).unwrap();
 
     session.set("google_session_id", google_session.id)?;
     session.set("google_account_id", google_session.google_account_id)?;
