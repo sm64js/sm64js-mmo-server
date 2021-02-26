@@ -50,12 +50,17 @@ pub struct NewDiscordAccount {
     pub public_flags: Option<i32>,
 }
 
-#[derive(Associations, Clone, Debug, Identifiable, Insertable, Queryable)]
+#[derive(AsChangeset, Associations, Clone, Debug, Identifiable, Insertable, Queryable)]
 #[primary_key(sub)]
 #[belongs_to(Account)]
 pub struct GoogleAccount {
     pub sub: String,
     pub account_id: i32,
+}
+
+#[derive(Clone, Deserialize)]
+pub struct NewGoogleAccount {
+    pub sub: String,
 }
 
 #[derive(Associations, Identifiable, Queryable)]

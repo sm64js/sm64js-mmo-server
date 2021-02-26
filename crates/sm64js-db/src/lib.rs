@@ -50,6 +50,37 @@ pub fn insert_discord_session(
     Ok(session)
 }
 
+pub fn insert_google_session(
+    conn: &PgConnection,
+    id_token: String,
+    expires_at: i64,
+    sub: String,
+) -> Result<models::GoogleSession> {
+    use schema::google_sessions;
+
+    let mut account_id = None;
+    if let Some(account) = get_google_account_if_exists(conn, &sub)? {
+        account_id = Some(account.account_id);
+        if let Ok(session) =
+            models::GoogleSession::belonging_to(&account).first::<models::GoogleSession>(conn)
+        {
+            delete_google_session(conn, session.id)?;
+        }
+    }
+    let google_account_id = upsert_google_account(conn, sub, account_id)?;
+
+    let expires_at = Utc.timestamp(expires_at, 0).naive_utc();
+    let new_session = models::NewGoogleSession {
+        id_token,
+        expires_at,
+        google_account_id,
+    };
+    let session: models::GoogleSession = diesel::insert_into(google_sessions::table)
+        .values(&new_session)
+        .get_result(conn)?;
+    Ok(session)
+}
+
 pub fn get_account_info(conn: &PgConnection, req_session: Session) -> Result<Option<AccountInfo>> {
     if let (Ok(Some(account_id)), Ok(Some(session_id)), Ok(Some(token))) = (
         req_session.get::<String>("discord_account_id"),
@@ -83,6 +114,38 @@ pub fn get_account_info(conn: &PgConnection, req_session: Session) -> Result<Opt
             discord_account: Some(discord_account),
             google_account: None,
         }));
+    } else if let (Ok(Some(account_id)), Ok(Some(session_id)), Ok(Some(token))) = (
+        req_session.get::<String>("google_account_id"),
+        req_session.get::<i32>("google_session_id"),
+        req_session.get::<String>("id_token"),
+    ) {
+        use schema::google_sessions::dsl::*;
+
+        let session: models::GoogleSession = google_sessions
+            .find(session_id)
+            .first(conn)
+            .map_err(|_| DbError::SessionNotFound)?;
+        let is_expired = Utc::now().naive_utc() >= session.expires_at;
+        if is_expired {
+            diesel::delete(google_sessions.find(session_id)).execute(conn)?;
+            return Err(DbError::SessionExpired);
+        }
+
+        if session.id_token != token {
+            return Err(DbError::AccessTokenInvalid);
+        }
+
+        if session.google_account_id != account_id {
+            return Err(DbError::AccountIdInvalid);
+        }
+
+        let google_account = get_google_account(conn, &account_id)?;
+        let account = get_account(conn, google_account.account_id)?;
+        return Ok(Some(AccountInfo {
+            account,
+            discord_account: None,
+            google_account: Some(google_account),
+        }));
     }
 
     Ok(None)
@@ -100,6 +163,12 @@ fn get_discord_account(conn: &PgConnection, id: &str) -> Result<models::DiscordA
     Ok(discord_accounts::table.find(id).first(conn)?)
 }
 
+fn get_google_account(conn: &PgConnection, id: &str) -> Result<models::GoogleAccount> {
+    use schema::google_accounts;
+
+    Ok(google_accounts::table.find(id).first(conn)?)
+}
+
 fn get_discord_account_if_exists(
     conn: &PgConnection,
     id: &str,
@@ -113,10 +182,32 @@ fn get_discord_account_if_exists(
     }
 }
 
+fn get_google_account_if_exists(
+    conn: &PgConnection,
+    sub: &str,
+) -> Result<Option<models::GoogleAccount>> {
+    use schema::google_accounts;
+
+    match google_accounts::table.find(sub).first(conn) {
+        Ok(account) => Ok(Some(account)),
+        Err(diesel::result::Error::NotFound) => Ok(None),
+        Err(err) => Err(err.into()),
+    }
+}
+
 fn delete_discord_session(conn: &PgConnection, key: i32) -> Result<()> {
     use schema::discord_sessions::dsl::*;
 
     diesel::delete(discord_sessions)
+        .filter(id.eq(key))
+        .execute(conn)?;
+    Ok(())
+}
+
+fn delete_google_session(conn: &PgConnection, key: i32) -> Result<()> {
+    use schema::google_sessions::dsl::*;
+
+    diesel::delete(google_sessions)
         .filter(id.eq(key))
         .execute(conn)?;
     Ok(())
@@ -154,6 +245,32 @@ fn upsert_discord_account(
         .set(&discord_account)
         .get_result(conn)?;
     Ok(account.id)
+}
+
+fn upsert_google_account(
+    conn: &PgConnection,
+    sub: String,
+    account_id: Option<i32>,
+) -> Result<String> {
+    use schema::google_accounts;
+
+    let account_id = if let Some(account_id) = account_id {
+        account_id
+    } else {
+        insert_account(conn)?
+    };
+    let google_account = models::GoogleAccount {
+        sub,
+        account_id,
+    };
+
+    let account: models::GoogleAccount = diesel::insert_into(google_accounts::table)
+        .values(&google_account)
+        .on_conflict(on_constraint("google_accounts_pkey"))
+        .do_update()
+        .set(&google_account)
+        .get_result(conn)?;
+    Ok(account.sub)
 }
 
 fn insert_account(conn: &PgConnection) -> Result<i32> {

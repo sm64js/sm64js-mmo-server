@@ -53,8 +53,8 @@ pub struct IdToken {
     pub sub: String,
     pub azp: String,
     pub aud: String,
-    pub iat: String,
-    pub exp: String,
+    pub iat: i64,
+    pub exp: i64,
     pub hd: Option<String>,
     pub email: Option<String>,
     pub email_verified: Option<String>,
@@ -99,48 +99,6 @@ async fn login(identity: Identity) -> Result<web::Json<AuthorizedUserMessage>, L
 
     Ok(web::Json(AuthorizedUserMessage {
         username,
-        code: 1,
-        message: None,
-    }))
-}
-
-#[api_v2_operation(tags(Hidden))]
-async fn login_with_google(
-    json: web::Json<Login>,
-    _session: Session,
-) -> Result<web::Json<AuthorizedUserMessage>, LoginError> {
-    let req = OAuth2Request {
-        client_id: GOOGLE_CLIENT_ID.to_string(),
-        client_secret: std::env::var("GOOGLE_CLIENT_SECRET").unwrap(),
-        code: json.code.clone(),
-        grant_type: "authorization_code".to_string(),
-        redirect_uri: std::env::var("REDIRECT_URI").unwrap(),
-        scopes: None,
-    };
-    let request: SendClientRequest = awc::Client::default()
-        .post("https://oauth2.googleapis.com/token")
-        .send_form(&req);
-    let mut response = request.await?;
-    if !response.status().is_success() {
-        return Err(LoginError::TokenExpired);
-    };
-    let response: GoogleOAuth2Response = response.json().await?;
-
-    let request: SendClientRequest = awc::Client::default()
-        .get(&format!(
-            "https://oauth2.googleapis.com/tokeninfo?id_token={}",
-            response.id_token
-        ))
-        .send();
-    let mut response = request.await?;
-    if !response.status().is_success() {
-        return Err(LoginError::TokenExpired);
-    };
-    let _response: IdToken = response.json().await?;
-
-    // TODO store session and account
-    Ok(web::Json(AuthorizedUserMessage {
-        username: None,
         code: 1,
         message: None,
     }))
@@ -200,6 +158,59 @@ async fn login_with_discord(
 
     Ok(web::Json(AuthorizedUserMessage {
         username: Some(format!("{}#{}", username, discriminator)),
+        code: 1,
+        message: None,
+    }))
+}
+
+#[api_v2_operation(tags(Hidden))]
+async fn login_with_google(
+    json: web::Json<Login>,
+    pool: web::Data<DbPool>,
+    session: Session,
+) -> Result<web::Json<AuthorizedUserMessage>, LoginError> {
+    let req = OAuth2Request {
+        client_id: GOOGLE_CLIENT_ID.to_string(),
+        client_secret: std::env::var("GOOGLE_CLIENT_SECRET").unwrap(),
+        code: json.code.clone(),
+        grant_type: "authorization_code".to_string(),
+        redirect_uri: std::env::var("REDIRECT_URI").unwrap(),
+        scopes: None,
+    };
+    let request: SendClientRequest = awc::Client::default()
+        .post("https://oauth2.googleapis.com/token")
+        .send_form(&req);
+    let mut response = request.await?;
+    if !response.status().is_success() {
+        return Err(LoginError::TokenExpired);
+    };
+    let response: GoogleOAuth2Response = response.json().await?;
+    let jwt_token = response.id_token.clone();
+
+    let request: SendClientRequest = awc::Client::default()
+        .get(&format!(
+            "https://oauth2.googleapis.com/tokeninfo?id_token={}",
+            response.id_token
+        ))
+        .send();
+    let mut response = request.await?;
+    if !response.status().is_success() {
+        return Err(LoginError::TokenExpired);
+    };
+    let id_token: IdToken = response.json().await?;
+
+    let conn = pool.get().unwrap();
+    let google_session =
+        sm64js_db::insert_google_session(&conn, jwt_token, id_token.exp, id_token.sub)
+            .unwrap();
+
+    session.set("google_session_id", google_session.id)?;
+    session.set("google_account_id", google_session.google_account_id)?;
+    session.set("id_token", google_session.id_token)?;
+    session.set("expires_at", google_session.expires_at.timestamp())?;
+
+    Ok(web::Json(AuthorizedUserMessage {
+        username: None,
         code: 1,
         message: None,
     }))
