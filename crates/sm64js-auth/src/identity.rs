@@ -54,7 +54,7 @@ impl FromRequest for Identity {
         if inner.is_some() {
             drop(inner);
             ok(identity)
-        } else if req.path().contains("/api/login") {
+        } else if req.path().contains("/api/login") || req.path().contains("/api/logout") {
             err(HttpResponse::new(StatusCode::NO_CONTENT).into())
         } else {
             err(HttpResponse::new(StatusCode::UNAUTHORIZED).into())

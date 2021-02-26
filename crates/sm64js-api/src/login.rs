@@ -53,8 +53,8 @@ pub struct IdToken {
     pub sub: String,
     pub azp: String,
     pub aud: String,
-    pub iat: i64,
-    pub exp: i64,
+    pub iat: String,
+    pub exp: String,
     pub hd: Option<String>,
     pub email: Option<String>,
     pub email_verified: Option<String>,
@@ -147,11 +147,11 @@ async fn login_with_discord(
         sm64js_db::insert_discord_session(&conn, access_token, token_type, expires_in, response)
             .unwrap();
 
-    session.set("discord_session_id", discord_session.id)?;
-    session.set("discord_account_id", discord_session.discord_account_id)?;
-    session.set("access_token", discord_session.access_token)?;
-    session.set("token_type", discord_session.token_type)?;
+    session.set("account_id", discord_session.discord_account_id)?;
+    session.set("session_id", discord_session.id)?;
+    session.set("token", discord_session.access_token)?;
     session.set("expires_at", discord_session.expires_at.timestamp())?;
+    session.set("account_type", "discord")?;
 
     Ok(web::Json(AuthorizedUserMessage {
         username: Some(format!("{}#{}", username, discriminator)),
@@ -195,15 +195,17 @@ async fn login_with_google(
         return Err(LoginError::TokenExpired);
     };
     let id_token: IdToken = response.json().await?;
+    let expires_at = id_token.exp.parse::<i64>().unwrap();
 
     let conn = pool.get().unwrap();
     let google_session =
-        sm64js_db::insert_google_session(&conn, jwt_token, id_token.exp, id_token.sub).unwrap();
+        sm64js_db::insert_google_session(&conn, jwt_token, expires_at, id_token.sub).unwrap();
 
-    session.set("google_session_id", google_session.id)?;
-    session.set("google_account_id", google_session.google_account_id)?;
-    session.set("id_token", google_session.id_token)?;
+    session.set("account_id", google_session.google_account_id)?;
+    session.set("session_id", google_session.id)?;
+    session.set("token", google_session.id_token)?;
     session.set("expires_at", google_session.expires_at.timestamp())?;
+    session.set("account_type", "google")?;
 
     Ok(web::Json(AuthorizedUserMessage {
         username: None,

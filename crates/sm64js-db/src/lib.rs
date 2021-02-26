@@ -86,84 +86,87 @@ pub fn insert_google_session(
 }
 
 pub fn get_account_info(conn: &PgConnection, req_session: &Session) -> Result<Option<AuthInfo>> {
-    if let (Ok(Some(account_id)), Ok(Some(session_id)), Ok(Some(token))) = (
-        req_session.get::<String>("discord_account_id"),
-        req_session.get::<i32>("discord_session_id"),
-        req_session.get::<String>("access_token"),
+    if let (Ok(Some(account_id)), Ok(Some(session_id)), Ok(Some(token)), Ok(Some(account_type))) = (
+        req_session.get::<String>("account_id"),
+        req_session.get::<i32>("session_id"),
+        req_session.get::<String>("token"),
+        req_session.get::<String>("account_type"),
     ) {
-        use schema::discord_sessions::dsl::*;
+        match account_type.as_ref() {
+            "discord" => {
+                use schema::discord_sessions::dsl::*;
 
-        let session = discord_sessions.find(session_id).first(conn);
+                let session = discord_sessions.find(session_id).first(conn);
 
-        let session: models::DiscordSession = match session {
-            Ok(session) => session,
-            Err(diesel::result::Error::NotFound) => return Ok(None),
-            Err(err) => return Err(err.into()),
-        };
+                let session: models::DiscordSession = match session {
+                    Ok(session) => session,
+                    Err(diesel::result::Error::NotFound) => return Ok(None),
+                    Err(err) => return Err(err.into()),
+                };
 
-        let is_expired = Utc::now().naive_utc() >= session.expires_at;
-        if is_expired {
-            diesel::delete(discord_sessions.find(session_id)).execute(conn)?;
-            return Err(DbError::SessionExpired);
+                let is_expired = Utc::now().naive_utc() >= session.expires_at;
+                if is_expired {
+                    diesel::delete(discord_sessions.find(session_id)).execute(conn)?;
+                    return Err(DbError::SessionExpired);
+                }
+
+                if session.access_token != token {
+                    return Err(DbError::AccessTokenInvalid);
+                }
+
+                if session.discord_account_id != account_id {
+                    return Err(DbError::AccountIdInvalid);
+                }
+
+                let discord_account = get_discord_account(conn, &account_id)?;
+                let account = get_account(conn, discord_account.account_id)?;
+                return Ok(Some(AuthInfo {
+                    account,
+                    discord: Some(models::DiscordAuthInfo {
+                        account: discord_account,
+                        session,
+                    }),
+                    google: None,
+                }));
+            }
+            "google" => {
+                use schema::google_sessions::dsl::*;
+
+                let session = google_sessions.find(session_id).first(conn);
+
+                let session: models::GoogleSession = match session {
+                    Ok(session) => session,
+                    Err(diesel::result::Error::NotFound) => return Ok(None),
+                    Err(err) => return Err(err.into()),
+                };
+
+                let is_expired = Utc::now().naive_utc() >= session.expires_at;
+                if is_expired {
+                    diesel::delete(google_sessions.find(session_id)).execute(conn)?;
+                    return Err(DbError::SessionExpired);
+                }
+
+                if session.id_token != token {
+                    return Err(DbError::AccessTokenInvalid);
+                }
+
+                if session.google_account_id != account_id {
+                    return Err(DbError::AccountIdInvalid);
+                }
+
+                let google_account = get_google_account(conn, &account_id)?;
+                let account = get_account(conn, google_account.account_id)?;
+                return Ok(Some(AuthInfo {
+                    account,
+                    discord: None,
+                    google: Some(models::GoogleAuthInfo {
+                        account: google_account,
+                        session,
+                    }),
+                }));
+            }
+            _ => {}
         }
-
-        if session.access_token != token {
-            return Err(DbError::AccessTokenInvalid);
-        }
-
-        if session.discord_account_id != account_id {
-            return Err(DbError::AccountIdInvalid);
-        }
-
-        let discord_account = get_discord_account(conn, &account_id)?;
-        let account = get_account(conn, discord_account.account_id)?;
-        return Ok(Some(AuthInfo {
-            account,
-            discord: Some(models::DiscordAuthInfo {
-                account: discord_account,
-                session,
-            }),
-            google: None,
-        }));
-    } else if let (Ok(Some(account_id)), Ok(Some(session_id)), Ok(Some(token))) = (
-        req_session.get::<String>("google_account_id"),
-        req_session.get::<i32>("google_session_id"),
-        req_session.get::<String>("id_token"),
-    ) {
-        use schema::google_sessions::dsl::*;
-
-        let session = google_sessions.find(session_id).first(conn);
-
-        let session: models::GoogleSession = match session {
-            Ok(session) => session,
-            Err(diesel::result::Error::NotFound) => return Ok(None),
-            Err(err) => return Err(err.into()),
-        };
-
-        let is_expired = Utc::now().naive_utc() >= session.expires_at;
-        if is_expired {
-            diesel::delete(google_sessions.find(session_id)).execute(conn)?;
-            return Err(DbError::SessionExpired);
-        }
-
-        if session.id_token != token {
-            return Err(DbError::AccessTokenInvalid);
-        }
-
-        if session.google_account_id != account_id {
-            return Err(DbError::AccountIdInvalid);
-        }
-
-        let google_account = get_google_account(conn, &account_id)?;
-        let account = get_account(conn, google_account.account_id)?;
-        return Ok(Some(AuthInfo {
-            account,
-            discord: None,
-            google: Some(models::GoogleAuthInfo {
-                account: google_account,
-                session,
-            }),
-        }));
     }
 
     Ok(None)
