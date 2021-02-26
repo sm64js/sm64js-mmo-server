@@ -81,7 +81,7 @@ pub fn insert_google_session(
     Ok(session)
 }
 
-pub fn get_account_info(conn: &PgConnection, req_session: Session) -> Result<Option<AccountInfo>> {
+pub fn get_account_info(conn: &PgConnection, req_session: &Session) -> Result<Option<AccountInfo>> {
     if let (Ok(Some(account_id)), Ok(Some(session_id)), Ok(Some(token))) = (
         req_session.get::<String>("discord_account_id"),
         req_session.get::<i32>("discord_session_id"),
@@ -89,10 +89,16 @@ pub fn get_account_info(conn: &PgConnection, req_session: Session) -> Result<Opt
     ) {
         use schema::discord_sessions::dsl::*;
 
-        let session: models::DiscordSession = discord_sessions
+        let session = discord_sessions
             .find(session_id)
-            .first(conn)
-            .map_err(|_| DbError::SessionNotFound)?;
+            .first(conn);
+        
+        let session: models::DiscordSession = match session {
+            Ok(session) => session,
+            Err(diesel::result::Error::NotFound) => return Ok(None),
+            Err(err) => return Err(err.into()),
+        };
+
         let is_expired = Utc::now().naive_utc() >= session.expires_at;
         if is_expired {
             diesel::delete(discord_sessions.find(session_id)).execute(conn)?;
@@ -121,10 +127,16 @@ pub fn get_account_info(conn: &PgConnection, req_session: Session) -> Result<Opt
     ) {
         use schema::google_sessions::dsl::*;
 
-        let session: models::GoogleSession = google_sessions
+        let session = google_sessions
             .find(session_id)
-            .first(conn)
-            .map_err(|_| DbError::SessionNotFound)?;
+            .first(conn);
+        
+        let session: models::GoogleSession = match session {
+            Ok(session) => session,
+            Err(diesel::result::Error::NotFound) => return Ok(None),
+            Err(err) => return Err(err.into()),
+        };
+
         let is_expired = Utc::now().naive_utc() >= session.expires_at;
         if is_expired {
             diesel::delete(google_sessions.find(session_id)).execute(conn)?;
@@ -286,8 +298,6 @@ fn insert_account(conn: &PgConnection) -> Result<i32> {
 #[api_v2_errors(code = 500)]
 #[derive(Debug, Error)]
 pub enum DbError {
-    #[error("Session not found in db")]
-    SessionNotFound,
     #[error("Session expired")]
     SessionExpired,
     #[error("access_token does not match db entry")]
@@ -301,8 +311,7 @@ pub enum DbError {
 impl ResponseError for DbError {
     fn error_response(&self) -> HttpResponse {
         let res = match self {
-            Self::SessionNotFound
-            | Self::SessionExpired
+            Self::SessionExpired
             | Self::AccessTokenInvalid
             | Self::AccountIdInvalid => HttpResponse::new(StatusCode::BAD_REQUEST),
             Self::Diesel(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),

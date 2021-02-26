@@ -100,7 +100,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(chat_history.clone())
             .data(server.clone())
             .wrap(middleware::Logger::default())
-            .with_json_spec_at("/api/spec")
+            .with_json_spec_at("/apispec")
             .service(web::resource("/ws/").to(ws_index))
             .service(sm64js_api::service())
             .wrap(sm64js_auth::Auth)
@@ -113,7 +113,7 @@ async fn main() -> std::io::Result<()> {
             )
             .build()
             .service(
-                actix_files::Files::new("/api", "./sm64js/src/openapi").index_file("index.html"),
+                actix_files::Files::new("/apidoc", "./sm64js/src/openapi").index_file("index.html"),
             )
             .service(actix_files::Files::new("/", DIST_FOLDER).index_file("index.html"))
     })

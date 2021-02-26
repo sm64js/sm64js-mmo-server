@@ -8,7 +8,7 @@ use actix_web::dev;
 use paperclip::actix::{Mountable, web};
 
 pub fn service() -> impl dev::HttpServiceFactory + Mountable {
-    web::scope("")
+    web::scope("/api")
         .service(web::resource("/chat").route(web::get().to(chat::get_chat)))
         .service(login::service())
 }

@@ -62,25 +62,28 @@ where
         let mut svc = self.service.clone();
 
         Box::pin(async move {
-            let session = req.get_session();
-            let pool: Option<&web::Data<DbPool>> = req.app_data();
-            if let Some(pool) = pool {
-                let conn = pool.get().expect("couldn't get db connection from pool");
-                match sm64js_db::get_account_info(&conn, session) {
-                    Ok(Some(account)) => {
-                        Identity::set_identity(account, &mut req);
+            if req.path().starts_with("/api/") {
+                let session = req.get_session();
+                let pool: Option<&web::Data<DbPool>> = req.app_data();
+                if let Some(pool) = pool {
+                    let conn = pool.get().expect("couldn't get db connection from pool");
+                    match sm64js_db::get_account_info(&conn, &session) {
+                        Ok(Some(account)) => {
+                            Identity::set_identity(account, &mut req);
+                        }
+                        Ok(None) => {}
+                        Err(err) => {
+                            eprintln!("{:?}", err);
+                            session.purge();
+                        }
                     }
-                    Ok(None) => {}
-                    Err(err) => {
-                        return Err(actix_web::Error::from(err));
-                    }
+                    // TODO apikey auth
+                    // if let Some(apikey) = get_apikey_from_head(req.head()) {
+                    //     if let Some(token) = Token::find(data, apikey) {
+                    //         Identity::set_identity(token, &mut req);
+                    //     }
+                    // }
                 }
-                // TODO apikey auth
-                // if let Some(apikey) = get_apikey_from_head(req.head()) {
-                //     if let Some(token) = Token::find(data, apikey) {
-                //         Identity::set_identity(token, &mut req);
-                //     }
-                // }
             }
             let res = svc.call(req).await?;
             Ok(res)
