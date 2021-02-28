@@ -922,16 +922,10 @@ require('uWebSockets.js').App().ws('/*', {
 
             switch (rootMsg.getMessageCase()) {
                 case RootMsg.MessageCase.COMPRESSED_SM64JS_MSG:
-                    //const compressedBytes = rootMsg.getCompressedSm64jsMsg()
-                    try {
-                        broadcastData(bytes)  /// send to all but the gameMaster
-                        //const buffer = await inflate(compressedBytes)
-                        //sm64jsMsg = Sm64JsMsg.deserializeBinary(buffer)
-                        //const listMsg = sm64jsMsg.getListMsg()
-                        //processMasterMarioList(listMsg.getMarioList())
-                    } catch (err) {
-                        console.log("HERE")
-                        console.log(err)
+                    if (socket == masterSocket) {
+                        broadcastData(bytes)  /// send allMarioList to all sockets but the gameMaster
+                    } else {
+                        console.log("should not be receiving this message")
                     }
                     break
                 case RootMsg.MessageCase.UNCOMPRESSED_SM64JS_MSG:
