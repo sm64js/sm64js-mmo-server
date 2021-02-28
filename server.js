@@ -787,7 +787,7 @@ require('uWebSockets.js').App().ws('/*', {
 
         res.onAborted(() => {})
 
-        if (process.env.PRODUCTION && process.env.PRODUCTION_LOCAL != 1) {
+        if (process.env.PRODUCTION == 1 && process.env.PRODUCTION_LOCAL != 1) {
 
             try {
 
