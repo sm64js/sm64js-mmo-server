@@ -947,7 +947,6 @@ require('uWebSockets.js').App().ws('/*', {
                             //if (socketIdsToGameIds[socket.my_id] == undefined) return
                             //processInputData(socket.my_id, sm64jsMsg.getControllerMsg()); break
                         case Sm64JsMsg.MessageCase.PING_MSG:
-                            if (socketIdsToGameIds[socket.my_id] == undefined) return 
                             sendData(bytes, socket); break
                         case Sm64JsMsg.MessageCase.ATTACK_MSG:
                             if (socketIdsToGameIds[socket.my_id] == undefined) return 
