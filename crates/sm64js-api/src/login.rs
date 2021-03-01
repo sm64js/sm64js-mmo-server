@@ -76,12 +76,8 @@ pub fn service() -> impl dev::HttpServiceFactory + Mountable {
 
 #[api_v2_operation(tags(Hidden))]
 async fn login(identity: Identity) -> Result<web::Json<AuthorizedUserMessage>, LoginError> {
-    let account_info = identity.get_account();
-    let username = if let Some(sm64js_db::DiscordAuthInfo { account, .. }) = account_info.discord {
-        Some(format!("{}#{}", account.username, account.discriminator))
-    } else {
-        None
-    };
+    let account_info = identity.get_auth_info();
+    let username = account_info.get_discord_username();
 
     Ok(web::Json(AuthorizedUserMessage {
         username,

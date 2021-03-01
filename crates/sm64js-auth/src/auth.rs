@@ -1,5 +1,4 @@
-// use crate::Token;
-use crate::{Identity};
+use crate::{AuthInfo, Identity};
 use actix_service::{Service, Transform};
 use actix_session::UserSession;
 use actix_web::{
@@ -69,7 +68,7 @@ where
                     let conn = pool.get().expect("couldn't get db connection from pool");
                     match sm64js_db::get_account_info(&conn, &session) {
                         Ok(Some(account)) => {
-                            Identity::set_identity(account, &mut req);
+                            Identity::set_identity(AuthInfo(account), &mut req);
                         }
                         Ok(None) => {}
                         Err(err) => {
