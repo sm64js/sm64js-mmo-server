@@ -25,6 +25,7 @@ rand = "0.8"
 serde = "1"
 serde_json = "1"
 sm64js-auth = { path = "../sm64js-auth" }
+sm64js-common = { path = "../sm64js-common" }
 sm64js-db = { path = "../sm64js-db" }
 thiserror = "1"
 v_htmlescape = "0.12"

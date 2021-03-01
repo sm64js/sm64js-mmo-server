@@ -2255,6 +2255,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sm64js-auth",
+ "sm64js-common",
  "sm64js-db",
  "thiserror",
  "v_htmlescape",
@@ -2287,6 +2288,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "sm64js-common"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "sm64js-db"
 version = "0.1.0"
 dependencies = [
@@ -2297,6 +2305,7 @@ dependencies = [
  "paperclip",
  "r2d2",
  "serde",
+ "sm64js-common",
  "thiserror",
 ]
 

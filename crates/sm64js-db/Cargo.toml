@@ -12,4 +12,5 @@ diesel = { version = "1", features = ["chrono", "postgres", "r2d2"] }
 paperclip = { git = "https://github.com/wafflespeanut/paperclip.git", rev = "a64cabbb13ad9d51a67c12d3dbf9c986a1ff6585", features = ["actix-nightly", "actix-session", "chrono"] }
 r2d2 = "0.8"
 serde = "1"
+sm64js-common = { path = "../sm64js-common" }
 thiserror = "1"

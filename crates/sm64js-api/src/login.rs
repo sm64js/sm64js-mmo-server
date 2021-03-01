@@ -5,7 +5,9 @@ use awc::{error::JsonPayloadError, SendClientRequest};
 use paperclip::actix::{api_v2_errors, api_v2_operation, web, Apiv2Schema, Mountable};
 use serde::{Deserialize, Serialize};
 use sm64js_auth::Identity;
+use sm64js_common::{DiscordGuildMember, DiscordUser};
 use sm64js_db::DbPool;
+use std::env;
 use thiserror::Error;
 
 pub static GOOGLE_CLIENT_ID: &str =
@@ -65,19 +67,6 @@ pub struct IdToken {
     pub locale: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-struct DiscordUser {
-    id: String,
-    username: String,
-    discriminator: String,
-    avatar: Option<String>,
-    mfa_enabled: Option<bool>,
-    locale: Option<String>,
-    flags: Option<u32>,
-    premium_type: Option<u8>,
-    public_flags: Option<u32>,
-}
-
 pub fn service() -> impl dev::HttpServiceFactory + Mountable {
     web::scope("/login")
         .service(web::resource("").route(web::post().to(login)))
@@ -109,11 +98,11 @@ async fn login_with_discord(
 ) -> Result<web::Json<AuthorizedUserMessage>, LoginError> {
     let req = OAuth2Request {
         client_id: DISCORD_CLIENT_ID.to_string(),
-        client_secret: std::env::var("DISCORD_CLIENT_SECRET").unwrap(),
+        client_secret: env::var("DISCORD_CLIENT_SECRET").unwrap(),
         code: json.code.clone(),
         grant_type: "authorization_code".to_string(),
-        redirect_uri: std::env::var("REDIRECT_URI").unwrap(),
-        scopes: Some("guilds".to_string()),
+        redirect_uri: env::var("REDIRECT_URI").unwrap(),
+        scopes: Some("identify".to_string()),
     };
     let request: SendClientRequest = awc::Client::default()
         .post("https://discord.com/api/oauth2/token")
@@ -138,14 +127,36 @@ async fn login_with_discord(
     if !response.status().is_success() {
         return Err(LoginError::TokenExpired);
     };
-    let response: sm64js_db::models::NewDiscordAccount = response.json().await?;
-    let username = response.username.clone();
-    let discriminator = response.discriminator.clone();
+    let discord_user: DiscordUser = response.json().await?;
+    let username = discord_user.username.clone();
+    let discriminator = discord_user.discriminator.clone();
+
+    let request: SendClientRequest = awc::Client::default()
+        .get(format!(
+            "https://discord.com/api/guilds/{}/members/{}",
+            "755122837077098630", discord_user.id
+        ))
+        .header(
+            awc::http::header::AUTHORIZATION,
+            format!("{} {}", "Bot", env::var("DISCORD_BOT_TOKEN").unwrap(),),
+        )
+        .send();
+    let mut response = request.await?;
+    if !response.status().is_success() {
+        return Err(LoginError::TokenExpired);
+    };
+
+    let guild_member: DiscordGuildMember = response.json().await?;
 
     let conn = pool.get().unwrap();
-    let discord_session =
-        sm64js_db::insert_discord_session(&conn, access_token, token_type, expires_in, response)
-            .unwrap();
+    let discord_session = sm64js_db::insert_discord_session(
+        &conn,
+        access_token,
+        token_type,
+        expires_in,
+        discord_user,
+        guild_member,
+    )?;
 
     session.set("account_id", discord_session.discord_account_id)?;
     session.set("session_id", discord_session.id)?;
@@ -227,6 +238,8 @@ enum LoginError {
     JsonPayload(#[from] JsonPayloadError),
     #[error("[HttpError]: {0}")]
     HttpError(#[from] actix_http::Error),
+    #[error("[DbError]: {0}")]
+    DbError(#[from] sm64js_db::DbError),
 }
 
 impl ResponseError for LoginError {
@@ -237,6 +250,7 @@ impl ResponseError for LoginError {
             Self::SerdeJson(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
             Self::JsonPayload(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
             Self::HttpError(err) => return err.as_response_error().error_response(),
+            Self::DbError(err) => return err.error_response(),
         };
         res.set_body(Body::from(format!("{}", self)))
     }
