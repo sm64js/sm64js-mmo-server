@@ -10,21 +10,24 @@ use paperclip::{
     v2::models::{DefaultApiRaw, Info, Tag},
 };
 use sm64js_api::ChatHistory;
-use sm64js_ws::{Sm64JsServer, Sm64JsWsSession, Room, Game};
+use sm64js_auth::Identity;
+use sm64js_ws::{Game, Room, Sm64JsServer, Sm64JsWsSession};
 
 #[api_v2_operation(tags(Hidden))]
 async fn ws_index(
     req: HttpRequest,
     stream: web::Payload,
     srv: web::Data<Addr<Sm64JsServer>>,
+    identity: Option<Identity>,
 ) -> Result<HttpResponse, Error> {
+    let auth_info = identity.map(|id| id.get_auth_info());
     let ip = req.peer_addr();
     let real_ip = req
         .connection_info()
         .realip_remote_addr()
         .map(|ip| ip.to_string());
     ws::start(
-        Sm64JsWsSession::new(srv.get_ref().clone(), ip, real_ip),
+        Sm64JsWsSession::new(srv.get_ref().clone(), auth_info, ip, real_ip),
         &req,
         stream,
     )

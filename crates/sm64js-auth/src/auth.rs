@@ -61,7 +61,7 @@ where
         let mut svc = self.service.clone();
 
         Box::pin(async move {
-            if req.path().starts_with("/api/") {
+            if req.path().starts_with("/api/") || req.path().starts_with("/ws/") {
                 let session = req.get_session();
                 let pool: Option<&web::Data<DbPool>> = req.app_data();
                 if let Some(pool) = pool {

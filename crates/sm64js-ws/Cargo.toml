@@ -26,6 +26,7 @@ rayon = "1"
 serde = "1"
 serde_json = "1"
 sm64js-api = { path = "../sm64js-api" }
+sm64js-auth = { path = "../sm64js-auth" }
 thiserror = "1"
 v_htmlescape = "0.12"
 

@@ -9,10 +9,10 @@ pub async fn post_logout(
     identity: Identity,
     session: Session,
 ) -> NoContent {
-    let account_info = identity.get_auth_info();
+    let auth_info = identity.get_auth_info();
 
     let conn = pool.get().unwrap();
-    sm64js_db::delete_session(&conn, account_info.into_inner()).unwrap();
+    sm64js_db::delete_session(&conn, auth_info.into_inner()).unwrap();
 
     session.purge();
 

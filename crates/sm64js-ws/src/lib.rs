@@ -7,7 +7,7 @@ extern crate lazy_static;
 extern crate maplit;
 
 pub mod proto {
-  include!(concat!(env!("OUT_DIR"), "/sm64js.rs"));
+    include!(concat!(env!("OUT_DIR"), "/sm64js.rs"));
 }
 
 mod client;
@@ -21,4 +21,3 @@ pub use game::Game;
 pub use room::{Flag, Room, Rooms};
 pub use server::{Message, Sm64JsServer};
 pub use session::Sm64JsWsSession;
-

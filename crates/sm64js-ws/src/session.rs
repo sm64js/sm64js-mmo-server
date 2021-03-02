@@ -10,6 +10,7 @@ use actix::prelude::*;
 use actix_web_actors::ws;
 use prost::Message as ProstMessage;
 use server::Sm64JsServer;
+use sm64js_auth::AuthInfo;
 use std::{
     net::SocketAddr,
     time::{Duration, Instant},
@@ -26,6 +27,7 @@ pub struct Sm64JsWsSession {
     hb: Instant,
     hb_data: Option<Instant>,
     addr: Addr<server::Sm64JsServer>,
+    auth_info: Option<AuthInfo>,
     ip: Option<SocketAddr>,
     real_ip: Option<String>,
 }
@@ -122,6 +124,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Sm64JsWsSession {
                             .send(server::SendChat {
                                 socket_id: self.id,
                                 chat_msg,
+                                auth_info: self.auth_info.clone(),
                             })
                             .into_actor(self)
                             .then(move |res, _act, ctx| {
@@ -209,6 +212,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Sm64JsWsSession {
 impl Sm64JsWsSession {
     pub fn new(
         addr: Addr<server::Sm64JsServer>,
+        auth_info: Option<AuthInfo>,
         ip: Option<SocketAddr>,
         real_ip: Option<String>,
     ) -> Self {
@@ -217,6 +221,7 @@ impl Sm64JsWsSession {
             hb: Instant::now(),
             hb_data: None,
             addr,
+            auth_info,
             ip,
             real_ip,
         }

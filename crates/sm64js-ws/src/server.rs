@@ -12,20 +12,15 @@ use dashmap::DashMap;
 use parking_lot::RwLock;
 use prost::Message as ProstMessage;
 use rand::{self, Rng};
-use rayon::prelude::*;
 use sm64js_api::{ChatError, ChatHistoryData, ChatResult};
-use std::{
-    collections::{HashMap, HashSet},
-    env,
-    net::SocketAddr,
-    sync::Arc,
-};
+use sm64js_auth::{AuthInfo, Permission};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use v_htmlescape::escape;
 
 lazy_static! {
-    pub static ref ADMIN_COMMANDS: HashSet<&'static str> = hashset! {"ANNOUNCEMENT"};
-    pub static ref ADMIN_TOKENS: Arc<RwLock<HashSet<String>>> =
-        Arc::new(RwLock::new(HashSet::new()));
+    pub static ref PRIVILEGED_COMMANDS: HashMap<&'static str, Permission> = hashmap! {
+        "ANNOUNCEMENT" => Permission::SendAnnouncement
+    };
 }
 
 #[derive(Message)]
@@ -158,6 +153,7 @@ impl Handler<SendGrabFlag> for Sm64JsServer {
 pub struct SendChat {
     pub socket_id: u32,
     pub chat_msg: ChatMsg,
+    pub auth_info: Option<AuthInfo>,
 }
 
 impl Handler<SendChat> for Sm64JsServer {
@@ -166,11 +162,12 @@ impl Handler<SendChat> for Sm64JsServer {
     fn handle(&mut self, send_chat: SendChat, _: &mut Context<Self>) -> Self::Result {
         let socket_id = send_chat.socket_id;
         let chat_msg = send_chat.chat_msg;
+        let auth_info = send_chat.auth_info;
 
         let msg = if chat_msg.message.starts_with('/') {
-            Ok(Self::handle_command(chat_msg))
+            Ok(Self::handle_command(chat_msg, auth_info))
         } else if let Some(player) = self.players.get(&socket_id) {
-            self.handle_chat(player, chat_msg)
+            self.handle_chat(player, chat_msg, auth_info)
         } else {
             Ok(None)
         };
@@ -266,14 +263,6 @@ pub struct JoinGameAccepted {
 
 impl Sm64JsServer {
     pub fn new(chat_history: ChatHistoryData, rooms: Rooms) -> Self {
-        if let Ok(admin_tokens) = env::var("ADMIN_TOKENS") {
-            admin_tokens
-                .split(':')
-                .par_bridge()
-                .for_each(|admin_token| {
-                    ADMIN_TOKENS.write().insert(admin_token.to_string());
-                })
-        }
         Sm64JsServer {
             clients: Arc::new(DashMap::new()),
             players: HashMap::new(),
@@ -294,13 +283,18 @@ impl Sm64JsServer {
         msg
     }
 
-    fn handle_command(chat_msg: ChatMsg) -> Option<Vec<u8>> {
+    fn handle_command(chat_msg: ChatMsg, auth_info: Option<AuthInfo>) -> Option<Vec<u8>> {
         let message = chat_msg.message;
         if let Some(index) = message.find(' ') {
             let (cmd, message) = message.split_at(index);
-            if ADMIN_COMMANDS.contains(cmd) && !ADMIN_TOKENS.read().contains(&chat_msg.admin_token)
-            {
-                return None;
+            if let Some(permission) = PRIVILEGED_COMMANDS.get(cmd) {
+                if let Some(auth_info) = auth_info {
+                    if !auth_info.has_permission(permission) {
+                        return None;
+                    }
+                } else {
+                    return None;
+                }
             }
             match cmd.to_ascii_uppercase().as_ref() {
                 "ANNOUNCEMENT" => {
@@ -328,6 +322,7 @@ impl Sm64JsServer {
         &self,
         player: &Arc<RwLock<Player>>,
         mut chat_msg: ChatMsg,
+        auth_info: Option<AuthInfo>,
     ) -> Result<Option<Vec<u8>>, Vec<u8>> {
         let root_msg = match player
             .write()
@@ -335,7 +330,9 @@ impl Sm64JsServer {
         {
             ChatResult::Ok(message) => {
                 chat_msg.message = message;
-                chat_msg.is_admin = ADMIN_TOKENS.read().contains(&chat_msg.admin_token);
+                chat_msg.is_admin = auth_info
+                    .map(|auth_info| auth_info.is_in_game_admin())
+                    .unwrap_or_default();
                 Some(RootMsg {
                     message: Some(root_msg::Message::UncompressedSm64jsMsg(Sm64JsMsg {
                         message: Some(sm64_js_msg::Message::ChatMsg(chat_msg)),

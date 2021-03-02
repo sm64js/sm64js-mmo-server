@@ -2265,26 +2265,16 @@ dependencies = [
 name = "sm64js-auth"
 version = "0.1.0"
 dependencies = [
- "actix-codec",
  "actix-http",
  "actix-service",
  "actix-session",
  "actix-web",
- "awc",
- "chrono",
- "diesel",
- "flate2",
  "futures",
- "indexmap",
  "lazy_static",
+ "maplit",
  "paperclip",
  "parking_lot",
- "r2d2",
- "rand 0.8.3",
- "serde",
- "serde_json",
  "sm64js-db",
- "thiserror",
 ]
 
 [[package]]
@@ -2332,6 +2322,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sm64js-api",
+ "sm64js-auth",
  "thiserror",
  "v_htmlescape",
 ]
