@@ -145,6 +145,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Sm64JsWsSession {
                                 .send(server::SendJoinGame {
                                     socket_id: self.id,
                                     join_game_msg,
+                                    auth_info: self.auth_info.clone()
                                 })
                                 .into_actor(self)
                                 .then(move |res, _act, ctx| {

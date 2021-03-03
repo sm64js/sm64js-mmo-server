@@ -209,6 +209,7 @@ impl Handler<SendSkin> for Sm64JsServer {
 pub struct SendJoinGame {
     pub socket_id: u32,
     pub join_game_msg: JoinGameMsg,
+    pub auth_info: Option<AuthInfo>,
 }
 
 impl Handler<SendJoinGame> for Sm64JsServer {
@@ -217,13 +218,17 @@ impl Handler<SendJoinGame> for Sm64JsServer {
     fn handle(&mut self, send_join_game: SendJoinGame, _: &mut Context<Self>) -> Self::Result {
         let join_game_msg = send_join_game.join_game_msg;
         let socket_id = send_join_game.socket_id;
+        let auth_info = send_join_game.auth_info;
         if let Some(mut room) = self.rooms.get_mut(&join_game_msg.level) {
             if room.has_player(socket_id) {
                 None
             } else {
                 let name = if join_game_msg.use_discord_name {
-                    // TODO get Discord name
-                    todo!()
+                    if let Some(auth_info) = auth_info {
+                        auth_info.get_discord_username()?
+                    } else {
+                        return None;
+                    }
                 } else {
                     if !Self::is_name_valid(&join_game_msg.name) {
                         return None;
@@ -256,6 +261,7 @@ impl Handler<SendJoinGame> for Sm64JsServer {
     }
 }
 
+#[derive(Debug)]
 pub struct JoinGameAccepted {
     pub level: u32,
     pub name: String,
