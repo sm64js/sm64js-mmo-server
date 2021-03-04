@@ -44,9 +44,8 @@ struct DiscordOAuth2Response {
 
 #[derive(Apiv2Schema, Debug, Serialize)]
 struct AuthorizedUserMessage {
+    /// Discord username
     username: Option<String>,
-    code: u8,
-    message: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -79,11 +78,7 @@ async fn login(identity: Identity) -> Result<web::Json<AuthorizedUserMessage>, L
     let account_info = identity.get_auth_info();
     let username = account_info.get_discord_username();
 
-    Ok(web::Json(AuthorizedUserMessage {
-        username,
-        code: 1,
-        message: None,
-    }))
+    Ok(web::Json(AuthorizedUserMessage { username }))
 }
 
 #[api_v2_operation(tags(Hidden))]
@@ -162,8 +157,6 @@ async fn login_with_discord(
 
     Ok(web::Json(AuthorizedUserMessage {
         username: Some(format!("{}#{}", username, discriminator)),
-        code: 1,
-        message: None,
     }))
 }
 
@@ -214,11 +207,7 @@ async fn login_with_google(
     session.set("expires_at", google_session.expires_at.timestamp())?;
     session.set("account_type", "google")?;
 
-    Ok(web::Json(AuthorizedUserMessage {
-        username: None,
-        code: 1,
-        message: None,
-    }))
+    Ok(web::Json(AuthorizedUserMessage { username: None }))
 }
 
 #[api_v2_errors(code = 400, code = 500)]
