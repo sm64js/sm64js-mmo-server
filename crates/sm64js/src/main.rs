@@ -85,6 +85,18 @@ async fn main() -> std::io::Result<()> {
                     external_docs: None,
                 },
                 Tag {
+                    name: "Auth".to_string(),
+                    description: Some(
+                        "\
+Authentification related API endpoints.\n\n
+Initial authentification must be done on the site itself via Discord OAuth2.\
+A session cookie will then be stored in the user's browser that can be used to fetch all APIs that require authentification.
+"
+                        .to_string(),
+                    ),
+                    external_docs: None,
+                },
+                Tag {
                     name: "Chat".to_string(),
                     description: Some("Chat related API endpoints".to_string()),
                     external_docs: None,

@@ -74,7 +74,7 @@ pub fn service() -> impl dev::HttpServiceFactory + Mountable {
         .service(web::resource("/discord").route(web::post().to(login_with_discord)))
 }
 
-#[api_v2_operation(tags(Hidden))]
+#[api_v2_operation(tags(Auth))]
 async fn login(identity: Identity) -> Result<web::Json<AuthorizedUserMessage>, LoginError> {
     let account_info = identity.get_auth_info();
     let username = account_info.get_discord_username();
