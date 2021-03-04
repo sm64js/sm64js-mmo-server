@@ -3,6 +3,7 @@ use paperclip::actix::{api_v2_operation, web, NoContent};
 use sm64js_auth::Identity;
 use sm64js_db::DbPool;
 
+/// Deletes cookie session.
 #[api_v2_operation(tags(Auth))]
 pub async fn post_logout(
     pool: web::Data<DbPool>,
