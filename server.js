@@ -10,7 +10,8 @@ const {
     ChatMsg,
     InitializationMsg,
     AuthorizedUserMsg,
-    InitGameDataMsg
+    InitGameDataMsg,
+    InitNewMarioStateMsg
 } = require("./proto/mario_pb")
 
 const got = require('got')
@@ -433,6 +434,16 @@ const processJoinGame = async (socket, msg) => {
     socketIdsToGameIds[socket.my_id] = gameID
 
     socketsInLobby = socketsInLobby.filter((lobbySocket) => { return lobbySocket != socket })
+
+    if (socket != masterSocket) {
+        const initNewMarioStateMsg = new InitNewMarioStateMsg()
+        initNewMarioStateMsg.setSocketId(socket.my_id)
+        const sm64jsMsg2 = new Sm64JsMsg()
+        sm64jsMsg2.setInitNewMarioStateMsg(initNewMarioStateMsg)
+        const rootMsg2 = new RootMsg()
+        rootMsg2.setUncompressedSm64jsMsg(sm64jsMsg2)
+        sendData(rootMsg2.serializeBinary(), masterSocket) 
+    }
 
     const initGameDataMsg = new InitGameDataMsg()
     initGameDataMsg.setName(name)
