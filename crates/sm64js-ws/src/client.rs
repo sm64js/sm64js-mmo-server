@@ -98,6 +98,10 @@ impl Player {
         }
     }
 
+    pub fn get_socket_id(&self) -> u32 {
+        self.socket_id
+    }
+
     pub fn get_name(&self) -> &String {
         &self.name
     }
@@ -131,6 +135,10 @@ impl Player {
             ip,
             real_ip,
         )
+    }
+
+    pub fn get_skin_data(&mut self) -> Option<&SkinData> {
+        self.skin_data.as_ref()
     }
 
     pub fn get_updated_skin_data(&mut self) -> Option<SkinData> {

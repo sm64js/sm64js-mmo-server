@@ -264,6 +264,31 @@ pub struct JoinGameAccepted {
     pub name: String,
 }
 
+#[derive(Message)]
+#[rtype(result = "Option<RequestCosmeticsAccepted>")]
+pub struct SendRequestCosmetics {
+    pub socket_id: u32,
+}
+
+impl Handler<SendRequestCosmetics> for Sm64JsServer {
+    type Result = Option<RequestCosmeticsAccepted>;
+
+    fn handle(
+        &mut self,
+        send_request_cosmetics: SendRequestCosmetics,
+        _: &mut Context<Self>,
+    ) -> Self::Result {
+        let socket_id = send_request_cosmetics.socket_id;
+        let level = self.clients.get(&socket_id)?.get_level()?;
+        let room = self.rooms.get(&level)?;
+
+        Some(RequestCosmeticsAccepted(room.get_all_skin_data().ok()?))
+    }
+}
+
+#[derive(Debug)]
+pub struct RequestCosmeticsAccepted(pub Vec<Vec<u8>>);
+
 impl Sm64JsServer {
     pub fn new(chat_history: ChatHistoryData, rooms: Rooms) -> Self {
         Sm64JsServer {

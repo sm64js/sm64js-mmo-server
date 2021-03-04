@@ -139,7 +139,10 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Sm64JsWsSession {
                     }
                     Some(sm64_js_msg::Message::InitializationMsg(init_msg)) => {
                         match init_msg.message {
-                            Some(initialization_msg::Message::InitGameDataMsg(_)) => todo!(),
+                            Some(initialization_msg::Message::InitGameDataMsg(_)) => {
+                                // TODO clients don't send this
+                                todo!()
+                            }
                             Some(initialization_msg::Message::JoinGameMsg(join_game_msg)) => {
                                 let socket_id = self.id;
                                 self.addr
@@ -180,7 +183,28 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Sm64JsWsSession {
                                 })
                                 .wait(ctx);
                             }
-                            Some(initialization_msg::Message::RequestCosmeticsMsg(_)) => todo!(),
+                            Some(initialization_msg::Message::RequestCosmeticsMsg(_)) => {
+                                self.addr
+                                    .send(server::SendRequestCosmetics { socket_id: self.id })
+                                    .into_actor(self)
+                                    .then(move |res, _act, ctx| {
+                                        match res {
+                                            Ok(Some(messages)) => {
+                                                messages.0.into_iter().for_each(|msg| {
+                                                    ctx.binary(msg);
+                                                });
+                                            }
+                                            Ok(None) => {
+                                                // TODO ignore?
+                                            }
+                                            Err(err) => {
+                                                eprintln!("{:?}", err);
+                                            }
+                                        }
+                                        fut::ready(())
+                                    })
+                                    .wait(ctx);
+                            }
                             None => {}
                         }
                     }
