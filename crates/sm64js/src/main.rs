@@ -9,7 +9,7 @@ use paperclip::{
     actix::{api_v2_operation, web, OpenApiExt},
     v2::models::{DefaultApiRaw, Info, Tag},
 };
-use sm64js_api::ChatHistory;
+use sm64js_api::{ChatHistory, ChatHistoryData};
 use sm64js_auth::Identity;
 use sm64js_ws::{Game, Room, Sm64JsServer, Sm64JsWsSession};
 
@@ -18,9 +18,9 @@ async fn ws_index(
     req: HttpRequest,
     stream: web::Payload,
     srv: web::Data<Addr<Sm64JsServer>>,
-    identity: Option<Identity>,
+    identity: Identity,
 ) -> Result<HttpResponse, Error> {
-    let auth_info = identity.map(|id| id.get_auth_info());
+    let auth_info = identity.get_auth_info();
     let ip = req.peer_addr();
     let real_ip = req
         .connection_info()
@@ -55,7 +55,7 @@ async fn main() -> std::io::Result<()> {
     let pool = r2d2::Pool::builder()
         .build(manager)
         .expect("Failed to create pool.");
-    let chat_history = web::Data::new(RwLock::new(ChatHistory::default()));
+    let chat_history: ChatHistoryData = web::Data::new(RwLock::new(ChatHistory::default()));
     let rooms = Room::init_rooms();
     let server = Sm64JsServer::new(chat_history.clone(), rooms.clone()).start();
     Game::run(rooms.clone());
@@ -115,9 +115,7 @@ async fn main() -> std::io::Result<()> {
                     .secure(false),
             )
             .build()
-            .service(
-                actix_files::Files::new("/apidoc", "./sm64js/src/openapi").index_file("index.html"),
-            )
+            .service(actix_files::Files::new("/apidoc", "./openapi").index_file("index.html"))
             .service(actix_files::Files::new("/", DIST_FOLDER).index_file("index.html"))
     })
     .bind("0.0.0.0:3060")?

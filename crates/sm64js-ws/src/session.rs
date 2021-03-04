@@ -27,7 +27,7 @@ pub struct Sm64JsWsSession {
     hb: Instant,
     hb_data: Option<Instant>,
     addr: Addr<server::Sm64JsServer>,
-    auth_info: Option<AuthInfo>,
+    auth_info: AuthInfo,
     ip: Option<SocketAddr>,
     real_ip: Option<String>,
 }
@@ -42,6 +42,7 @@ impl Actor for Sm64JsWsSession {
         self.addr
             .send(server::Connect {
                 addr: addr.recipient(),
+                auth_info: self.auth_info.clone(),
                 ip: self.ip,
                 real_ip: self.real_ip.clone(),
             })
@@ -213,7 +214,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Sm64JsWsSession {
 impl Sm64JsWsSession {
     pub fn new(
         addr: Addr<server::Sm64JsServer>,
-        auth_info: Option<AuthInfo>,
+        auth_info: AuthInfo,
         ip: Option<SocketAddr>,
         real_ip: Option<String>,
     ) -> Self {

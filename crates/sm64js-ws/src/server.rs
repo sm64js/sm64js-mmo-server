@@ -44,6 +44,7 @@ impl Actor for Sm64JsServer {
 #[rtype(u32)]
 pub struct Connect {
     pub addr: Recipient<Message>,
+    pub auth_info: AuthInfo,
     pub ip: Option<SocketAddr>,
     pub real_ip: Option<String>,
 }
@@ -53,7 +54,7 @@ impl Handler<Connect> for Sm64JsServer {
 
     fn handle(&mut self, msg: Connect, _: &mut Context<Self>) -> Self::Result {
         let socket_id = rand::thread_rng().gen::<u32>();
-        let client = Client::new(msg.addr, msg.ip, msg.real_ip, socket_id);
+        let client = Client::new(msg.addr, msg.auth_info, msg.ip, msg.real_ip, socket_id);
 
         self.clients.insert(socket_id, client);
         socket_id
@@ -153,7 +154,7 @@ impl Handler<SendGrabFlag> for Sm64JsServer {
 pub struct SendChat {
     pub socket_id: u32,
     pub chat_msg: ChatMsg,
-    pub auth_info: Option<AuthInfo>,
+    pub auth_info: AuthInfo,
 }
 
 impl Handler<SendChat> for Sm64JsServer {
@@ -209,7 +210,7 @@ impl Handler<SendSkin> for Sm64JsServer {
 pub struct SendJoinGame {
     pub socket_id: u32,
     pub join_game_msg: JoinGameMsg,
-    pub auth_info: Option<AuthInfo>,
+    pub auth_info: AuthInfo,
 }
 
 impl Handler<SendJoinGame> for Sm64JsServer {
@@ -224,11 +225,7 @@ impl Handler<SendJoinGame> for Sm64JsServer {
                 None
             } else {
                 let name = if join_game_msg.use_discord_name {
-                    if let Some(auth_info) = auth_info {
-                        auth_info.get_discord_username()?
-                    } else {
-                        return None;
-                    }
+                    auth_info.get_discord_username()?
                 } else {
                     if !Self::is_name_valid(&join_game_msg.name) {
                         return None;
@@ -289,16 +286,12 @@ impl Sm64JsServer {
         msg
     }
 
-    fn handle_command(chat_msg: ChatMsg, auth_info: Option<AuthInfo>) -> Option<Vec<u8>> {
+    fn handle_command(chat_msg: ChatMsg, auth_info: AuthInfo) -> Option<Vec<u8>> {
         let message = chat_msg.message;
         if let Some(index) = message.find(' ') {
             let (cmd, message) = message.split_at(index);
             if let Some(permission) = PRIVILEGED_COMMANDS.get(cmd) {
-                if let Some(auth_info) = auth_info {
-                    if !auth_info.has_permission(permission) {
-                        return None;
-                    }
-                } else {
+                if !auth_info.has_permission(permission) {
                     return None;
                 }
             }
@@ -328,7 +321,7 @@ impl Sm64JsServer {
         &self,
         player: &Arc<RwLock<Player>>,
         mut chat_msg: ChatMsg,
-        auth_info: Option<AuthInfo>,
+        auth_info: AuthInfo,
     ) -> Result<Option<Vec<u8>>, Vec<u8>> {
         let root_msg = match player
             .write()
@@ -336,9 +329,7 @@ impl Sm64JsServer {
         {
             ChatResult::Ok(message) => {
                 chat_msg.message = message;
-                chat_msg.is_admin = auth_info
-                    .map(|auth_info| auth_info.is_in_game_admin())
-                    .unwrap_or_default();
+                chat_msg.is_admin = auth_info.is_in_game_admin();
                 Some(RootMsg {
                     message: Some(root_msg::Message::UncompressedSm64jsMsg(Sm64JsMsg {
                         message: Some(sm64_js_msg::Message::ChatMsg(chat_msg)),
