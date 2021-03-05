@@ -1,6 +1,5 @@
 const {
     RootMsg,
-    MarioListMsg,
     ValidPlayersMsg,
     Sm64JsMsg,
     SkinMsg,
@@ -740,14 +739,7 @@ setInterval(async () => {
 
     serverSideFlagUpdate()
 
-    Object.values(allGames).forEach(gameData => {
-        Object.values(gameData.players).forEach(playerData => {
-            //// TEMP
-            //if (playerData.valid > 0) playerData.valid--
-            //else if (playerData.decodedMario) playerData.socket.close()
-        })
-    })
-
+/*   /// leaving this section commented out for reference of flag data
     Object.entries(allGames).forEach(async ([gameID, gameData]) => {
         const sm64jsMsg = new Sm64JsMsg()
         const mariolist = Object.values(gameData.players).filter(data => data.decodedMario).map(data => data.decodedMario)
@@ -779,7 +771,7 @@ setInterval(async () => {
         //sendData(rootMsg.serializeBinary(), masterSocket)
         //broadcastData(rootMsg.serializeBinary(), gameID)   dont send this way
     })
-
+*/
 
 }, 31)  /// 31 seems to be sweet spot
 
