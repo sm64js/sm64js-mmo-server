@@ -9,22 +9,25 @@ use paperclip::{
     actix::{api_v2_operation, web, OpenApiExt},
     v2::models::{DefaultApiRaw, Info, Tag},
 };
-use sm64js_api::ChatHistory;
-use sm64js_ws::{Sm64JsServer, Sm64JsWsSession, Room, Game};
+use sm64js_api::{ChatHistory, ChatHistoryData};
+use sm64js_auth::Identity;
+use sm64js_ws::{Game, Room, Sm64JsServer, Sm64JsWsSession};
 
 #[api_v2_operation(tags(Hidden))]
 async fn ws_index(
     req: HttpRequest,
     stream: web::Payload,
     srv: web::Data<Addr<Sm64JsServer>>,
+    identity: Identity,
 ) -> Result<HttpResponse, Error> {
+    let auth_info = identity.get_auth_info();
     let ip = req.peer_addr();
     let real_ip = req
         .connection_info()
         .realip_remote_addr()
         .map(|ip| ip.to_string());
     ws::start(
-        Sm64JsWsSession::new(srv.get_ref().clone(), ip, real_ip),
+        Sm64JsWsSession::new(srv.get_ref().clone(), auth_info, ip, real_ip),
         &req,
         stream,
     )
@@ -52,7 +55,7 @@ async fn main() -> std::io::Result<()> {
     let pool = r2d2::Pool::builder()
         .build(manager)
         .expect("Failed to create pool.");
-    let chat_history = web::Data::new(RwLock::new(ChatHistory::default()));
+    let chat_history: ChatHistoryData = web::Data::new(RwLock::new(ChatHistory::default()));
     let rooms = Room::init_rooms();
     let server = Sm64JsServer::new(chat_history.clone(), rooms.clone()).start();
     Game::run(rooms.clone());
@@ -78,6 +81,18 @@ async fn main() -> std::io::Result<()> {
                     name: "Permission".to_string(),
                     description: Some(
                         "API for generating new tokens and assigning permissions.".to_string(),
+                    ),
+                    external_docs: None,
+                },
+                Tag {
+                    name: "Auth".to_string(),
+                    description: Some(
+                        "\
+Authentification related API endpoints.\n\n
+Initial authentification must be done on the site itself via Discord OAuth2.\
+A session cookie will then be stored in the user's browser that can be used to fetch all APIs that require authentification.
+"
+                        .to_string(),
                     ),
                     external_docs: None,
                 },
@@ -112,9 +127,7 @@ async fn main() -> std::io::Result<()> {
                     .secure(false),
             )
             .build()
-            .service(
-                actix_files::Files::new("/apidoc", "./sm64js/src/openapi").index_file("index.html"),
-            )
+            .service(actix_files::Files::new("/apidoc", "./openapi").index_file("index.html"))
             .service(actix_files::Files::new("/", DIST_FOLDER).index_file("index.html"))
     })
     .bind("0.0.0.0:3060")?

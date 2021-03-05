@@ -3,6 +3,7 @@ members = [
     "crates/sm64js",
     "crates/sm64js-api",
     "crates/sm64js-auth",
+    "crates/sm64js-common",
     "crates/sm64js-db",
     "crates/sm64js-ws"
 ]

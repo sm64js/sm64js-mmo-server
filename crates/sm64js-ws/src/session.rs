@@ -10,6 +10,7 @@ use actix::prelude::*;
 use actix_web_actors::ws;
 use prost::Message as ProstMessage;
 use server::Sm64JsServer;
+use sm64js_auth::AuthInfo;
 use std::{
     net::SocketAddr,
     time::{Duration, Instant},
@@ -26,6 +27,7 @@ pub struct Sm64JsWsSession {
     hb: Instant,
     hb_data: Option<Instant>,
     addr: Addr<server::Sm64JsServer>,
+    auth_info: AuthInfo,
     ip: Option<SocketAddr>,
     real_ip: Option<String>,
 }
@@ -40,6 +42,7 @@ impl Actor for Sm64JsWsSession {
         self.addr
             .send(server::Connect {
                 addr: addr.recipient(),
+                auth_info: self.auth_info.clone(),
                 ip: self.ip,
                 real_ip: self.real_ip.clone(),
             })
@@ -122,6 +125,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Sm64JsWsSession {
                             .send(server::SendChat {
                                 socket_id: self.id,
                                 chat_msg,
+                                auth_info: self.auth_info.clone(),
                             })
                             .into_actor(self)
                             .then(move |res, _act, ctx| {
@@ -135,13 +139,17 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Sm64JsWsSession {
                     }
                     Some(sm64_js_msg::Message::InitializationMsg(init_msg)) => {
                         match init_msg.message {
-                            Some(initialization_msg::Message::InitGameDataMsg(_)) => todo!(),
+                            Some(initialization_msg::Message::InitGameDataMsg(_)) => {
+                                // TODO clients don't send this
+                                todo!()
+                            }
                             Some(initialization_msg::Message::JoinGameMsg(join_game_msg)) => {
                                 let socket_id = self.id;
                                 self.addr
                                 .send(server::SendJoinGame {
                                     socket_id: self.id,
                                     join_game_msg,
+                                    auth_info: self.auth_info.clone()
                                 })
                                 .into_actor(self)
                                 .then(move |res, _act, ctx| {
@@ -175,7 +183,28 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Sm64JsWsSession {
                                 })
                                 .wait(ctx);
                             }
-                            Some(initialization_msg::Message::RequestCosmeticsMsg(_)) => todo!(),
+                            Some(initialization_msg::Message::RequestCosmeticsMsg(_)) => {
+                                self.addr
+                                    .send(server::SendRequestCosmetics { socket_id: self.id })
+                                    .into_actor(self)
+                                    .then(move |res, _act, ctx| {
+                                        match res {
+                                            Ok(Some(messages)) => {
+                                                messages.0.into_iter().for_each(|msg| {
+                                                    ctx.binary(msg);
+                                                });
+                                            }
+                                            Ok(None) => {
+                                                // TODO ignore?
+                                            }
+                                            Err(err) => {
+                                                eprintln!("{:?}", err);
+                                            }
+                                        }
+                                        fut::ready(())
+                                    })
+                                    .wait(ctx);
+                            }
                             None => {}
                         }
                     }
@@ -209,6 +238,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Sm64JsWsSession {
 impl Sm64JsWsSession {
     pub fn new(
         addr: Addr<server::Sm64JsServer>,
+        auth_info: AuthInfo,
         ip: Option<SocketAddr>,
         real_ip: Option<String>,
     ) -> Self {
@@ -217,6 +247,7 @@ impl Sm64JsWsSession {
             hb: Instant::now(),
             hb_data: None,
             addr,
+            auth_info,
             ip,
             real_ip,
         }

@@ -12,20 +12,15 @@ use dashmap::DashMap;
 use parking_lot::RwLock;
 use prost::Message as ProstMessage;
 use rand::{self, Rng};
-use rayon::prelude::*;
 use sm64js_api::{ChatError, ChatHistoryData, ChatResult};
-use std::{
-    collections::{HashMap, HashSet},
-    env,
-    net::SocketAddr,
-    sync::Arc,
-};
+use sm64js_auth::{AuthInfo, Permission};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use v_htmlescape::escape;
 
 lazy_static! {
-    pub static ref ADMIN_COMMANDS: HashSet<&'static str> = hashset! {"ANNOUNCEMENT"};
-    pub static ref ADMIN_TOKENS: Arc<RwLock<HashSet<String>>> =
-        Arc::new(RwLock::new(HashSet::new()));
+    pub static ref PRIVILEGED_COMMANDS: HashMap<&'static str, Permission> = hashmap! {
+        "ANNOUNCEMENT" => Permission::SendAnnouncement
+    };
 }
 
 #[derive(Message)]
@@ -49,6 +44,7 @@ impl Actor for Sm64JsServer {
 #[rtype(u32)]
 pub struct Connect {
     pub addr: Recipient<Message>,
+    pub auth_info: AuthInfo,
     pub ip: Option<SocketAddr>,
     pub real_ip: Option<String>,
 }
@@ -58,7 +54,7 @@ impl Handler<Connect> for Sm64JsServer {
 
     fn handle(&mut self, msg: Connect, _: &mut Context<Self>) -> Self::Result {
         let socket_id = rand::thread_rng().gen::<u32>();
-        let client = Client::new(msg.addr, msg.ip, msg.real_ip, socket_id);
+        let client = Client::new(msg.addr, msg.auth_info, msg.ip, msg.real_ip, socket_id);
 
         self.clients.insert(socket_id, client);
         socket_id
@@ -158,6 +154,7 @@ impl Handler<SendGrabFlag> for Sm64JsServer {
 pub struct SendChat {
     pub socket_id: u32,
     pub chat_msg: ChatMsg,
+    pub auth_info: AuthInfo,
 }
 
 impl Handler<SendChat> for Sm64JsServer {
@@ -166,11 +163,12 @@ impl Handler<SendChat> for Sm64JsServer {
     fn handle(&mut self, send_chat: SendChat, _: &mut Context<Self>) -> Self::Result {
         let socket_id = send_chat.socket_id;
         let chat_msg = send_chat.chat_msg;
+        let auth_info = send_chat.auth_info;
 
         let msg = if chat_msg.message.starts_with('/') {
-            Ok(Self::handle_command(chat_msg))
+            Ok(Self::handle_command(chat_msg, auth_info))
         } else if let Some(player) = self.players.get(&socket_id) {
-            self.handle_chat(player, chat_msg)
+            self.handle_chat(player, chat_msg, auth_info)
         } else {
             Ok(None)
         };
@@ -212,6 +210,7 @@ impl Handler<SendSkin> for Sm64JsServer {
 pub struct SendJoinGame {
     pub socket_id: u32,
     pub join_game_msg: JoinGameMsg,
+    pub auth_info: AuthInfo,
 }
 
 impl Handler<SendJoinGame> for Sm64JsServer {
@@ -220,13 +219,13 @@ impl Handler<SendJoinGame> for Sm64JsServer {
     fn handle(&mut self, send_join_game: SendJoinGame, _: &mut Context<Self>) -> Self::Result {
         let join_game_msg = send_join_game.join_game_msg;
         let socket_id = send_join_game.socket_id;
+        let auth_info = send_join_game.auth_info;
         if let Some(mut room) = self.rooms.get_mut(&join_game_msg.level) {
             if room.has_player(socket_id) {
                 None
             } else {
                 let name = if join_game_msg.use_discord_name {
-                    // TODO get Discord name
-                    todo!()
+                    auth_info.get_discord_username()?
                 } else {
                     if !Self::is_name_valid(&join_game_msg.name) {
                         return None;
@@ -259,21 +258,39 @@ impl Handler<SendJoinGame> for Sm64JsServer {
     }
 }
 
+#[derive(Debug)]
 pub struct JoinGameAccepted {
     pub level: u32,
     pub name: String,
 }
 
+#[derive(Message)]
+#[rtype(result = "Option<RequestCosmeticsAccepted>")]
+pub struct SendRequestCosmetics {
+    pub socket_id: u32,
+}
+
+impl Handler<SendRequestCosmetics> for Sm64JsServer {
+    type Result = Option<RequestCosmeticsAccepted>;
+
+    fn handle(
+        &mut self,
+        send_request_cosmetics: SendRequestCosmetics,
+        _: &mut Context<Self>,
+    ) -> Self::Result {
+        let socket_id = send_request_cosmetics.socket_id;
+        let level = self.clients.get(&socket_id)?.get_level()?;
+        let room = self.rooms.get(&level)?;
+
+        Some(RequestCosmeticsAccepted(room.get_all_skin_data().ok()?))
+    }
+}
+
+#[derive(Debug)]
+pub struct RequestCosmeticsAccepted(pub Vec<Vec<u8>>);
+
 impl Sm64JsServer {
     pub fn new(chat_history: ChatHistoryData, rooms: Rooms) -> Self {
-        if let Ok(admin_tokens) = env::var("ADMIN_TOKENS") {
-            admin_tokens
-                .split(':')
-                .par_bridge()
-                .for_each(|admin_token| {
-                    ADMIN_TOKENS.write().insert(admin_token.to_string());
-                })
-        }
         Sm64JsServer {
             clients: Arc::new(DashMap::new()),
             players: HashMap::new(),
@@ -294,13 +311,14 @@ impl Sm64JsServer {
         msg
     }
 
-    fn handle_command(chat_msg: ChatMsg) -> Option<Vec<u8>> {
+    fn handle_command(chat_msg: ChatMsg, auth_info: AuthInfo) -> Option<Vec<u8>> {
         let message = chat_msg.message;
         if let Some(index) = message.find(' ') {
             let (cmd, message) = message.split_at(index);
-            if ADMIN_COMMANDS.contains(cmd) && !ADMIN_TOKENS.read().contains(&chat_msg.admin_token)
-            {
-                return None;
+            if let Some(permission) = PRIVILEGED_COMMANDS.get(cmd) {
+                if !auth_info.has_permission(permission) {
+                    return None;
+                }
             }
             match cmd.to_ascii_uppercase().as_ref() {
                 "ANNOUNCEMENT" => {
@@ -328,6 +346,7 @@ impl Sm64JsServer {
         &self,
         player: &Arc<RwLock<Player>>,
         mut chat_msg: ChatMsg,
+        auth_info: AuthInfo,
     ) -> Result<Option<Vec<u8>>, Vec<u8>> {
         let root_msg = match player
             .write()
@@ -335,7 +354,7 @@ impl Sm64JsServer {
         {
             ChatResult::Ok(message) => {
                 chat_msg.message = message;
-                chat_msg.is_admin = ADMIN_TOKENS.read().contains(&chat_msg.admin_token);
+                chat_msg.is_admin = auth_info.is_in_game_admin();
                 Some(RootMsg {
                     message: Some(root_msg::Message::UncompressedSm64jsMsg(Sm64JsMsg {
                         message: Some(sm64_js_msg::Message::ChatMsg(chat_msg)),

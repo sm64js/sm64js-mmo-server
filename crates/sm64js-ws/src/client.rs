@@ -7,6 +7,7 @@ use anyhow::Result;
 use dashmap::DashMap;
 use parking_lot::RwLock;
 use sm64js_api::{ChatHistoryData, ChatResult};
+use sm64js_auth::AuthInfo;
 use std::{
     collections::HashMap,
     net::SocketAddr,
@@ -20,6 +21,7 @@ pub type WeakPlayers = HashMap<u32, Weak<RwLock<Player>>>;
 #[derive(Debug)]
 pub struct Client {
     addr: Recipient<Message>,
+    auth_info: AuthInfo,
     ip: Option<SocketAddr>,
     real_ip: Option<String>,
     data: Option<MarioMsg>,
@@ -30,14 +32,17 @@ pub struct Client {
 impl Client {
     pub fn new(
         addr: Recipient<Message>,
+        auth_info: AuthInfo,
         ip: Option<SocketAddr>,
         real_ip: Option<String>,
         socket_id: u32,
     ) -> Self {
+        let add_real_ip = ip.map(|ip| ip.to_string()) != real_ip;
         Client {
             addr,
+            auth_info,
             ip,
-            real_ip,
+            real_ip: if add_real_ip { real_ip } else { None },
             data: None,
             socket_id,
             level: None,
@@ -93,6 +98,10 @@ impl Player {
         }
     }
 
+    pub fn get_socket_id(&self) -> u32 {
+        self.socket_id
+    }
+
     pub fn get_name(&self) -> &String {
         &self.name
     }
@@ -119,9 +128,17 @@ impl Player {
         } else {
             (None, None)
         };
-        chat_history
-            .write()
-            .add_message(message, self.name.clone(), ip, real_ip)
+        chat_history.write().add_message(
+            message,
+            self.name.clone(),
+            &self.clients.get(&self.socket_id).unwrap().auth_info,
+            ip,
+            real_ip,
+        )
+    }
+
+    pub fn get_skin_data(&mut self) -> Option<&SkinData> {
+        self.skin_data.as_ref()
     }
 
     pub fn get_updated_skin_data(&mut self) -> Option<SkinData> {

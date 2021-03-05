@@ -148,9 +148,12 @@ impl Room {
             .par_iter()
             .filter_map(|(_, player)| {
                 if let Some(player) = player.upgrade() {
-                    let player_name = player.read().get_name().clone();
+                    let player_r = player.read();
+                    let player_name = player_r.get_name().clone();
+                    let socket_id = player_r.get_socket_id();
+                    drop(player_r);
                     if let Some(skin_data) = player.write().get_updated_skin_data() {
-                        Some((skin_data, player_name))
+                        Some((skin_data, player_name, socket_id))
                     } else {
                         None
                     }
@@ -158,11 +161,11 @@ impl Room {
                     None
                 }
             })
-            .map(|(skin_data, player_name)| -> Result<_> {
+            .map(|(skin_data, player_name, socket_id)| -> Result<_> {
                 let root_msg = RootMsg {
                     message: Some(root_msg::Message::UncompressedSm64jsMsg(Sm64JsMsg {
                         message: Some(sm64_js_msg::Message::SkinMsg(SkinMsg {
-                            socket_id: 0,
+                            socket_id,
                             skin_data: Some(skin_data),
                             player_name,
                         })),
@@ -247,6 +250,41 @@ impl Room {
                 flag.idle_timer = 0;
             }
         }
+    }
+
+    pub fn get_all_skin_data(&self) -> Result<Vec<Vec<u8>>> {
+        let messages: Vec<_> = self
+            .players
+            .par_iter()
+            .filter_map(|(_, player)| {
+                if let Some(player) = player.upgrade() {
+                    let player_name = player.read().get_name().clone();
+                    if let Some(skin_data) = player.write().get_skin_data() {
+                        Some((skin_data.clone(), player_name))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .map(|(skin_data, player_name)| -> Result<_> {
+                let root_msg = RootMsg {
+                    message: Some(root_msg::Message::UncompressedSm64jsMsg(Sm64JsMsg {
+                        message: Some(sm64_js_msg::Message::SkinMsg(SkinMsg {
+                            socket_id: 0,
+                            skin_data: Some(skin_data),
+                            player_name,
+                        })),
+                    })),
+                };
+                let mut msg = vec![];
+                root_msg.encode(&mut msg)?;
+                Ok(msg)
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        Ok(messages)
     }
 }
 

@@ -16,6 +16,12 @@ table! {
         flags -> Nullable<Int4>,
         premium_type -> Nullable<Int2>,
         public_flags -> Nullable<Int4>,
+        nick -> Nullable<Varchar>,
+        roles -> Array<Text>,
+        joined_at -> Varchar,
+        premium_since -> Nullable<Varchar>,
+        deaf -> Bool,
+        mute -> Bool,
         account_id -> Int4,
     }
 }

@@ -17,6 +17,7 @@ use diesel::{
     r2d2::ConnectionManager,
 };
 use paperclip::actix::api_v2_errors;
+use sm64js_common::{DiscordGuildMember, DiscordUser};
 use thiserror::Error;
 
 type Result<T> = std::result::Result<T, DbError>;
@@ -26,12 +27,13 @@ pub fn insert_discord_session(
     access_token: String,
     token_type: String,
     expires_in: i64,
-    new_account: models::NewDiscordAccount,
+    discord_user: DiscordUser,
+    guild_member: DiscordGuildMember,
 ) -> Result<models::DiscordSession> {
     use schema::discord_sessions;
 
     let mut account_id = None;
-    if let Some(account) = get_discord_account_if_exists(conn, &new_account.id)? {
+    if let Some(account) = get_discord_account_if_exists(conn, &discord_user.id)? {
         account_id = Some(account.account_id);
         if let Ok(session) =
             models::DiscordSession::belonging_to(&account).first::<models::DiscordSession>(conn)
@@ -39,6 +41,24 @@ pub fn insert_discord_session(
             delete_discord_session(conn, session.id)?;
         }
     }
+
+    let new_account = models::NewDiscordAccount {
+        id: discord_user.id,
+        username: discord_user.username,
+        discriminator: discord_user.discriminator,
+        avatar: discord_user.avatar,
+        mfa_enabled: discord_user.mfa_enabled,
+        locale: discord_user.locale,
+        flags: discord_user.flags,
+        premium_type: discord_user.premium_type,
+        public_flags: discord_user.public_flags,
+        nick: guild_member.nick,
+        roles: guild_member.roles,
+        joined_at: guild_member.joined_at,
+        premium_since: guild_member.premium_since,
+        deaf: guild_member.deaf,
+        mute: guild_member.mute,
+    };
     let discord_account_id = upsert_discord_account(conn, new_account, account_id)?;
 
     let expires_at = Utc::now().naive_utc() + Duration::seconds(expires_in);
@@ -279,6 +299,12 @@ fn upsert_discord_account(
         flags: discord_account.flags,
         premium_type: discord_account.premium_type,
         public_flags: discord_account.public_flags,
+        nick: discord_account.nick,
+        roles: discord_account.roles,
+        joined_at: discord_account.joined_at,
+        premium_since: discord_account.premium_since,
+        deaf: discord_account.deaf,
+        mute: discord_account.mute,
         account_id,
     };
 

@@ -1,17 +1,33 @@
+use actix_web::{dev::Body, http::StatusCode, HttpResponse, ResponseError};
 use censor::Censor;
 use chrono::{prelude::*, Duration};
 use indexmap::IndexMap;
-use paperclip::actix::{api_v2_operation, web, Apiv2Schema};
+use paperclip::actix::{api_v2_errors, api_v2_operation, web, Apiv2Schema};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use serde_with::skip_serializing_none;
+use sm64js_auth::{AuthInfo, Identity, Permission};
+use thiserror::Error;
 use v_htmlescape::escape;
 
+/// Fetch chat history data.
 #[api_v2_operation(tags(Chat))]
 pub async fn get_chat(
     query: web::Query<GetChat>,
-    chat_history: web::Data<ChatHistoryData>,
-) -> web::Json<Vec<ChatMessage>> {
-    web::Json(chat_history.read().get_messages(query.into_inner()))
+    identity: Identity,
+    chat_history: ChatHistoryData,
+) -> Result<web::Json<Vec<ChatMessage>>, GetChatError> {
+    let auth_info = identity.get_auth_info();
+    if auth_info.has_permission(&Permission::ReadChatLog) {
+        let with_ip = auth_info.has_permission(&Permission::ReadChatLogWithIp);
+        Ok(web::Json(
+            chat_history
+                .read()
+                .get_messages(query.into_inner(), with_ip),
+        ))
+    } else {
+        Err(GetChatError::Unauthorized)
+    }
 }
 
 #[derive(Apiv2Schema, Debug, Deserialize)]
@@ -31,6 +47,22 @@ pub struct GetChat {
     player_name: Option<String>,
 }
 
+#[api_v2_errors(code = 401)]
+#[derive(Debug, Error)]
+pub enum GetChatError {
+    #[error("[Unauthorized]")]
+    Unauthorized,
+}
+
+impl ResponseError for GetChatError {
+    fn error_response(&self) -> HttpResponse {
+        let res = match *self {
+            Self::Unauthorized => HttpResponse::new(StatusCode::UNAUTHORIZED),
+        };
+        res.set_body(Body::from(format!("{}", self)))
+    }
+}
+
 pub type ChatHistoryData = web::Data<RwLock<ChatHistory>>;
 
 #[derive(Debug)]
@@ -47,6 +79,7 @@ impl ChatHistory {
         &mut self,
         message: &str,
         player_name: String,
+        auth_info: &AuthInfo,
         ip: Option<String>,
         real_ip: Option<String>,
     ) -> ChatResult {
@@ -62,31 +95,37 @@ impl ChatHistory {
             .0
             .keys()
             .skip_while(|k| *k < &date)
-            .filter(|k| !self.0.get(*k).unwrap().is_spam)
+            .filter(|k| !self.0.get(*k).unwrap().is_spam.unwrap_or_default())
             .count()
             > 5;
 
+        let now = Utc::now();
+
         self.0.insert(
-            Utc::now(),
+            now,
             ChatMessage {
                 message: message.to_string(),
+                timestamp: now.timestamp(),
                 player_name,
+                discord_id: auth_info.get_discord_id(),
+                google_id: auth_info.get_google_id(),
                 ip,
                 real_ip,
-                is_escaped,
-                is_censored,
-                is_spam,
+                is_escaped: if is_escaped { Some(is_escaped) } else { None },
+                is_censored: if is_censored { Some(is_censored) } else { None },
+                is_spam: if is_spam { Some(is_spam) } else { None },
             },
         );
 
         ChatResult::Ok(censored_message)
     }
 
-    fn get_messages(&self, query: GetChat) -> Vec<ChatMessage> {
+    fn get_messages(&self, query: GetChat, with_ip: bool) -> Vec<ChatMessage> {
         let max_messages = 100;
         let mut res: Vec<ChatMessage> = vec![];
         let mut reached = false;
-        while let Some(key) = self.0.keys().next_back() {
+        let mut keys = self.0.keys().clone();
+        while let Some(key) = keys.next_back() {
             if !reached {
                 if let Some(to) = query.to {
                     if *key >= to {
@@ -103,11 +142,15 @@ impl ChatHistory {
                     }
                 }
             }
-            let msg = self.0.get(key).unwrap().clone();
+            let mut msg = self.0.get(key).unwrap().clone();
             if let Some(player_name) = &query.player_name {
                 if &msg.player_name != player_name {
                     continue;
                 }
+            }
+            if !with_ip {
+                msg.ip = None;
+                msg.real_ip = None;
             }
             res.push(msg);
             if res.len() >= max_messages {
@@ -119,15 +162,19 @@ impl ChatHistory {
     }
 }
 
+#[skip_serializing_none]
 #[derive(Apiv2Schema, Clone, Debug, Deserialize, Serialize)]
 pub struct ChatMessage {
     message: String,
+    timestamp: i64,
     player_name: String,
+    discord_id: Option<String>,
+    google_id: Option<String>,
     ip: Option<String>,
     real_ip: Option<String>,
-    is_escaped: bool,
-    is_censored: bool,
-    is_spam: bool,
+    is_escaped: Option<bool>,
+    is_censored: Option<bool>,
+    is_spam: Option<bool>,
 }
 
 pub enum ChatResult {

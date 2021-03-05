@@ -1,5 +1,4 @@
-// use crate::Token;
-
+use crate::AuthInfo;
 use actix_http::{HttpMessage, Payload};
 use actix_web::{
     dev::{Extensions, ServiceRequest},
@@ -9,7 +8,6 @@ use actix_web::{
 };
 use futures::future::{err, ok, Ready};
 use paperclip::actix::Apiv2Security;
-use sm64js_db::AuthInfo;
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Apiv2Security, Debug)]
@@ -22,7 +20,7 @@ use std::{cell::RefCell, rc::Rc};
 pub struct Identity(Rc<RefCell<Option<AuthInfo>>>);
 
 impl Identity {
-    pub fn get_account(&self) -> AuthInfo {
+    pub fn get_auth_info(&self) -> AuthInfo {
         self.0.borrow().as_ref().unwrap().clone()
     }
 

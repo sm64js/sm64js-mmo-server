@@ -46,6 +46,12 @@ pub struct DiscordAccount {
     pub flags: Option<i32>,
     pub premium_type: Option<i16>,
     pub public_flags: Option<i32>,
+    pub nick: Option<String>,
+    pub roles: Vec<String>,
+    pub joined_at: String,
+    pub premium_since: Option<String>,
+    pub deaf: bool,
+    pub mute: bool,
     pub account_id: i32,
 }
 
@@ -60,6 +66,12 @@ pub struct NewDiscordAccount {
     pub flags: Option<i32>,
     pub premium_type: Option<i16>,
     pub public_flags: Option<i32>,
+    pub nick: Option<String>,
+    pub roles: Vec<String>,
+    pub joined_at: String,
+    pub premium_since: Option<String>,
+    pub deaf: bool,
+    pub mute: bool,
 }
 
 #[derive(AsChangeset, Associations, Clone, Debug, Identifiable, Insertable, Queryable)]
