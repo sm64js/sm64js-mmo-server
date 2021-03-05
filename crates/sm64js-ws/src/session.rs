@@ -92,14 +92,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Sm64JsWsSession {
                 };
                 match sm64js_msg.message {
                     Some(sm64_js_msg::Message::PingMsg(_)) => {
-                        use flate2::{write::ZlibEncoder, Compression};
-                        use std::io::Write;
-
-                        let mut encoder = ZlibEncoder::new(Vec::new(), Compression::fast());
-                        encoder.write_all(&bin).unwrap();
-                        let msg = encoder.finish().unwrap();
-
-                        ctx.binary(msg);
+                        ctx.binary(bin);
                     }
                     Some(sm64_js_msg::Message::MarioMsg(mario_msg)) => {
                         self.hb_data = Some(Instant::now());
