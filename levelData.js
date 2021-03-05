@@ -16,6 +16,12 @@ module.exports = {
                 [12043, 3000, 10086]
             ]
         },
+        999: {
+            name: "Clouded Ruins",
+            flagStartPositions: [
+                [0, 7657, 0],
+            ]
+        },
         16: {
             name: "Castle Grounds",
             flagStartPositions: [
