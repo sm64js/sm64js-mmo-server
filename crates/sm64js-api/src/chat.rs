@@ -45,6 +45,8 @@ pub struct GetChat {
     )]
     to: Option<DateTime<Utc>>,
     player_name: Option<String>,
+    discord_id: Option<String>,
+    google_id: Option<String>,
 }
 
 #[api_v2_errors(code = 401)]
@@ -147,6 +149,27 @@ impl ChatHistory {
                 if &msg.player_name != player_name {
                     continue;
                 }
+            }
+            if let Some(_) = &query.discord_id {
+                if let Some(_) = &query.google_id {
+                    //// a query should never have a discord id and a google id.
+                    //// throw an error here maybe
+                    continue;
+                }
+            }
+            if let Some(discord_id_query) = &query.discord_id {
+                if let Some(discord_id_chatmsg) = &msg.discord_id {
+                    if discord_id_query != discord_id_chatmsg {
+                        continue;
+                    }
+                } else { continue };
+            }
+            if let Some(google_id_query) = &query.google_id {
+                if let Some(google_id_chatmsg) = &msg.google_id {
+                    if google_id_query != google_id_chatmsg {
+                        continue;
+                    }
+                } else { continue };
             }
             if !with_ip {
                 msg.ip = None;
