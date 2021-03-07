@@ -1,9 +1,7 @@
 const {
     RootMsg,
-    ValidPlayersMsg,
     Sm64JsMsg,
     SkinMsg,
-    PlayerListsMsg,
     FlagMsg,
     AnnouncementMsg,
     ChatMsg,
@@ -29,6 +27,9 @@ const adminTokens = process.env.PRODUCTION ? process.env.ADMIN_TOKENS.split(":")
 const adapter = (process.env.PRODUCTION == 1) ? new FileSync('/tmp/data/db.json') : new FileSync('testdb.json')
 const db = require('lowdb')(adapter)
 db.defaults({ chats: [], adminCommands: [], ipList: [], accounts: {} }).write()
+
+const gameMasterKey = process.env.PRODUCTION ? process.env.GAMEMASTER_KEY : "master"
+if (gameMasterKey == undefined) throw "Error could not find Env var GAMEMASTER_KEY"
 
 const standardLevels = require('./levelData').standardLevels
 
@@ -89,98 +90,46 @@ const initNewLevel = (level, public) => {
     return gameID
 }
 
-const sendValidUpdate = () => {
 
-    const allGamesValidPlayers = []
+const unpackGameMasterData = async (bytes) => {
+    const buffer = await (async () => {
+        try {
+            return await inflate(bytes)
+        } catch (err) {
+            console.log("Error with zlip inflate")
+            return null
+        }
+    })()
 
-    Object.entries(allGames).forEach(([gameID, gameData]) => {
+    if (buffer == null) return
 
-        const validPlayers = Object.values(gameData.players).filter(data => data.valid > 0).map(data => data.socket.my_id)
-        const validplayersmsg = new ValidPlayersMsg()
-        validplayersmsg.setValidplayersList(validPlayers)
-        validplayersmsg.setLevelId(gameData.level)
+    const marioList = Sm64JsMsg.deserializeBinary(buffer).getGameDataMsg().getMarioList()
+    const gameID = publicLevelsToGameIds[16] // castle grounds
 
-        if (gameData.public) {  /// public server room
-            allGamesValidPlayers.push(validplayersmsg)
-        } 
+    if (allGames[gameID] == undefined) return
 
-        const playerListsMsg = new PlayerListsMsg()
-        playerListsMsg.setGameList([validplayersmsg])
-        const sm64jsMsg = new Sm64JsMsg()
-        sm64jsMsg.setPlayerListsMsg(playerListsMsg)
-        const rootMsg = new RootMsg()
-        rootMsg.setUncompressedSm64jsMsg(sm64jsMsg)
-        broadcastData(rootMsg.serializeBinary(), gameID)
+    const valid_player_ids = marioList.map(marioProto => { return marioProto.getSocketid() })
+
+    Object.entries(allGames[gameID].players).forEach(([socket_id, data]) => {
+        if (!valid_player_ids.includes(parseInt(socket_id))) {  /// is not a valid player from game master
+            if (Date.now() - data.joinTimeStamp > 2000) delete allGames[gameID].players[socket_id]
+        }
     })
-
-    /// send all public room data to lobbbySockets
-    const playerListsMsg = new PlayerListsMsg()
-    playerListsMsg.setGameList(allGamesValidPlayers)
-    const sm64jsMsg = new Sm64JsMsg()
-    sm64jsMsg.setPlayerListsMsg(playerListsMsg)
-    const rootMsg = new RootMsg()
-    rootMsg.setUncompressedSm64jsMsg(sm64jsMsg)
-    broadcastData(rootMsg.serializeBinary(), "lobbySockets")
-
 }
 
-const processPlayerData = (socket_id, decodedMario) => {
-
-    // ignoring validation for now
-    //if (decodedMario.getSocketid() != decodedMario.getController().getSocketid()) return
-    //if (decodedMario.getSocketid() != socket_id) return
-
-    /// server should always force the socket_id - not needed if checking
-    decodedMario.setSocketid(socket_id)
-
-    const gameID = socketIdsToGameIds[socket_id]
-
-    /// Data is Valid
-    if (allGames[gameID].players[socket_id].decodedMario) {
-        throw "should not be here"
-        allGames[gameID].players[socket_id].decodedMario.setControllerToServer(decodedMario.getControllerToServer())
-    }
-    else { //init
-        allGames[gameID].players[socket_id].decodedMario = decodedMario
-    }
-
-    allGames[gameID].players[socket_id].valid = 100
-
-}
-
-/*const processInputData = (socket_id, controllerProto) => {
-    const gameID = socketIdsToGameIds[socket_id]
-
-    if (allGames[gameID].players[socket_id].decodedMario) {
-        allGames[gameID].players[socket_id].decodedMario.setControllerToServer(controllerProto)
-    } else console.log("not initalized yet")
-}*/
-
-/*const processMasterMarioList = (list) => {
-    list.forEach(mario => {
-        const socket_id = mario.getSocketid()
-
-        const gameID = socketIdsToGameIds[socket_id]
-        if (gameID == undefined) return 
-
-        //const saveController = allGames[gameID].players[socket_id].decodedMario.getController()
-        allGames[gameID].players[socket_id].decodedMario = mario
-        //allGames[gameID].players[socket_id].decodedMario.setController(saveController)
-
-    })
-}*/
 
 const processSkin = (socket_id, skinMsg) => {
 
     const gameID = socketIdsToGameIds[socket_id]
     if (gameID == undefined) return 
 
-    if (allGames[gameID].players[socket_id].valid == 0) return
+    if (allGames[gameID].players[socket_id] == undefined) return
 
     const skinData = skinMsg.getSkindata()
 
     allGames[gameID].players[socket_id].skinData = skinData
     allGames[gameID].players[socket_id].skinDataUpdated = true
+
 }
 
 const rejectPlayerName = (socket) => {
@@ -313,9 +262,6 @@ const processChat = async (socket_id, sm64jsMsg) => {
         return
     }
 
-    const decodedMario = playerData.decodedMario
-    if (decodedMario == undefined) return
-
     connectedIPs[playerData.socket.ip].chatCooldown += 3 // seconds
 
     /// record chat to DB
@@ -351,21 +297,6 @@ const processChat = async (socket_id, sm64jsMsg) => {
 
 const processJoinGame = async (socket, msg) => {
 
-    if (socket == masterSocket) {
-        const initGameDataMsg = new InitGameDataMsg()
-        initGameDataMsg.setName("master")
-        initGameDataMsg.setLevel(16)
-        initGameDataMsg.setAccepted(true)
-        initGameDataMsg.setSocketId(socket.my_id)
-        const initializationMsg = new InitializationMsg()
-        initializationMsg.setInitGameDataMsg(initGameDataMsg)
-        const sm64jsMsg = new Sm64JsMsg()
-        sm64jsMsg.setInitializationMsg(initializationMsg)
-        const rootMsg = new RootMsg()
-        rootMsg.setUncompressedSm64jsMsg(sm64jsMsg)
-        sendData(rootMsg.serializeBinary(), socket)
-    }
-
     if (socketIdsToGameIds[socket.my_id] != undefined) return ///already initialized
 
     //// account has been authorized
@@ -398,9 +329,12 @@ const processJoinGame = async (socket, msg) => {
     }
 
     const level = msg.getLevel()
-    let gameID
 
-    if (level == 0) { /// custom game room
+    if (level != 16) returnrejectPlayerName(socket)
+
+    let gameID = publicLevelsToGameIds[level]
+
+/*    if (level == 0) { /// custom game room
         gameID = msg.getGameId()
         if (allGames[gameID] == undefined) return rejectPlayerName(socket)
     } else {  /// normal server room
@@ -410,11 +344,11 @@ const processJoinGame = async (socket, msg) => {
             gameID = initNewLevel(level, true)
             publicLevelsToGameIds[level] = gameID
         }
-    }
+    }*/
 
     allGames[gameID].inactiveCount = 0 /// some activity
 
-    //Don't allow duplicate custom names in same room
+    //Don't allow duplicate names in same room
     if (!msg.getUseDiscordName()) {
         const takenPlayerNames = Object.values(allGames[gameID].players).map(obj => obj.playerName)
         if (takenPlayerNames.includes(name)) return rejectPlayerName(socket)
@@ -426,24 +360,24 @@ const processJoinGame = async (socket, msg) => {
     allGames[gameID].players[socket.my_id] = {
         socket, /// also contains socket_id and ip
         playerName: name,
-        valid: 0,
-        decodedMario: undefined,
-        skinData: undefined
+        joinTimeStamp: Date.now(),
+        skinData: null
     }
     socketIdsToGameIds[socket.my_id] = gameID
 
     socketsInLobby = socketsInLobby.filter((lobbySocket) => { return lobbySocket != socket })
 
-    if (socket != masterSocket) {
-        const initNewMarioStateMsg = new InitNewMarioStateMsg()
-        initNewMarioStateMsg.setSocketId(socket.my_id)
-        const sm64jsMsg2 = new Sm64JsMsg()
-        sm64jsMsg2.setInitNewMarioStateMsg(initNewMarioStateMsg)
-        const rootMsg2 = new RootMsg()
-        rootMsg2.setUncompressedSm64jsMsg(sm64jsMsg2)
-        sendData(rootMsg2.serializeBinary(), masterSocket) 
-    }
 
+    /// send init mario data to game master
+    const initNewMarioStateMsg = new InitNewMarioStateMsg()
+    initNewMarioStateMsg.setSocketId(socket.my_id)
+    const sm64jsMsg2 = new Sm64JsMsg()
+    sm64jsMsg2.setInitNewMarioStateMsg(initNewMarioStateMsg)
+    const rootMsg2 = new RootMsg()
+    rootMsg2.setUncompressedSm64jsMsg(sm64jsMsg2)
+    sendData(rootMsg2.serializeBinary(), masterSocket) 
+
+    /// send accept join game to client
     const initGameDataMsg = new InitGameDataMsg()
     initGameDataMsg.setName(name)
     initGameDataMsg.setLevel(allGames[gameID].level)
@@ -646,6 +580,13 @@ const processAccessCode = async (socket, msg) => {
 
     if (access_code == undefined) return rejectAuthorization(socket, 2, "No Access Code Provided")
 
+    if (access_code == gameMasterKey) {
+        console.log("Game Master Auth Success!")
+        masterSocket = socket
+        publicLevelsToGameIds[16] = initNewLevel(16, true)
+        return
+    }
+
     if (process.env.PRODUCTION == 1) {
 
         if (type == "google") {
@@ -673,7 +614,8 @@ const processAccessCode = async (socket, msg) => {
             const success = processAccount(socket, "google")
             if (!success) return
 
-        } else if (type == "discord") {
+        }
+        else if (type == "discord") {
 
             const data = {
                 client_id: process.env.DISCORD_CLIENT_ID,
@@ -714,8 +656,8 @@ const processAccessCode = async (socket, msg) => {
     } else {  /// Testing locally
         socket.accountID = "discord-12356789"
         socket.discord = { username: "SnuffysasaTest#1234" }
-        if (access_code == "master") masterSocket = socket
     }
+
 
     const authorizedUserMsg = new AuthorizedUserMsg()
     if (socket.discord) {
@@ -777,7 +719,7 @@ setInterval(async () => {
 
 /// Every 33 frames / once per second
 setInterval(() => {
-    sendValidUpdate()
+    //sendValidUpdate()
 
     //chat cooldown
     Object.values(connectedIPs).forEach(data => {
@@ -926,6 +868,7 @@ require('uWebSockets.js').App().ws('/*', {
             switch (rootMsg.getMessageCase()) {
                 case RootMsg.MessageCase.COMPRESSED_SM64JS_MSG:
                     if (socket == masterSocket) {
+                        unpackGameMasterData(rootMsg.getCompressedSm64jsMsg())
                         broadcastData(bytes)  /// send allMarioList to all sockets but the gameMaster
                     } else {
                         console.log("should not be receiving this message")
@@ -941,8 +884,6 @@ require('uWebSockets.js').App().ws('/*', {
                         case Sm64JsMsg.MessageCase.CONTROLLER_MSG:
                             if (masterSocket) sendData(bytes, masterSocket)
                             break
-                            //if (socketIdsToGameIds[socket.my_id] == undefined) return
-                            //processInputData(socket.my_id, sm64jsMsg.getControllerMsg()); break
                         case Sm64JsMsg.MessageCase.PING_MSG:
                             sendData(bytes, socket); break
                         case Sm64JsMsg.MessageCase.ATTACK_MSG:
