@@ -908,8 +908,10 @@ require('uWebSockets.js').App().ws('/*', {
 //// Express Static serving
 const express = require('express')
 const app = express()
+const cors = require('cors')
 const server = require('http').Server(app)
 
+app.use(cors())
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json())
 
