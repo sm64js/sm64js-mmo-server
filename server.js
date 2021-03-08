@@ -2,7 +2,6 @@ const {
     RootMsg,
     Sm64JsMsg,
     SkinMsg,
-    FlagMsg,
     AnnouncementMsg,
     ChatMsg,
     InitializationMsg,
@@ -223,6 +222,27 @@ const sendServerChatMsgToSocket = (socket, message) => {
     sendData(rootMsg.serializeBinary(), socket)
 }
 
+const processCollectCoin = (proto) => {
+
+    const socket_id = proto.getSocketId()
+    const numCoins = proto.getNumCoins()
+
+    const gameID = socketIdsToGameIds[socket_id]
+    if (gameID == undefined) return
+
+    const playerData = allGames[gameID].players[socket_id]
+    if (playerData == undefined) return
+
+    const account = db.get('accounts.' + playerData.socket.accountID).update('coins', n => {
+        if (n == undefined) return 1
+        else return n + numCoins
+    }).write()
+
+    playerData.coins = account.coins
+    playerData.skinDataUpdated = true
+
+}
+
 const processChat = async (socket_id, sm64jsMsg) => {
     const chatMsg = sm64jsMsg.getChatMsg()
     const message = chatMsg.getMessage()
@@ -299,7 +319,7 @@ const processJoinGame = async (socket, msg) => {
 
     if (socketIdsToGameIds[socket.my_id] != undefined) return ///already initialized
 
-    //// account has been authorized
+    //// account has not been authorized
     if (socket.accountID == undefined) return rejectPlayerName(socket)
 
     let name
@@ -330,9 +350,11 @@ const processJoinGame = async (socket, msg) => {
 
     const level = msg.getLevel()
 
-    if (level != 16) returnrejectPlayerName(socket)
+    if (level != 16) return rejectPlayerName(socket)
 
     let gameID = publicLevelsToGameIds[level]
+
+    if (allGames[gameID] == undefined) return rejectPlayerName(socket)
 
 /*    if (level == 0) { /// custom game room
         gameID = msg.getGameId()
@@ -354,14 +376,15 @@ const processJoinGame = async (socket, msg) => {
         if (takenPlayerNames.includes(name)) return rejectPlayerName(socket)
     }
 
-    db.get('accounts.' + socket.accountID).assign({ lastKnownPlayerName: name }).write()
+    const account = db.get('accounts.' + socket.accountID).assign({ lastKnownPlayerName: name }).write()
 
     ////Success point - should initialize player
     allGames[gameID].players[socket.my_id] = {
         socket, /// also contains socket_id and ip
         playerName: name,
         joinTimeStamp: Date.now(),
-        skinData: null
+        skinData: null,
+        coins: account.coins ? account.coins : 0
     }
     socketIdsToGameIds[socket.my_id] = gameID
 
@@ -405,6 +428,7 @@ const sendSkinsToSocket = (socket) => {
             skinMsg.setSocketid(socket_id)
             skinMsg.setSkindata(data.skinData)
             skinMsg.setPlayername(data.playerName)
+            skinMsg.setNumCoins(data.coins)
             const sm64jsMsg = new Sm64JsMsg()
             sm64jsMsg.setSkinMsg(skinMsg)
             const rootMsg = new RootMsg()
@@ -419,10 +443,12 @@ const sendSkinsIfUpdated = () => {
     Object.entries(allGames).forEach(([gameID, gameData]) => {
         /// Send Skins
         Object.entries(gameData.players).filter(([_, data]) => data.skinData && data.skinDataUpdated).forEach(([socket_id, data]) => {
+
             const skinMsg = new SkinMsg()
             skinMsg.setSocketid(socket_id)
             skinMsg.setSkindata(data.skinData)
             skinMsg.setPlayername(data.playerName)
+            skinMsg.setNumCoins(data.coins)
             const sm64jsMsg = new Sm64JsMsg()
             sm64jsMsg.setSkinMsg(skinMsg)
             const rootMsg = new RootMsg()
@@ -436,64 +462,7 @@ const sendSkinsIfUpdated = () => {
 
 }
 
-const processBasicAttack = (attackerID, attackMsg) => {
 
-    const gameID = socketIdsToGameIds[attackerID]
-    if (gameID == undefined) return
-
-    const playerData = allGames[gameID].players[attackerID]
-    if (playerData == undefined) return
-
-    /// redundant
-    attackMsg.setAttackerSocketId(attackerID)
-
-    const flagIndex = attackMsg.getFlagId()
-    const targetId = attackMsg.getTargetSocketId()
-
-    const theFlag = allGames[gameID].flagData[flagIndex]
-
-    if (theFlag.linkedToPlayer && theFlag.socketID == targetId) {
-        theFlag.linkedToPlayer = false
-        theFlag.socketID = null
-        theFlag.fallmode = true
-        const newFlagLocation = playerData.decodedMario.getPosList()
-        newFlagLocation[0] += ((Math.random() * 1000.0) - 500.0)
-        newFlagLocation[1] += 600
-        newFlagLocation[2] += ((Math.random() * 1000.0) - 500.0)
-        theFlag.heightBeforeFall = newFlagLocation[1]
-        theFlag.pos = [parseInt(newFlagLocation[0]), parseInt(newFlagLocation[1]), parseInt(newFlagLocation[2])]
-    }
-
-}
-
-const processGrabFlagRequest = (socket_id, grabFlagMsg) => {
-
-    const gameID = socketIdsToGameIds[socket_id]
-    if (gameID == undefined) return
-
-    const playerData = allGames[gameID].players[socket_id]
-    if (playerData == undefined) return
-
-    const i = grabFlagMsg.getFlagId()
-
-    const theFlag = allGames[gameID].flagData[i]
-
-    if (theFlag.linkedToPlayer) return
-
-    const pos = grabFlagMsg.getPosList()
-
-    const xDiff = pos[0] - theFlag.pos[0]
-    const zDiff = pos[2] - theFlag.pos[2]
-
-    const dist = Math.sqrt(xDiff * xDiff + zDiff * zDiff)
-    if (dist < 50) {
-        theFlag.linkedToPlayer = true
-        theFlag.fallmode = false
-        theFlag.atStartPosition = false
-        theFlag.socketID = socket_id
-        theFlag.idleTimer = 0
-    }
-}
 
 const checkForFlag = (socket_id) => {
 
@@ -564,7 +533,8 @@ const processAccount = (socket, accountType) => {
             type: accountType,
             banned: false,
             muted: false,
-            banHistory: []
+            banHistory: [],
+            coins: 0
         }).write()
     }
 
@@ -886,12 +856,8 @@ require('uWebSockets.js').App().ws('/*', {
                             break
                         case Sm64JsMsg.MessageCase.PING_MSG:
                             sendData(bytes, socket); break
-                        case Sm64JsMsg.MessageCase.ATTACK_MSG:
-                            if (socketIdsToGameIds[socket.my_id] == undefined) return 
-                            processBasicAttack(socket.my_id, sm64jsMsg.getAttackMsg()); break
-                        case Sm64JsMsg.MessageCase.GRAB_MSG:
-                            if (socketIdsToGameIds[socket.my_id] == undefined) return 
-                            processGrabFlagRequest(socket.my_id, sm64jsMsg.getGrabMsg()); break
+                        case Sm64JsMsg.MessageCase.COLLECT_COIN_MSG:
+                            processCollectCoin(sm64jsMsg.getCollectCoinMsg()); break
                         case Sm64JsMsg.MessageCase.CHAT_MSG:
                             if (socketIdsToGameIds[socket.my_id] == undefined) return 
                             processChat(socket.my_id, sm64jsMsg); break
