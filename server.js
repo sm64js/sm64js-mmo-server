@@ -373,7 +373,7 @@ const processJoinGame = async (socket, msg) => {
         if (takenPlayerNames.includes(name)) return rejectPlayerName(socket)
     }
 
-    db.get('accounts.' + socket.accountID).assign({ lastKnownPlayerName: name }).write()
+    const account = db.get('accounts.' + socket.accountID).assign({ lastKnownPlayerName: name }).write()
 
     ////Success point - should initialize player
     allGames[gameID].players[socket.my_id] = {
@@ -381,7 +381,8 @@ const processJoinGame = async (socket, msg) => {
         playerName: name,
         valid: 0,
         decodedMario: undefined,
-        skinData: undefined
+        skinData: undefined,
+        coins: account.coins ? account.coins : 0
     }
     socketIdsToGameIds[socket.my_id] = gameID
 
@@ -414,6 +415,7 @@ const sendSkinsToSocket = (socket) => {
             skinMsg.setSocketid(socket_id)
             skinMsg.setSkindata(data.skinData)
             skinMsg.setPlayername(data.playerName)
+            skinMsg.setNumCoins(data.coins)
             const sm64jsMsg = new Sm64JsMsg()
             sm64jsMsg.setSkinMsg(skinMsg)
             const rootMsg = new RootMsg()
@@ -432,6 +434,7 @@ const sendSkinsIfUpdated = () => {
             skinMsg.setSocketid(socket_id)
             skinMsg.setSkindata(data.skinData)
             skinMsg.setPlayername(data.playerName)
+            skinMsg.setNumCoins(data.coins)
             const sm64jsMsg = new Sm64JsMsg()
             sm64jsMsg.setSkinMsg(skinMsg)
             const rootMsg = new RootMsg()
