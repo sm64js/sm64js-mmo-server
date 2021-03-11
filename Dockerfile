@@ -1,12 +1,17 @@
-FROM node:13
+FROM debian:buster-slim
 
-RUN mkdir -p /usr/src/app
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+    pkg-config \
+    openssl \
+    libssl-dev \
+    iproute2 \
+    ; \
+    \
+    rm -rf /var/lib/apt/lists/*;
 
-WORKDIR /usr/src/app
+COPY --from=sm64js/sm64js-build /sm64js/target/release/sm64js ./sm64js
+COPY --from=sm64js/sm64js-assets /usr/src/app/dist ./dist
 
-COPY package.json ./
-RUN npm install
-
-COPY . ./
-
-CMD ["npm", "run", "serve"]
+CMD ["./sm64js"]
