@@ -235,7 +235,7 @@ impl Handler<SendJoinGame> for Sm64JsServer {
                 let level = join_game_msg.level;
                 if level == 0 {
                     // TODO is custom game
-                    todo!()
+                    None
                 } else {
                     let player = Arc::new(RwLock::new(Player::new(
                         self.clients.clone(),
