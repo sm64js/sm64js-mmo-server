@@ -150,26 +150,22 @@ impl ChatHistory {
                     continue;
                 }
             }
-            if let Some(_) = &query.discord_id {
-                if let Some(_) = &query.google_id {
-                    //// a query should never have a discord id and a google id.
-                    //// throw an error here maybe
-                    continue;
-                }
+            if let (Some(_), Some(_)) = (&query.discord_id, &query.google_id) {
+                //// a query should never have a discord id and a google id.
+                //// throw an error here maybe
+                continue;
             }
-            if let Some(discord_id_query) = &query.discord_id {
-                if let Some(discord_id_chatmsg) = &msg.discord_id {
-                    if discord_id_query != discord_id_chatmsg {
-                        continue;
-                    }
-                } else { continue };
+            if let Some(id1) = &query.discord_id {
+                match &msg.discord_id {
+                    Some(id2) if id1 == id2 => {}
+                    _ => continue,
+                };
             }
-            if let Some(google_id_query) = &query.google_id {
-                if let Some(google_id_chatmsg) = &msg.google_id {
-                    if google_id_query != google_id_chatmsg {
-                        continue;
-                    }
-                } else { continue };
+            if let Some(id1) = &query.google_id {
+                match &msg.google_id {
+                    Some(id2) if id1 == id2 => {}
+                    _ => continue,
+                };
             }
             if !with_ip {
                 msg.ip = None;
