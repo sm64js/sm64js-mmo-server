@@ -348,6 +348,8 @@ impl Sm64JsServer {
         mut chat_msg: ChatMsg,
         auth_info: AuthInfo,
     ) -> Result<Option<Vec<u8>>, Vec<u8>> {
+        let socket_id = player.read().get_socket_id();
+        let username = player.read().get_name().clone();
         let root_msg = match player
             .write()
             .add_chat_message(self.chat_history.clone(), &chat_msg.message)
@@ -355,6 +357,8 @@ impl Sm64JsServer {
             ChatResult::Ok(message) => {
                 chat_msg.message = message;
                 chat_msg.is_admin = auth_info.is_in_game_admin();
+                chat_msg.socket_id = socket_id;
+                chat_msg.sender = username;
                 Some(RootMsg {
                     message: Some(root_msg::Message::UncompressedSm64jsMsg(Sm64JsMsg {
                         message: Some(sm64_js_msg::Message::ChatMsg(chat_msg)),
