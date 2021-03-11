@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate diesel_migrations;
+
 use actix::prelude::*;
 use actix_web::{middleware, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_web_actors::ws;
@@ -12,6 +15,8 @@ use paperclip::{
 use sm64js_api::{ChatHistory, ChatHistoryData};
 use sm64js_auth::Identity;
 use sm64js_ws::{Game, Room, Sm64JsServer, Sm64JsWsSession};
+
+embed_migrations!("../sm64js-db/migrations");
 
 #[api_v2_operation(tags(Hidden))]
 async fn ws_index(
@@ -55,6 +60,8 @@ async fn main() -> std::io::Result<()> {
     let pool = r2d2::Pool::builder()
         .build(manager)
         .expect("Failed to create pool.");
+    let conn = pool.get().unwrap();
+    embedded_migrations::run(&conn).unwrap();
     let chat_history: ChatHistoryData = web::Data::new(RwLock::new(ChatHistory::default()));
     let rooms = Room::init_rooms();
     let server = Sm64JsServer::new(chat_history.clone(), rooms.clone()).start();
