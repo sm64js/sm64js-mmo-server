@@ -7,38 +7,26 @@ edition = "2018"
 [dependencies]
 anyhow = "1"
 actix = "0.10"
-actix-codec = "0.3"
-actix_derive = "0.5"
 actix-files = "0.5"
 actix-http = { version = "2", features = [ "rustls" ] }
 actix-service = "1"
 actix-session = "0.4"
 actix-web = "3"
 actix-web-actors = "3"
-awc = "2"
-censor = "0.2"
-chrono = "0.4"
-dashmap = { version = "4", features = ["rayon"] }
 diesel = { version = "1", features = ["chrono", "postgres", "r2d2"] }
 dotenv = "0.15"
 env_logger = "0.8"
-flate2 = "1"
-futures = "0.3"
 indexmap = "1"
 paperclip = { git = "https://github.com/wafflespeanut/paperclip.git", rev = "a64cabbb13ad9d51a67c12d3dbf9c986a1ff6585", features = ["actix-nightly", "actix-session", "chrono"] }
 parking_lot = "0.11"
-prost = "0.6"
 r2d2 = "0.8"
 rand = "0.8"
-rayon = "1"
 serde = "1"
-serde_json = "1"
 sm64js-api = { path = "../sm64js-api" }
 sm64js-auth = { path = "../sm64js-auth" }
 sm64js-db = { path = "../sm64js-db" }
 sm64js-ws = { path = "../sm64js-ws" }
 thiserror = "1"
-v_htmlescape = "0.12"
 
 [features]
 docker = []

@@ -11,12 +11,9 @@ prost-build = "0.6"
 anyhow = "1"
 actix = "0.10"
 actix-web-actors = "3"
-awc = "2"
 censor = "0.2"
 dashmap = { version = "4", features = ["rayon"] }
 flate2 = "1"
-futures = "0.3"
-indexmap = "1"
 lazy_static = "1"
 maplit = "1"
 parking_lot = "0.11"
@@ -24,11 +21,10 @@ prost = "0.6"
 rand = "0.8"
 rayon = "1"
 serde = "1"
-serde_json = "1"
 sm64js-api = { path = "../sm64js-api" }
 sm64js-auth = { path = "../sm64js-auth" }
 thiserror = "1"
-v_htmlescape = "0.12"
+v_htmlescape = "0.13"
 
 [features]
 docker = []
