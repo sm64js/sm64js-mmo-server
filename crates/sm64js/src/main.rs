@@ -12,8 +12,8 @@ use paperclip::{
     actix::{api_v2_operation, web, OpenApiExt},
     v2::models::{DefaultApiRaw, Info, Tag},
 };
-use sm64js_api::{ChatHistory, ChatHistoryData};
 use sm64js_auth::Identity;
+use sm64js_common::{ChatHistory, ChatHistoryData};
 use sm64js_ws::{Game, Room, Sm64JsServer, Sm64JsWsSession};
 
 embed_migrations!("../sm64js-db/migrations");
@@ -101,6 +101,11 @@ A session cookie will then be stored in the user's browser that can be used to f
 "
                         .to_string(),
                     ),
+                    external_docs: None,
+                },
+                Tag {
+                    name: "PlayerList".to_string(),
+                    description: None,
                     external_docs: None,
                 },
                 Tag {

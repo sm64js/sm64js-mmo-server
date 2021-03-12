@@ -74,6 +74,7 @@ impl AuthInfo {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Permission {
+    GetPlayerList,
     ReadChatLog,
     ReadChatLogWithIp,
     SendAnnouncement,
@@ -92,9 +93,14 @@ impl Permission {
 lazy_static! {
     pub static ref ROLES_WITH_PERMISSIONS: HashMap<&'static str, Vec<Permission>> = hashmap! {
         "755200616267120791" => // Moderator
-            vec![ Permission::ReadChatLog, Permission::ReadChatLogWithIp, Permission::SendAnnouncement ],
+            vec![
+                Permission::GetPlayerList,
+                Permission::ReadChatLog,
+                Permission::ReadChatLogWithIp,
+                Permission::SendAnnouncement
+            ],
         "780937094473318420" => // In-game Chat Moderator
-            vec![ Permission::ReadChatLog ]
+            vec![ Permission::GetPlayerList, Permission::ReadChatLog ]
     };
 
     pub static ref IN_GAME_ADMIN_ROLES: HashSet<&'static str> = hashset! { "755200616267120791", "780937094473318420" };

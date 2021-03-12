@@ -5,4 +5,11 @@ authors = ["Mario Reder <mreder1289@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+censor = "0.2"
+chrono = "0.4"
+indexmap = "1"
+paperclip = { git = "https://github.com/wafflespeanut/paperclip.git", rev = "a64cabbb13ad9d51a67c12d3dbf9c986a1ff6585", features = ["actix-nightly", "actix-session", "chrono"] }
+parking_lot = "0.11"
 serde = "1"
+serde_with = "1"
+v_htmlescape = "0.13"

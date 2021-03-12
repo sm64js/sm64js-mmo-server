@@ -25,6 +25,7 @@ rand = "0.8"
 serde = "1"
 sm64js-api = { path = "../sm64js-api" }
 sm64js-auth = { path = "../sm64js-auth" }
+sm64js-common = { path = "../sm64js-common" }
 sm64js-db = { path = "../sm64js-db" }
 sm64js-ws = { path = "../sm64js-ws" }
 thiserror = "1"

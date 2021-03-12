@@ -12,8 +12,8 @@ use dashmap::DashMap;
 use parking_lot::RwLock;
 use prost::Message as ProstMessage;
 use rand::{self, Rng};
-use sm64js_api::{ChatError, ChatHistoryData, ChatResult};
 use sm64js_auth::{AuthInfo, Permission};
+use sm64js_common::{ChatError, ChatHistoryData, ChatResult};
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use v_htmlescape::escape;
 

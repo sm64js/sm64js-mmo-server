@@ -6,8 +6,8 @@ use actix::Recipient;
 use anyhow::Result;
 use dashmap::DashMap;
 use parking_lot::RwLock;
-use sm64js_api::{ChatHistoryData, ChatResult};
 use sm64js_auth::AuthInfo;
+use sm64js_common::{ChatHistoryData, ChatResult};
 use std::{
     collections::HashMap,
     net::SocketAddr,
@@ -128,10 +128,12 @@ impl Player {
         } else {
             (None, None)
         };
+        let auth_info = &self.clients.get(&self.socket_id).unwrap().auth_info;
         chat_history.write().add_message(
             message,
             self.name.clone(),
-            &self.clients.get(&self.socket_id).unwrap().auth_info,
+            auth_info.get_discord_id(),
+            auth_info.get_google_id(),
             ip,
             real_ip,
         )

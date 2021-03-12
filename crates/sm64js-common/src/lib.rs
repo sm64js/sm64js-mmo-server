@@ -1,3 +1,8 @@
+mod chat;
+mod date_format;
+
+pub use chat::{ChatError, ChatHistory, ChatHistoryData, ChatMessage, ChatResult, GetChat};
+
 use serde::Deserialize;
 
 #[derive(Clone, Debug, Deserialize)]
