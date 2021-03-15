@@ -1,10 +1,4 @@
-use crate::{
-    proto::{
-        root_msg, sm64_js_msg, AnnouncementMsg, AttackMsg, ChatMsg, GrabFlagMsg, JoinGameMsg,
-        MarioMsg, RootMsg, SkinMsg, Sm64JsMsg,
-    },
-    Client, Clients, Player, Players, Rooms,
-};
+use crate::{Client, Clients, Player, Players, Rooms};
 use actix::{prelude::*, Recipient};
 use anyhow::Result;
 use censor::Censor;
@@ -13,7 +7,11 @@ use parking_lot::RwLock;
 use prost::Message as ProstMessage;
 use rand::{self, Rng};
 use sm64js_auth::{AuthInfo, Permission};
-use sm64js_common::{ChatError, ChatHistoryData, ChatResult};
+use sm64js_common::{ChatError, ChatHistoryData, ChatResult, PlayerInfo};
+use sm64js_proto::{
+    root_msg, sm64_js_msg, AnnouncementMsg, AttackMsg, ChatMsg, GrabFlagMsg, JoinGameMsg, MarioMsg,
+    RootMsg, SkinMsg, Sm64JsMsg,
+};
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use v_htmlescape::escape;
 
@@ -309,6 +307,24 @@ impl Sm64JsServer {
         root_msg.encode(&mut msg).unwrap();
 
         msg
+    }
+
+    pub fn get_players(&self) -> Vec<PlayerInfo> {
+        self.players
+            .iter()
+            .filter_map(|player| {
+                let player = player.1.read();
+                let client = self.clients.get(&player.get_socket_id())?;
+                Some(PlayerInfo {
+                    account_id: client.get_account_id(),
+                    socket_id: player.get_socket_id(),
+                    ip: client.get_ip().map(|ip| ip.to_string()),
+                    real_ip: client.get_real_ip().cloned(),
+                    level: player.get_level(),
+                    name: player.get_name().clone(),
+                })
+            })
+            .collect()
     }
 
     fn handle_command(chat_msg: ChatMsg, auth_info: AuthInfo) -> Option<Vec<u8>> {

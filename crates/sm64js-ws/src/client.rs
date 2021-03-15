@@ -1,13 +1,11 @@
-use crate::{
-    proto::{MarioMsg, SkinData},
-    Message,
-};
+use crate::Message;
 use actix::Recipient;
 use anyhow::Result;
 use dashmap::DashMap;
 use parking_lot::RwLock;
 use sm64js_auth::AuthInfo;
 use sm64js_common::{ChatHistoryData, ChatResult};
+use sm64js_proto::{MarioMsg, SkinData};
 use std::{
     collections::HashMap,
     net::SocketAddr,
@@ -58,6 +56,18 @@ impl Client {
         self.data.as_ref().map(|data| &data.pos)
     }
 
+    pub fn get_account_id(&self) -> i32 {
+        self.auth_info.get_account_id()
+    }
+
+    pub fn get_ip(&self) -> Option<&SocketAddr> {
+        self.ip.as_ref()
+    }
+
+    pub fn get_real_ip(&self) -> Option<&String> {
+        self.real_ip.as_ref()
+    }
+
     pub fn get_socket_id(&self) -> u32 {
         self.socket_id
     }
@@ -102,6 +112,10 @@ impl Player {
         self.socket_id
     }
 
+    pub fn get_level(&self) -> u32 {
+        self.level
+    }
+
     pub fn get_name(&self) -> &String {
         &self.name
     }
@@ -139,7 +153,7 @@ impl Player {
         )
     }
 
-    pub fn get_skin_data(&mut self) -> Option<&SkinData> {
+    pub fn get_skin_data(&self) -> Option<&SkinData> {
         self.skin_data.as_ref()
     }
 

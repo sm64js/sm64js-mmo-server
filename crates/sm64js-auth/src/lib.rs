@@ -20,6 +20,10 @@ impl AuthInfo {
         self.0
     }
 
+    pub fn get_account_id(&self) -> i32 {
+        self.0.account.id
+    }
+
     pub fn get_discord_username(&self) -> Option<String> {
         if let Some(discord) = &self.0.discord {
             Some(format!(

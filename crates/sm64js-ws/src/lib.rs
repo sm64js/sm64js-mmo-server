@@ -6,10 +6,6 @@ extern crate lazy_static;
 #[macro_use]
 extern crate maplit;
 
-pub mod proto {
-    include!(concat!(env!("OUT_DIR"), "/sm64js.rs"));
-}
-
 mod client;
 mod game;
 mod room;

@@ -3,7 +3,8 @@ mod date_format;
 
 pub use chat::{ChatError, ChatHistory, ChatHistoryData, ChatMessage, ChatResult, GetChat};
 
-use serde::Deserialize;
+use paperclip::actix::Apiv2Schema;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct DiscordUser {
@@ -26,4 +27,14 @@ pub struct DiscordGuildMember {
     pub premium_since: Option<String>,
     pub deaf: bool,
     pub mute: bool,
+}
+
+#[derive(Apiv2Schema, Debug, Serialize)]
+pub struct PlayerInfo {
+    pub account_id: i32,
+    pub socket_id: u32,
+    pub ip: Option<String>,
+    pub real_ip: Option<String>,
+    pub level: u32,
+    pub name: String,
 }
