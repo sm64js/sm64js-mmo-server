@@ -1,7 +1,4 @@
-use crate::{
-    proto::{root_msg, sm64_js_msg, FlagMsg, MarioListMsg, RootMsg, SkinMsg, Sm64JsMsg},
-    Player, WeakPlayers,
-};
+use crate::{Player, WeakPlayers};
 
 use anyhow::Result;
 use dashmap::DashMap;
@@ -9,6 +6,7 @@ use flate2::{write::ZlibEncoder, Compression};
 use prost::Message as ProstMessage;
 use rand::{self, Rng};
 use rayon::prelude::*;
+use sm64js_proto::{root_msg, sm64_js_msg, FlagMsg, MarioListMsg, RootMsg, SkinMsg, Sm64JsMsg};
 use std::{
     collections::HashMap,
     io::prelude::*,

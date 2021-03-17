@@ -5,8 +5,8 @@ use actix_web::{
     HttpResponse,
 };
 use paperclip::actix::{api_v2_errors, api_v2_operation, web, Mountable};
-use serde::Serialize;
 use sm64js_auth::{Identity, Permission};
+use sm64js_common::PlayerInfo;
 use sm64js_ws::Sm64JsServer;
 use thiserror::Error;
 
@@ -14,18 +14,14 @@ pub fn service() -> impl HttpServiceFactory + Mountable {
     web::scope("/players").service(web::resource("").route(web::get().to(get_players)))
 }
 
-#[derive(Serialize)]
-struct Player {}
-
 #[api_v2_operation(tags(PlayerList))]
 async fn get_players(
     identity: Identity,
-    _server: web::Data<Sm64JsServer>,
-) -> Result<web::Json<Vec<Player>>, GetPlayerError> {
+    server: web::Data<Sm64JsServer>,
+) -> Result<web::Json<Vec<PlayerInfo>>, GetPlayerError> {
     let auth_info = identity.get_auth_info();
     if auth_info.has_permission(&Permission::GetPlayerList) {
-        todo!();
-        // Ok(web::Json(AuthorizedUserMessage { username }))
+        Ok(web::Json(server.get_players()))
     } else {
         Err(GetPlayerError::Unauthorized)
     }

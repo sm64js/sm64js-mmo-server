@@ -1,13 +1,11 @@
-use crate::{
-    proto::{MarioMsg, SkinData},
-    Message,
-};
+use crate::Message;
 use actix::Recipient;
 use anyhow::Result;
 use dashmap::DashMap;
 use parking_lot::RwLock;
 use sm64js_auth::AuthInfo;
 use sm64js_common::{ChatHistoryData, ChatResult};
+use sm64js_proto::{MarioMsg, SkinData};
 use std::{
     collections::HashMap,
     net::SocketAddr,
@@ -22,7 +20,7 @@ pub type WeakPlayers = HashMap<u32, Weak<RwLock<Player>>>;
 pub struct Client {
     addr: Recipient<Message>,
     auth_info: AuthInfo,
-    ip: Option<SocketAddr>,
+    ip: SocketAddr,
     real_ip: Option<String>,
     data: Option<MarioMsg>,
     socket_id: u32,
@@ -33,11 +31,14 @@ impl Client {
     pub fn new(
         addr: Recipient<Message>,
         auth_info: AuthInfo,
-        ip: Option<SocketAddr>,
+        ip: SocketAddr,
         real_ip: Option<String>,
         socket_id: u32,
     ) -> Self {
-        let add_real_ip = ip.map(|ip| ip.to_string()) != real_ip;
+        let add_real_ip = real_ip
+            .clone()
+            .map(|real_ip| real_ip != ip.to_string())
+            .unwrap_or_default();
         Client {
             addr,
             auth_info,
@@ -56,6 +57,18 @@ impl Client {
 
     pub fn get_pos(&self) -> Option<&Vec<f32>> {
         self.data.as_ref().map(|data| &data.pos)
+    }
+
+    pub fn get_account_id(&self) -> i32 {
+        self.auth_info.get_account_id()
+    }
+
+    pub fn get_ip(&self) -> &SocketAddr {
+        &self.ip
+    }
+
+    pub fn get_real_ip(&self) -> Option<&String> {
+        self.real_ip.as_ref()
     }
 
     pub fn get_socket_id(&self) -> u32 {
@@ -102,6 +115,10 @@ impl Player {
         self.socket_id
     }
 
+    pub fn get_level(&self) -> u32 {
+        self.level
+    }
+
     pub fn get_name(&self) -> &String {
         &self.name
     }
@@ -123,23 +140,22 @@ impl Player {
     }
 
     pub fn add_chat_message(&mut self, chat_history: ChatHistoryData, message: &str) -> ChatResult {
-        let (ip, real_ip) = if let Some(client) = self.clients.get(&self.socket_id) {
-            (client.ip.map(|ip| ip.to_string()), client.real_ip.clone())
+        if let Some(client) = self.clients.get(&self.socket_id) {
+            let auth_info = &self.clients.get(&self.socket_id).unwrap().auth_info;
+            chat_history.write().add_message(
+                message,
+                self.name.clone(),
+                auth_info.get_discord_id(),
+                auth_info.get_google_id(),
+                client.ip.to_string(),
+                client.real_ip.clone(),
+            )
         } else {
-            (None, None)
-        };
-        let auth_info = &self.clients.get(&self.socket_id).unwrap().auth_info;
-        chat_history.write().add_message(
-            message,
-            self.name.clone(),
-            auth_info.get_discord_id(),
-            auth_info.get_google_id(),
-            ip,
-            real_ip,
-        )
+            ChatResult::NotFound
+        }
     }
 
-    pub fn get_skin_data(&mut self) -> Option<&SkinData> {
+    pub fn get_skin_data(&self) -> Option<&SkinData> {
         self.skin_data.as_ref()
     }
 

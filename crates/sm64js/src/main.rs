@@ -1,42 +1,22 @@
 #[macro_use]
 extern crate diesel_migrations;
 
+mod websocket;
+
 use actix::prelude::*;
-use actix_web::{middleware, App, Error, HttpRequest, HttpResponse, HttpServer};
-use actix_web_actors::ws;
+use actix_web::{middleware, App, HttpServer};
 use diesel::{
     r2d2::{self, ConnectionManager},
     PgConnection,
 };
 use paperclip::{
-    actix::{api_v2_operation, web, OpenApiExt},
+    actix::{web, OpenApiExt},
     v2::models::{DefaultApiRaw, Info, Tag},
 };
-use sm64js_auth::Identity;
 use sm64js_common::{ChatHistory, ChatHistoryData};
-use sm64js_ws::{Game, Room, Sm64JsServer, Sm64JsWsSession};
+use sm64js_ws::{Game, Room, Sm64JsServer};
 
 embed_migrations!("../sm64js-db/migrations");
-
-#[api_v2_operation(tags(Hidden))]
-async fn ws_index(
-    req: HttpRequest,
-    stream: web::Payload,
-    srv: web::Data<Addr<Sm64JsServer>>,
-    identity: Identity,
-) -> Result<HttpResponse, Error> {
-    let auth_info = identity.get_auth_info();
-    let ip = req.peer_addr();
-    let real_ip = req
-        .connection_info()
-        .realip_remote_addr()
-        .map(|ip| ip.to_string());
-    ws::start(
-        Sm64JsWsSession::new(srv.get_ref().clone(), auth_info, ip, real_ip),
-        &req,
-        stream,
-    )
-}
 
 #[cfg(feature = "docker")]
 const DIST_FOLDER: &str = "./dist";
@@ -128,7 +108,7 @@ A session cookie will then be stored in the user's browser that can be used to f
             .data(server.clone())
             .wrap(middleware::Logger::default())
             .with_json_spec_at("/apispec")
-            .service(web::resource("/ws/").to(ws_index))
+            .service(web::resource("/ws/").to(websocket::index))
             .service(sm64js_api::service())
             .wrap(sm64js_auth::Auth)
             .wrap(

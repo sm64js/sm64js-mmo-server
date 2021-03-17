@@ -4,9 +4,6 @@ version = "0.1.0"
 authors = ["Mario Reder <mreder1289@gmail.com>"]
 edition = "2018"
 
-[build-dependencies]
-prost-build = "0.6"
-
 [dependencies]
 anyhow = "1"
 actix = "0.10"
@@ -23,6 +20,7 @@ rayon = "1"
 serde = "1"
 sm64js-auth = { path = "../sm64js-auth" }
 sm64js-common = { path = "../sm64js-common" }
+sm64js-proto = { path = "../sm64js-proto" }
 thiserror = "1"
 v_htmlescape = "0.13"
 

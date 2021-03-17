@@ -1,16 +1,14 @@
-use crate::{
-    proto::{
-        initialization_msg, root_msg, sm64_js_msg, InitGameDataMsg, InitializationMsg, RootMsg,
-        Sm64JsMsg,
-    },
-    server,
-};
+use crate::server;
 
 use actix::prelude::*;
 use actix_web_actors::ws;
 use prost::Message as ProstMessage;
 use server::Sm64JsServer;
 use sm64js_auth::AuthInfo;
+use sm64js_proto::{
+    initialization_msg, root_msg, sm64_js_msg, InitGameDataMsg, InitializationMsg, RootMsg,
+    Sm64JsMsg,
+};
 use std::{
     net::SocketAddr,
     time::{Duration, Instant},
@@ -28,7 +26,7 @@ pub struct Sm64JsWsSession {
     hb_data: Option<Instant>,
     addr: Addr<server::Sm64JsServer>,
     auth_info: AuthInfo,
-    ip: Option<SocketAddr>,
+    ip: SocketAddr,
     real_ip: Option<String>,
 }
 
@@ -231,7 +229,7 @@ impl Sm64JsWsSession {
     pub fn new(
         addr: Addr<server::Sm64JsServer>,
         auth_info: AuthInfo,
-        ip: Option<SocketAddr>,
+        ip: SocketAddr,
         real_ip: Option<String>,
     ) -> Self {
         Self {

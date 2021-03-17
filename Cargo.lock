@@ -2357,6 +2357,7 @@ dependencies = [
  "parking_lot",
  "serde",
  "serde_with",
+ "sm64js-proto",
  "v_htmlescape 0.13.0",
 ]
 
@@ -2376,6 +2377,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "sm64js-proto"
+version = "0.1.0"
+dependencies = [
+ "prost",
+ "prost-build",
+ "serde",
+]
+
+[[package]]
 name = "sm64js-ws"
 version = "0.1.0"
 dependencies = [
@@ -2389,12 +2399,12 @@ dependencies = [
  "maplit",
  "parking_lot",
  "prost",
- "prost-build",
  "rand 0.8.3",
  "rayon",
  "serde",
  "sm64js-auth",
  "sm64js-common",
+ "sm64js-proto",
  "thiserror",
  "v_htmlescape 0.13.0",
 ]

@@ -44,7 +44,7 @@ impl ChatHistory {
         player_name: String,
         discord_id: Option<String>,
         google_id: Option<String>,
-        ip: Option<String>,
+        ip: String,
         real_ip: Option<String>,
     ) -> ChatResult {
         let escaped_message = format!("{}", escape(message));
@@ -73,7 +73,7 @@ impl ChatHistory {
                 player_name,
                 discord_id,
                 google_id,
-                ip,
+                ip: Some(ip),
                 real_ip,
                 is_escaped: if is_escaped { Some(is_escaped) } else { None },
                 is_censored: if is_censored { Some(is_censored) } else { None },
@@ -161,6 +161,7 @@ pub struct ChatMessage {
 pub enum ChatResult {
     Ok(String),
     Err(ChatError),
+    NotFound,
 }
 
 pub enum ChatError {

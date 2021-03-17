@@ -1,0 +1,12 @@
+[package]
+name = "sm64js-proto"
+version = "0.1.0"
+authors = ["Mario Reder <mreder1289@gmail.com>"]
+edition = "2018"
+
+[build-dependencies]
+prost-build = "0.6"
+
+[dependencies]
+prost = "0.6"
+serde = "1"
