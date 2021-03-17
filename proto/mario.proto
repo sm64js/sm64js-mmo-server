@@ -30,10 +30,23 @@ message MarioListMsg {
 
 message InitializationMsg {
 	oneof message {
+		AccessCodeMsg access_code_msg = 1;
+		AuthorizedUserMsg authorized_user_msg = 2;
 		JoinGameMsg join_game_msg = 3;
 		InitGameDataMsg init_game_data_msg = 4;
 		RequestCosmeticsMsg request_cosmetics_msg = 5;
 	}
+}
+
+message AccessCodeMsg {
+	string access_code = 1;
+	string type = 2;
+}
+
+message AuthorizedUserMsg {
+	string username = 1;
+	uint32 status = 2;
+	string message = 3;
 }
 
 message JoinGameMsg {
@@ -76,6 +89,7 @@ message AttackMsg {
 
 message MarioMsg {
 	ControllerMsg controller = 1;
+	uint32 health = 2;
 	uint32 action = 3;
 	uint32 prevAction = 4;
 	uint32 actionState = 5;
@@ -94,7 +108,6 @@ message MarioMsg {
 	repeated sint32 rawData = 18;
 	uint32 usedObjID = 19;
 	uint32 socketID = 20;
-	bool parachuting = 21;
 }
 
 message ControllerMsg {
@@ -128,6 +141,7 @@ message SkinMsg {
 	uint32 socketID = 1;
 	SkinData skinData = 2;
 	string playerName = 3;
+	uint32 num_coins = 4;
 }
 
 message SkinData {
@@ -138,7 +152,8 @@ message SkinData {
 	SkinValue boots = 5;
 	SkinValue skin = 6;
 	SkinValue hair = 7;
-	uint32 customCapState = 8;
+	SkinValue parachute = 8;
+	uint32 customCapState = 9;
 }
 
 message SkinValue {
