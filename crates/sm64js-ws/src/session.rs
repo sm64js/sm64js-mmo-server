@@ -26,7 +26,7 @@ pub struct Sm64JsWsSession {
     hb_data: Option<Instant>,
     addr: Addr<server::Sm64JsServer>,
     auth_info: AuthInfo,
-    ip: Option<SocketAddr>,
+    ip: SocketAddr,
     real_ip: Option<String>,
 }
 
@@ -229,7 +229,7 @@ impl Sm64JsWsSession {
     pub fn new(
         addr: Addr<server::Sm64JsServer>,
         auth_info: AuthInfo,
-        ip: Option<SocketAddr>,
+        ip: SocketAddr,
         real_ip: Option<String>,
     ) -> Self {
         Self {

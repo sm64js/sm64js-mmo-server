@@ -43,7 +43,7 @@ impl Actor for Sm64JsServer {
 pub struct Connect {
     pub addr: Recipient<Message>,
     pub auth_info: AuthInfo,
-    pub ip: Option<SocketAddr>,
+    pub ip: SocketAddr,
     pub real_ip: Option<String>,
 }
 
@@ -318,7 +318,7 @@ impl Sm64JsServer {
                 Some(PlayerInfo {
                     account_id: client.get_account_id(),
                     socket_id: player.get_socket_id(),
-                    ip: client.get_ip().map(|ip| ip.to_string()),
+                    ip: client.get_ip().to_string(),
                     real_ip: client.get_real_ip().cloned(),
                     level: player.get_level(),
                     name: player.get_name().clone(),
@@ -398,6 +398,7 @@ impl Sm64JsServer {
                     return Err(msg);
                 }
             },
+            ChatResult::NotFound => None,
         };
 
         Ok(if let Some(root_msg) = root_msg {

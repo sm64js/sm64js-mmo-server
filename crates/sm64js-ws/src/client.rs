@@ -20,7 +20,7 @@ pub type WeakPlayers = HashMap<u32, Weak<RwLock<Player>>>;
 pub struct Client {
     addr: Recipient<Message>,
     auth_info: AuthInfo,
-    ip: Option<SocketAddr>,
+    ip: SocketAddr,
     real_ip: Option<String>,
     data: Option<MarioMsg>,
     socket_id: u32,
@@ -31,11 +31,14 @@ impl Client {
     pub fn new(
         addr: Recipient<Message>,
         auth_info: AuthInfo,
-        ip: Option<SocketAddr>,
+        ip: SocketAddr,
         real_ip: Option<String>,
         socket_id: u32,
     ) -> Self {
-        let add_real_ip = ip.map(|ip| ip.to_string()) != real_ip;
+        let add_real_ip = real_ip
+            .clone()
+            .map(|real_ip| real_ip != ip.to_string())
+            .unwrap_or_default();
         Client {
             addr,
             auth_info,
@@ -60,8 +63,8 @@ impl Client {
         self.auth_info.get_account_id()
     }
 
-    pub fn get_ip(&self) -> Option<&SocketAddr> {
-        self.ip.as_ref()
+    pub fn get_ip(&self) -> &SocketAddr {
+        &self.ip
     }
 
     pub fn get_real_ip(&self) -> Option<&String> {
@@ -137,20 +140,19 @@ impl Player {
     }
 
     pub fn add_chat_message(&mut self, chat_history: ChatHistoryData, message: &str) -> ChatResult {
-        let (ip, real_ip) = if let Some(client) = self.clients.get(&self.socket_id) {
-            (client.ip.map(|ip| ip.to_string()), client.real_ip.clone())
+        if let Some(client) = self.clients.get(&self.socket_id) {
+            let auth_info = &self.clients.get(&self.socket_id).unwrap().auth_info;
+            chat_history.write().add_message(
+                message,
+                self.name.clone(),
+                auth_info.get_discord_id(),
+                auth_info.get_google_id(),
+                client.ip.to_string(),
+                client.real_ip.clone(),
+            )
         } else {
-            (None, None)
-        };
-        let auth_info = &self.clients.get(&self.socket_id).unwrap().auth_info;
-        chat_history.write().add_message(
-            message,
-            self.name.clone(),
-            auth_info.get_discord_id(),
-            auth_info.get_google_id(),
-            ip,
-            real_ip,
-        )
+            ChatResult::NotFound
+        }
     }
 
     pub fn get_skin_data(&self) -> Option<&SkinData> {

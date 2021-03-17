@@ -33,7 +33,7 @@ pub struct DiscordGuildMember {
 pub struct PlayerInfo {
     pub account_id: i32,
     pub socket_id: u32,
-    pub ip: Option<String>,
+    pub ip: String,
     pub real_ip: Option<String>,
     pub level: u32,
     pub name: String,
