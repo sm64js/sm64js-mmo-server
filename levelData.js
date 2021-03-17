@@ -1,5 +1,11 @@
 module.exports = {
     standardLevels: {
+        1002: {
+            name: "Starman Fortress",
+            flagStartPositions: [
+                [0, 7657, 0]
+            ]
+        },
         1001: {
             name: "CTF/Race Map",
             flagStartPositions: [
