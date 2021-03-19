@@ -166,6 +166,7 @@ impl Room {
                             socket_id,
                             skin_data: Some(skin_data),
                             player_name,
+                            num_coins: 0,
                         })),
                     })),
                 };
@@ -273,6 +274,7 @@ impl Room {
                             socket_id: 0,
                             skin_data: Some(skin_data),
                             player_name,
+                            num_coins: 0,
                         })),
                     })),
                 };
