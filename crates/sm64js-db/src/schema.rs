@@ -7,7 +7,8 @@ table! {
 }
 
 table! {
-    bans (ip) {
+    bans (id) {
+        id -> Int4,
         ip -> Varchar,
         reason -> Nullable<Varchar>,
         expires_at -> Nullable<Timestamp>,
@@ -47,7 +48,8 @@ table! {
 }
 
 table! {
-    geolocations (query) {
+    geolocations (id) {
+        id -> Int4,
         query -> Varchar,
         country_code -> Varchar,
         region -> Varchar,
@@ -61,7 +63,7 @@ table! {
         proxy -> Bool,
         discord_session_id -> Nullable<Int4>,
         google_session_id -> Nullable<Int4>,
-        ban_id -> Nullable<Varchar>,
+        ban_id -> Nullable<Int4>,
     }
 }
 

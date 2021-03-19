@@ -254,7 +254,7 @@ pub fn update_account(
 
 pub fn ban_account(
     conn: &PgConnection,
-    geolocation: Option<models::Geolocation>,
+    geolocation: Option<models::NewGeolocation>,
     ip: String,
     reason: Option<String>,
     expires_at: Option<NaiveDateTime>,
@@ -262,7 +262,14 @@ pub fn ban_account(
 ) -> Result<models::Ban> {
     use schema::bans;
 
-    let new_ban = models::Ban {
+    if let Some(account_id) = account_id {
+        if let Some(ban) = is_account_banned(conn, account_id)? {
+            use schema::bans::dsl::*;
+            diesel::delete(bans).filter(id.eq(ban.id)).execute(conn)?;
+        }
+    }
+
+    let new_ban = models::NewBan {
         ip,
         reason,
         expires_at,
@@ -279,7 +286,25 @@ pub fn ban_account(
     Ok(ban)
 }
 
-fn add_geolocation(conn: &PgConnection, geolocation: models::Geolocation) -> Result<()> {
+pub fn is_account_banned(conn: &PgConnection, account_id: i32) -> Result<Option<models::Ban>> {
+    let account = get_account(conn, account_id)?;
+
+    if let Ok(ban) = models::Ban::belonging_to(&account).first::<models::Ban>(conn) {
+        if let Some(expires_at) = ban.expires_at {
+            if Utc::now().naive_utc() > expires_at {
+                use schema::bans::dsl::*;
+
+                diesel::delete(bans).filter(id.eq(ban.id)).execute(conn)?;
+                return Ok(None);
+            }
+        }
+        Ok(Some(ban))
+    } else {
+        Ok(None)
+    }
+}
+
+fn add_geolocation(conn: &PgConnection, geolocation: models::NewGeolocation) -> Result<()> {
     use schema::geolocations;
 
     diesel::insert_into(geolocations::table)

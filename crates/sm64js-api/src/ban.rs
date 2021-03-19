@@ -2,14 +2,14 @@ use std::time::Duration;
 
 use actix::prelude::*;
 use actix_http::{body::Body, client::SendRequestError, http::StatusCode, ResponseError};
-use actix_web::{client::JsonPayloadError, HttpResponse};
+use actix_web::HttpResponse;
 use awc::SendClientRequest;
 use chrono::Utc;
 use paperclip::actix::{api_v2_errors, api_v2_operation, web, Apiv2Schema, NoContent};
 use serde::Deserialize;
 use serde_with::skip_serializing_none;
 use sm64js_auth::{Identity, Permission};
-use sm64js_db::{models::Geolocation, DbPool};
+use sm64js_db::{models::NewGeolocation, DbPool};
 use sm64js_ws::{KickClientByAccountId, Sm64JsServer};
 use thiserror::Error;
 
@@ -47,7 +47,7 @@ pub async fn post_ban(
     let conn = pool.get().unwrap();
     let account = sm64js_db::get_account(&conn, query.account_id)?;
 
-    let geolocation: Option<Geolocation> = {
+    let geolocation: Option<NewGeolocation> = {
         let mut ip = account.last_ip.clone();
         if ip == "127.0.0.1" {
             ip = "".to_string();
@@ -58,8 +58,10 @@ pub async fn post_ban(
         let mut response = request.await?;
         if !response.status().is_success() {
             None
+        } else if let Ok(gelocation) = response.json().await {
+            Some(gelocation)
         } else {
-            Some(response.json().await?)
+            None
         }
     };
 
@@ -84,7 +86,11 @@ pub async fn post_ban(
 pub struct PostBan {
     account_id: i32,
     reason: Option<String>,
-    // #[serde(with = "humantime_serde")]
+    /// Parses duration for temp bans, e.g. "15days". See https://docs.rs/humantime/2.1.0/humantime/index.html
+    ///
+    /// Banning will overwrite an already existing ban, so if you want to unban someone, just set this to "0s"
+    #[serde(default)]
+    #[serde(with = "humantime_serde")]
     expires_in: Option<Duration>,
 }
 
@@ -95,8 +101,6 @@ pub enum BanError {
     Unauthorized,
     #[error("[SendRequest]: {0}")]
     SendRequest(#[from] SendRequestError),
-    #[error("[JsonPayload]: {0}")]
-    JsonPayload(#[from] JsonPayloadError),
     #[error("[MailboxError]: {0}")]
     Mailbox(#[from] MailboxError),
     #[error("[DbError]: {0}")]
@@ -108,7 +112,6 @@ impl ResponseError for BanError {
         let res = match self {
             Self::Unauthorized => HttpResponse::new(StatusCode::UNAUTHORIZED),
             Self::SendRequest(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
-            Self::JsonPayload(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
             Self::Mailbox(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
             Self::DbError(err) => return err.error_response(),
         };

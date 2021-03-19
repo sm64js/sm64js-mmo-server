@@ -1,7 +1,7 @@
 use crate::schema::*;
 
 use chrono::prelude::*;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug)]
 pub struct AuthInfo {
@@ -132,21 +132,32 @@ pub struct NewGoogleSession {
     pub google_account_id: String,
 }
 
-#[derive(Associations, Clone, Debug, Identifiable, Insertable, Queryable)]
-#[primary_key(ip)]
+// TODO implement Display trait for better human readable error message on ban
+#[derive(Associations, Clone, Debug, Identifiable, Insertable, Queryable, Serialize)]
 #[belongs_to(Account)]
 pub struct Ban {
+    #[serde(skip_serializing)]
+    pub id: i32,
     pub ip: String,
     pub reason: Option<String>,
     pub expires_at: Option<NaiveDateTime>,
     pub account_id: Option<i32>,
 }
 
-#[derive(Associations, Clone, Debug, Deserialize, Identifiable, Insertable, Queryable)]
-#[primary_key(query)]
+// TODO implement Display trait for better human readable error message on ban
+#[derive(Clone, Debug, Insertable)]
+#[table_name = "bans"]
+pub struct NewBan {
+    pub ip: String,
+    pub reason: Option<String>,
+    pub expires_at: Option<NaiveDateTime>,
+    pub account_id: Option<i32>,
+}
+
+#[derive(Associations, Clone, Debug, Identifiable, Insertable, Queryable)]
 #[belongs_to(DiscordSession, GoogleSession)]
-#[serde(rename_all = "camelCase")]
 pub struct Geolocation {
+    pub id: i32,
     pub query: String,
     pub country_code: String,
     pub region: String,
@@ -160,5 +171,25 @@ pub struct Geolocation {
     pub proxy: bool,
     pub discord_session_id: Option<i32>,
     pub google_session_id: Option<i32>,
-    pub ban_id: Option<String>,
+    pub ban_id: Option<i32>,
+}
+
+#[derive(Clone, Debug, Deserialize, Insertable)]
+#[serde(rename_all = "camelCase")]
+#[table_name = "geolocations"]
+pub struct NewGeolocation {
+    pub query: String,
+    pub country_code: String,
+    pub region: String,
+    pub city: String,
+    pub zip: String,
+    pub lat: f64,
+    pub lon: f64,
+    pub timezone: String,
+    pub isp: String,
+    pub mobile: bool,
+    pub proxy: bool,
+    pub discord_session_id: Option<i32>,
+    pub google_session_id: Option<i32>,
+    pub ban_id: Option<i32>,
 }

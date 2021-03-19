@@ -6,7 +6,10 @@ use paperclip::actix::{api_v2_errors, api_v2_operation, web, Apiv2Schema, Mounta
 use serde::{Deserialize, Serialize};
 use sm64js_auth::Identity;
 use sm64js_common::{DiscordGuildMember, DiscordUser};
-use sm64js_db::{models::UpdateAccount, DbPool};
+use sm64js_db::{
+    models::{Ban, UpdateAccount},
+    DbPool,
+};
 use std::env;
 use thiserror::Error;
 
@@ -90,6 +93,11 @@ async fn login(
     let username = account_info.get_discord_username();
 
     let conn = pool.get().unwrap();
+
+    if let Some(ban) = sm64js_db::is_account_banned(&conn, account_info.get_account_id())? {
+        return Err(LoginError::Banned(ban));
+    }
+
     sm64js_db::update_account(
         &conn,
         account_info.get_account_id(),
@@ -251,6 +259,8 @@ async fn login_with_google(
 enum LoginError {
     #[error("[IpRequired]")]
     IpRequired,
+    #[error("[Banned]: {0:?}")]
+    Banned(Ban),
     #[error("[SendRequest]: {0}")]
     SendRequest(#[from] SendRequestError),
     #[error("[TokenExpired]")]
@@ -269,6 +279,7 @@ impl ResponseError for LoginError {
     fn error_response(&self) -> HttpResponse {
         let res = match self {
             Self::IpRequired => HttpResponse::new(StatusCode::BAD_REQUEST),
+            Self::Banned(_) => HttpResponse::new(StatusCode::FORBIDDEN),
             Self::SendRequest(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
             Self::TokenExpired => HttpResponse::new(StatusCode::BAD_REQUEST),
             Self::SerdeJson(_) => HttpResponse::new(StatusCode::BAD_REQUEST),
