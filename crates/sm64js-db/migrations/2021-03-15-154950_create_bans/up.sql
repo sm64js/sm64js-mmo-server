@@ -1,0 +1,6 @@
+CREATE TABLE bans (
+  ip VARCHAR PRIMARY KEY,
+  reason VARCHAR,
+  expires_at TIMESTAMP,
+  account_id INTEGER REFERENCES accounts ON DELETE SET NULL
+)

@@ -93,6 +93,11 @@ A session cookie will then be stored in the user's browser that can be used to f
                     description: Some("Chat related API endpoints".to_string()),
                     external_docs: None,
                 },
+                Tag {
+                    name: "Moderation".to_string(),
+                    description: None,
+                    external_docs: None,
+                },
             ],
             info: Info {
                 title: "SM64JS API".into(),

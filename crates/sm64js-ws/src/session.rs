@@ -9,10 +9,7 @@ use sm64js_proto::{
     initialization_msg, root_msg, sm64_js_msg, InitGameDataMsg, InitializationMsg, RootMsg,
     Sm64JsMsg,
 };
-use std::{
-    net::SocketAddr,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -26,7 +23,7 @@ pub struct Sm64JsWsSession {
     hb_data: Option<Instant>,
     addr: Addr<server::Sm64JsServer>,
     auth_info: AuthInfo,
-    ip: SocketAddr,
+    ip: String,
     real_ip: Option<String>,
 }
 
@@ -41,7 +38,7 @@ impl Actor for Sm64JsWsSession {
             .send(server::Connect {
                 addr: addr.recipient(),
                 auth_info: self.auth_info.clone(),
-                ip: self.ip,
+                ip: self.ip.clone(),
                 real_ip: self.real_ip.clone(),
             })
             .into_actor(self)
@@ -229,7 +226,7 @@ impl Sm64JsWsSession {
     pub fn new(
         addr: Addr<server::Sm64JsServer>,
         auth_info: AuthInfo,
-        ip: SocketAddr,
+        ip: String,
         real_ip: Option<String>,
     ) -> Self {
         Self {
@@ -275,6 +272,9 @@ impl Handler<server::Message> for Sm64JsWsSession {
     type Result = ();
 
     fn handle(&mut self, msg: server::Message, ctx: &mut Self::Context) {
-        ctx.binary(msg.0);
+        match msg {
+            server::Message::SendData(data) => ctx.binary(data),
+            server::Message::Kick => ctx.stop(),
+        }
     }
 }

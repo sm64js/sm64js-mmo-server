@@ -29,11 +29,20 @@ pub fn insert_discord_session(
     expires_in: i64,
     discord_user: DiscordUser,
     guild_member: DiscordGuildMember,
+    ip: String,
 ) -> Result<models::DiscordSession> {
     use schema::discord_sessions;
 
     let mut account_id = None;
     if let Some(account) = get_discord_account_if_exists(conn, &discord_user.id)? {
+        update_account(
+            conn,
+            account.account_id,
+            &models::UpdateAccount {
+                username: None,
+                last_ip: Some(ip.clone()),
+            },
+        )?;
         account_id = Some(account.account_id);
         if let Ok(session) =
             models::DiscordSession::belonging_to(&account).first::<models::DiscordSession>(conn)
@@ -59,7 +68,7 @@ pub fn insert_discord_session(
         deaf: guild_member.deaf,
         mute: guild_member.mute,
     };
-    let discord_account_id = upsert_discord_account(conn, new_account, account_id)?;
+    let discord_account_id = upsert_discord_account(conn, new_account, ip, account_id)?;
 
     let expires_at = Utc::now().naive_utc() + Duration::seconds(expires_in);
     let new_session = models::NewDiscordSession {
@@ -79,11 +88,20 @@ pub fn insert_google_session(
     id_token: String,
     expires_at: i64,
     sub: String,
+    ip: String,
 ) -> Result<models::GoogleSession> {
     use schema::google_sessions;
 
     let mut account_id = None;
     if let Some(account) = get_google_account_if_exists(conn, &sub)? {
+        update_account(
+            conn,
+            account.account_id,
+            &models::UpdateAccount {
+                username: None,
+                last_ip: Some(ip.clone()),
+            },
+        )?;
         account_id = Some(account.account_id);
         if let Ok(session) =
             models::GoogleSession::belonging_to(&account).first::<models::GoogleSession>(conn)
@@ -91,7 +109,7 @@ pub fn insert_google_session(
             delete_google_session(conn, session.id)?;
         }
     }
-    let google_account_id = upsert_google_account(conn, sub, account_id)?;
+    let google_account_id = upsert_google_account(conn, sub, ip, account_id)?;
 
     let expires_at = Utc.timestamp(expires_at, 0).naive_utc();
     let new_session = models::NewGoogleSession {
@@ -105,7 +123,7 @@ pub fn insert_google_session(
     Ok(session)
 }
 
-pub fn get_account_info(conn: &PgConnection, req_session: &Session) -> Result<Option<AuthInfo>> {
+pub fn get_auth_info(conn: &PgConnection, req_session: &Session) -> Result<Option<AuthInfo>> {
     if let (Ok(Some(account_id)), Ok(Some(session_id)), Ok(Some(token)), Ok(Some(account_type))) = (
         req_session.get::<String>("account_id"),
         req_session.get::<i32>("session_id"),
@@ -215,10 +233,60 @@ pub fn delete_session(conn: &PgConnection, auth_info: AuthInfo) -> Result<()> {
     Ok(())
 }
 
-fn get_account(conn: &PgConnection, account_id: i32) -> Result<models::Account> {
+pub fn get_account(conn: &PgConnection, account_id: i32) -> Result<models::Account> {
     use schema::accounts::dsl::*;
 
     Ok(accounts.find(account_id).first(conn)?)
+}
+
+pub fn update_account(
+    conn: &PgConnection,
+    account_id: i32,
+    update_account: &models::UpdateAccount,
+) -> Result<()> {
+    use schema::accounts::dsl::*;
+
+    let account = accounts.find(account_id);
+    diesel::update(account).set(update_account).execute(conn)?;
+
+    Ok(())
+}
+
+pub fn ban_account(
+    conn: &PgConnection,
+    geolocation: Option<models::Geolocation>,
+    ip: String,
+    reason: Option<String>,
+    expires_at: Option<NaiveDateTime>,
+    account_id: Option<i32>,
+) -> Result<models::Ban> {
+    use schema::bans;
+
+    let new_ban = models::Ban {
+        ip,
+        reason,
+        expires_at,
+        account_id,
+    };
+    let ban: models::Ban = diesel::insert_into(bans::table)
+        .values(&new_ban)
+        .get_result(conn)?;
+
+    if let Some(geolocation) = geolocation {
+        add_geolocation(conn, geolocation)?;
+    }
+
+    Ok(ban)
+}
+
+fn add_geolocation(conn: &PgConnection, geolocation: models::Geolocation) -> Result<()> {
+    use schema::geolocations;
+
+    diesel::insert_into(geolocations::table)
+        .values(&geolocation)
+        .execute(conn)?;
+
+    Ok(())
 }
 
 fn get_discord_account(conn: &PgConnection, id: &str) -> Result<models::DiscordAccount> {
@@ -280,6 +348,7 @@ fn delete_google_session(conn: &PgConnection, key: i32) -> Result<()> {
 fn upsert_discord_account(
     conn: &PgConnection,
     discord_account: models::NewDiscordAccount,
+    ip: String,
     account_id: Option<i32>,
 ) -> Result<String> {
     use schema::discord_accounts;
@@ -287,7 +356,7 @@ fn upsert_discord_account(
     let account_id = if let Some(account_id) = account_id {
         account_id
     } else {
-        insert_account(conn)?
+        insert_account(conn, ip)?
     };
     let discord_account = models::DiscordAccount {
         id: discord_account.id,
@@ -320,6 +389,7 @@ fn upsert_discord_account(
 fn upsert_google_account(
     conn: &PgConnection,
     sub: String,
+    ip: String,
     account_id: Option<i32>,
 ) -> Result<String> {
     use schema::google_accounts;
@@ -327,7 +397,7 @@ fn upsert_google_account(
     let account_id = if let Some(account_id) = account_id {
         account_id
     } else {
-        insert_account(conn)?
+        insert_account(conn, ip)?
     };
     let google_account = models::GoogleAccount { sub, account_id };
 
@@ -340,10 +410,13 @@ fn upsert_google_account(
     Ok(account.sub)
 }
 
-fn insert_account(conn: &PgConnection) -> Result<i32> {
+fn insert_account(conn: &PgConnection, ip: String) -> Result<i32> {
     use schema::accounts;
 
-    let new_account = models::NewAccount { username: None };
+    let new_account = models::NewAccount {
+        username: None,
+        last_ip: ip,
+    };
     let account: models::Account = diesel::insert_into(accounts::table)
         .values(&new_account)
         .get_result(conn)?;

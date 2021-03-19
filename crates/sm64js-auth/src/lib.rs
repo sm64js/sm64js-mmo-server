@@ -79,9 +79,11 @@ impl AuthInfo {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Permission {
     GetPlayerList,
+    PermBanAccount,
     ReadChatLog,
     ReadChatLogWithIp,
     SendAnnouncement,
+    TempBanAccount,
 }
 
 impl Permission {
@@ -99,9 +101,11 @@ lazy_static! {
         "755200616267120791" => // Moderator
             vec![
                 Permission::GetPlayerList,
+                Permission::PermBanAccount,
                 Permission::ReadChatLog,
                 Permission::ReadChatLogWithIp,
-                Permission::SendAnnouncement
+                Permission::SendAnnouncement,
+                Permission::TempBanAccount
             ],
         "780937094473318420" => // In-game Chat Moderator
             vec![ Permission::GetPlayerList, Permission::ReadChatLog ]

@@ -1223,6 +1223,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
 
 [[package]]
+name = "humantime-serde"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac34a56cfd4acddb469cc7fff187ed5ac36f498ba085caf8bbc725e3ff474058"
+dependencies = [
+ "humantime",
+ "serde",
+]
+
+[[package]]
 name = "ident_case"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2310,6 +2320,7 @@ dependencies = [
 name = "sm64js-api"
 version = "0.1.0"
 dependencies = [
+ "actix",
  "actix-http",
  "actix-service",
  "actix-session",
@@ -2318,11 +2329,13 @@ dependencies = [
  "chrono",
  "diesel",
  "futures",
+ "humantime-serde",
  "paperclip",
  "parking_lot",
  "r2d2",
  "serde",
  "serde_json",
+ "serde_with",
  "sm64js-auth",
  "sm64js-common",
  "sm64js-db",
@@ -2390,6 +2403,7 @@ name = "sm64js-ws"
 version = "0.1.0"
 dependencies = [
  "actix",
+ "actix-web",
  "actix-web-actors",
  "anyhow",
  "censor",

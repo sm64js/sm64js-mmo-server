@@ -1,0 +1,2 @@
+ALTER TABLE accounts
+  ALTER COLUMN last_ip DROP NOT NULL;

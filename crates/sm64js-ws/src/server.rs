@@ -2,7 +2,7 @@ use crate::{Client, Clients, Player, Players, Rooms};
 use actix::{prelude::*, Recipient};
 use anyhow::Result;
 use censor::Censor;
-use dashmap::DashMap;
+use dashmap::{mapref::one::Ref, DashMap};
 use parking_lot::RwLock;
 use prost::Message as ProstMessage;
 use rand::{self, Rng};
@@ -12,7 +12,7 @@ use sm64js_proto::{
     root_msg, sm64_js_msg, AnnouncementMsg, AttackMsg, ChatMsg, GrabFlagMsg, JoinGameMsg, MarioMsg,
     RootMsg, SkinMsg, Sm64JsMsg,
 };
-use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 use v_htmlescape::escape;
 
 lazy_static! {
@@ -23,7 +23,10 @@ lazy_static! {
 
 #[derive(Message)]
 #[rtype(result = "()")]
-pub struct Message(pub Vec<u8>);
+pub enum Message {
+    SendData(Vec<u8>),
+    Kick,
+}
 
 pub struct Sm64JsServer {
     clients: Arc<Clients>,
@@ -43,7 +46,7 @@ impl Actor for Sm64JsServer {
 pub struct Connect {
     pub addr: Recipient<Message>,
     pub auth_info: AuthInfo,
-    pub ip: SocketAddr,
+    pub ip: String,
     pub real_ip: Option<String>,
 }
 
@@ -256,6 +259,33 @@ impl Handler<SendJoinGame> for Sm64JsServer {
     }
 }
 
+#[derive(Message)]
+#[rtype(result = "Result<()>")]
+pub struct KickClientByAccountId {
+    pub account_id: i32,
+}
+
+impl Handler<KickClientByAccountId> for Sm64JsServer {
+    type Result = Result<()>;
+
+    fn handle(&mut self, msg: KickClientByAccountId, _: &mut Context<Self>) -> Self::Result {
+        let account_id = msg.account_id;
+        let socket_id = {
+            if let Some(client) = self.get_client_by_account_id(account_id) {
+                client.send(Message::Kick)?;
+                Some(client.get_socket_id())
+            } else {
+                None
+            }
+        };
+        if let Some(socket_id) = socket_id {
+            self.clients.remove(&socket_id);
+            self.players.remove(&socket_id);
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug)]
 pub struct JoinGameAccepted {
     pub level: u32,
@@ -327,6 +357,17 @@ impl Sm64JsServer {
             .collect()
     }
 
+    fn get_client_by_account_id(&self, account_id: i32) -> Option<Ref<u32, Client>> {
+        self.clients
+            .iter()
+            .find(|client| client.get_account_id() == account_id)
+            .map(|client| {
+                let socket_id = client.value().get_socket_id();
+                self.clients.get(&socket_id)
+            })
+            .flatten()
+    }
+
     fn handle_command(chat_msg: ChatMsg, auth_info: AuthInfo) -> Option<Vec<u8>> {
         let message = chat_msg.message;
         if let Some(index) = message.find(' ') {
@@ -337,6 +378,7 @@ impl Sm64JsServer {
                 }
             }
             match cmd.to_ascii_uppercase().as_ref() {
+                // TODO store in enum
                 "ANNOUNCEMENT" => {
                     let root_msg = RootMsg {
                         message: Some(root_msg::Message::UncompressedSm64jsMsg(Sm64JsMsg {

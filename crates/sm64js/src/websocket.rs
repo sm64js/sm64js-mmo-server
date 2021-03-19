@@ -14,7 +14,7 @@ pub async fn index(
     identity: Identity,
 ) -> Result<HttpResponse, WsError> {
     let auth_info = identity.get_auth_info();
-    let ip = req.peer_addr().ok_or(WsError::IpRequired)?;
+    let ip = req.peer_addr().ok_or(WsError::IpRequired)?.ip().to_string();
     let real_ip = req
         .connection_info()
         .realip_remote_addr()

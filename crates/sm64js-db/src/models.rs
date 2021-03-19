@@ -26,12 +26,21 @@ pub struct GoogleAuthInfo {
 pub struct Account {
     pub id: i32,
     pub username: Option<String>,
+    pub last_ip: String,
 }
 
 #[derive(Insertable)]
 #[table_name = "accounts"]
 pub struct NewAccount {
     pub username: Option<String>,
+    pub last_ip: String,
+}
+
+#[derive(AsChangeset)]
+#[table_name = "accounts"]
+pub struct UpdateAccount {
+    pub username: Option<String>,
+    pub last_ip: Option<String>,
 }
 
 #[derive(AsChangeset, Associations, Clone, Debug, Identifiable, Insertable, Queryable)]
@@ -121,4 +130,35 @@ pub struct NewGoogleSession {
     pub id_token: String,
     pub expires_at: NaiveDateTime,
     pub google_account_id: String,
+}
+
+#[derive(Associations, Clone, Debug, Identifiable, Insertable, Queryable)]
+#[primary_key(ip)]
+#[belongs_to(Account)]
+pub struct Ban {
+    pub ip: String,
+    pub reason: Option<String>,
+    pub expires_at: Option<NaiveDateTime>,
+    pub account_id: Option<i32>,
+}
+
+#[derive(Associations, Clone, Debug, Deserialize, Identifiable, Insertable, Queryable)]
+#[primary_key(query)]
+#[belongs_to(DiscordSession, GoogleSession)]
+#[serde(rename_all = "camelCase")]
+pub struct Geolocation {
+    pub query: String,
+    pub country_code: String,
+    pub region: String,
+    pub city: String,
+    pub zip: String,
+    pub lat: f64,
+    pub lon: f64,
+    pub timezone: String,
+    pub isp: String,
+    pub mobile: bool,
+    pub proxy: bool,
+    pub discord_session_id: Option<i32>,
+    pub google_session_id: Option<i32>,
+    pub ban_id: Option<String>,
 }

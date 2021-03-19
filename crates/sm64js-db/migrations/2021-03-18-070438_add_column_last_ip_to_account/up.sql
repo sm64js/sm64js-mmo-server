@@ -1,0 +1,2 @@
+ALTER TABLE accounts
+  ADD COLUMN last_ip VARCHAR;

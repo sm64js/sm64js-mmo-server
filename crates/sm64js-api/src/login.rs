@@ -1,12 +1,12 @@
 use actix_http::{body::Body, client::SendRequestError};
 use actix_session::Session;
-use actix_web::{dev, error::ResponseError, http::StatusCode, HttpResponse};
+use actix_web::{dev, error::ResponseError, http::StatusCode, HttpRequest, HttpResponse};
 use awc::{error::JsonPayloadError, SendClientRequest};
 use paperclip::actix::{api_v2_errors, api_v2_operation, web, Apiv2Schema, Mountable};
 use serde::{Deserialize, Serialize};
 use sm64js_auth::Identity;
 use sm64js_common::{DiscordGuildMember, DiscordUser};
-use sm64js_db::DbPool;
+use sm64js_db::{models::UpdateAccount, DbPool};
 use std::env;
 use thiserror::Error;
 
@@ -73,20 +73,48 @@ pub fn service() -> impl dev::HttpServiceFactory + Mountable {
         .service(web::resource("/discord").route(web::post().to(login_with_discord)))
 }
 
+/// POST Login
 #[api_v2_operation(tags(Auth))]
-async fn login(identity: Identity) -> Result<web::Json<AuthorizedUserMessage>, LoginError> {
+async fn login(
+    req: HttpRequest,
+    pool: web::Data<DbPool>,
+    identity: Identity,
+) -> Result<web::Json<AuthorizedUserMessage>, LoginError> {
+    let ip = req
+        .peer_addr()
+        .ok_or(LoginError::IpRequired)?
+        .ip()
+        .to_string();
+
     let account_info = identity.get_auth_info();
     let username = account_info.get_discord_username();
+
+    let conn = pool.get().unwrap();
+    sm64js_db::update_account(
+        &conn,
+        account_info.get_account_id(),
+        &UpdateAccount {
+            username: None,
+            last_ip: Some(ip),
+        },
+    )?;
 
     Ok(web::Json(AuthorizedUserMessage { username }))
 }
 
 #[api_v2_operation(tags(Hidden))]
 async fn login_with_discord(
+    req: HttpRequest,
     json: web::Json<Login>,
     pool: web::Data<DbPool>,
     session: Session,
 ) -> Result<web::Json<AuthorizedUserMessage>, LoginError> {
+    let ip = req
+        .peer_addr()
+        .ok_or(LoginError::IpRequired)?
+        .ip()
+        .to_string();
+
     let req = OAuth2Request {
         client_id: DISCORD_CLIENT_ID.to_string(),
         client_secret: env::var("DISCORD_CLIENT_SECRET").unwrap(),
@@ -147,6 +175,7 @@ async fn login_with_discord(
         expires_in,
         discord_user,
         guild_member,
+        ip,
     )?;
 
     session.set("account_id", discord_session.discord_account_id)?;
@@ -162,10 +191,17 @@ async fn login_with_discord(
 
 #[api_v2_operation(tags(Hidden))]
 async fn login_with_google(
+    req: HttpRequest,
     json: web::Json<Login>,
     pool: web::Data<DbPool>,
     session: Session,
 ) -> Result<web::Json<AuthorizedUserMessage>, LoginError> {
+    let ip = req
+        .peer_addr()
+        .ok_or(LoginError::IpRequired)?
+        .ip()
+        .to_string();
+
     let req = OAuth2Request {
         client_id: GOOGLE_CLIENT_ID.to_string(),
         client_secret: std::env::var("GOOGLE_CLIENT_SECRET").unwrap(),
@@ -199,7 +235,7 @@ async fn login_with_google(
 
     let conn = pool.get().unwrap();
     let google_session =
-        sm64js_db::insert_google_session(&conn, jwt_token, expires_at, id_token.sub).unwrap();
+        sm64js_db::insert_google_session(&conn, jwt_token, expires_at, id_token.sub, ip).unwrap();
 
     session.set("account_id", google_session.google_account_id)?;
     session.set("session_id", google_session.id)?;
@@ -213,6 +249,8 @@ async fn login_with_google(
 #[api_v2_errors(code = 400, code = 500)]
 #[derive(Debug, Error)]
 enum LoginError {
+    #[error("[IpRequired]")]
+    IpRequired,
     #[error("[SendRequest]: {0}")]
     SendRequest(#[from] SendRequestError),
     #[error("[TokenExpired]")]
@@ -230,6 +268,7 @@ enum LoginError {
 impl ResponseError for LoginError {
     fn error_response(&self) -> HttpResponse {
         let res = match self {
+            Self::IpRequired => HttpResponse::new(StatusCode::BAD_REQUEST),
             Self::SendRequest(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
             Self::TokenExpired => HttpResponse::new(StatusCode::BAD_REQUEST),
             Self::SerdeJson(_) => HttpResponse::new(StatusCode::BAD_REQUEST),

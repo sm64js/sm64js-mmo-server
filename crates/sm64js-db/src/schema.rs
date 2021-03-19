@@ -2,6 +2,16 @@ table! {
     accounts (id) {
         id -> Int4,
         username -> Nullable<Varchar>,
+        last_ip -> Varchar,
+    }
+}
+
+table! {
+    bans (ip) {
+        ip -> Varchar,
+        reason -> Nullable<Varchar>,
+        expires_at -> Nullable<Timestamp>,
+        account_id -> Nullable<Int4>,
     }
 }
 
@@ -37,6 +47,25 @@ table! {
 }
 
 table! {
+    geolocations (query) {
+        query -> Varchar,
+        country_code -> Varchar,
+        region -> Varchar,
+        city -> Varchar,
+        zip -> Varchar,
+        lat -> Float8,
+        lon -> Float8,
+        timezone -> Varchar,
+        isp -> Varchar,
+        mobile -> Bool,
+        proxy -> Bool,
+        discord_session_id -> Nullable<Int4>,
+        google_session_id -> Nullable<Int4>,
+        ban_id -> Nullable<Varchar>,
+    }
+}
+
+table! {
     google_accounts (sub) {
         sub -> Varchar,
         account_id -> Int4,
@@ -52,15 +81,21 @@ table! {
     }
 }
 
+joinable!(bans -> accounts (account_id));
 joinable!(discord_accounts -> accounts (account_id));
 joinable!(discord_sessions -> discord_accounts (discord_account_id));
+joinable!(geolocations -> bans (ban_id));
+joinable!(geolocations -> discord_sessions (discord_session_id));
+joinable!(geolocations -> google_sessions (google_session_id));
 joinable!(google_accounts -> accounts (account_id));
 joinable!(google_sessions -> google_accounts (google_account_id));
 
 allow_tables_to_appear_in_same_query!(
     accounts,
+    bans,
     discord_accounts,
     discord_sessions,
+    geolocations,
     google_accounts,
     google_sessions,
 );

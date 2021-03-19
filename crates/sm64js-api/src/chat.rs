@@ -4,7 +4,7 @@ use sm64js_auth::{Identity, Permission};
 use sm64js_common::{ChatHistoryData, ChatMessage, GetChat};
 use thiserror::Error;
 
-/// Fetch chat history data.
+/// GET Chat history data
 #[api_v2_operation(tags(Chat))]
 pub async fn get_chat(
     query: web::Query<GetChat>,

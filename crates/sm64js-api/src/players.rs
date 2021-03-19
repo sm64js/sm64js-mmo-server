@@ -14,6 +14,7 @@ pub fn service() -> impl HttpServiceFactory + Mountable {
     web::scope("/players").service(web::resource("").route(web::get().to(get_players)))
 }
 
+/// GET Player list
 #[api_v2_operation(tags(PlayerList))]
 async fn get_players(
     identity: Identity,

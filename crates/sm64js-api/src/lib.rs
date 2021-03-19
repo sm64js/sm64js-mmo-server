@@ -1,3 +1,4 @@
+mod ban;
 mod chat;
 mod login;
 mod logout;
@@ -12,4 +13,5 @@ pub fn service() -> impl dev::HttpServiceFactory + Mountable {
         .service(players::service())
         .service(login::service())
         .service(web::resource("/logout").route(web::post().to(logout::post_logout)))
+        .service(web::resource("/ban").route(web::post().to(ban::post_ban)))
 }

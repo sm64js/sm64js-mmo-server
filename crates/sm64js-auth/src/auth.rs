@@ -66,7 +66,7 @@ where
                 let pool: Option<&web::Data<DbPool>> = req.app_data();
                 if let Some(pool) = pool {
                     let conn = pool.get().expect("couldn't get db connection from pool");
-                    match sm64js_db::get_account_info(&conn, &session) {
+                    match sm64js_db::get_auth_info(&conn, &session) {
                         Ok(Some(account)) => {
                             Identity::set_identity(AuthInfo(account), &mut req);
                         }

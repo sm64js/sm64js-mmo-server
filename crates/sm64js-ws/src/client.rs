@@ -8,7 +8,6 @@ use sm64js_common::{ChatHistoryData, ChatResult};
 use sm64js_proto::{MarioMsg, SkinData};
 use std::{
     collections::HashMap,
-    net::SocketAddr,
     sync::{Arc, Weak},
 };
 
@@ -20,7 +19,7 @@ pub type WeakPlayers = HashMap<u32, Weak<RwLock<Player>>>;
 pub struct Client {
     addr: Recipient<Message>,
     auth_info: AuthInfo,
-    ip: SocketAddr,
+    ip: String,
     real_ip: Option<String>,
     data: Option<MarioMsg>,
     socket_id: u32,
@@ -31,13 +30,13 @@ impl Client {
     pub fn new(
         addr: Recipient<Message>,
         auth_info: AuthInfo,
-        ip: SocketAddr,
+        ip: String,
         real_ip: Option<String>,
         socket_id: u32,
     ) -> Self {
         let add_real_ip = real_ip
             .clone()
-            .map(|real_ip| real_ip != ip.to_string())
+            .map(|real_ip| real_ip != ip)
             .unwrap_or_default();
         Client {
             addr,
@@ -63,7 +62,7 @@ impl Client {
         self.auth_info.get_account_id()
     }
 
-    pub fn get_ip(&self) -> &SocketAddr {
+    pub fn get_ip(&self) -> &String {
         &self.ip
     }
 
@@ -136,7 +135,7 @@ impl Player {
         self.clients
             .get(&self.socket_id)
             .unwrap()
-            .send(Message(msg))
+            .send(Message::SendData(msg))
     }
 
     pub fn add_chat_message(&mut self, chat_history: ChatHistoryData, message: &str) -> ChatResult {
