@@ -15,6 +15,19 @@ use std::{
 
 pub type Rooms = Arc<DashMap<u32, Room>>;
 
+macro_rules! room {
+    ( $rooms:expr, $id:expr, $name:expr, $($flag:expr),* ) => {
+        $rooms.insert(
+            $id,
+            Room {
+                id: $name.to_string(),
+                flags: vec![$(RwLock::new(Flag::new($flag)),)*],
+                players: HashMap::new(),
+            },
+        );
+    };
+}
+
 #[derive(Debug)]
 pub struct Room {
     id: String,
@@ -25,67 +38,43 @@ pub struct Room {
 impl Room {
     pub fn init_rooms() -> Rooms {
         let rooms = DashMap::new();
-        rooms.insert(
-            5,
-            Room {
-                id: "Cool, Cool Mountain".to_string(),
-                flags: vec![RwLock::new(Flag::new([0., 7657., 0.]))],
-                players: HashMap::new(),
-            },
-        );
-        rooms.insert(
-            9,
-            Room {
-                id: "Bob-omb Battlefield".to_string(),
-                flags: vec![RwLock::new(Flag::new([-2384., 260., 6203.]))],
-                players: HashMap::new(),
-            },
-        );
-        rooms.insert(
+        room!(rooms, 4, "Big Boo's Haunt", [0., 7657., 0.]);
+        room!(rooms, 5, "Cool, Cool Mountain", [0., 7657., 0.]);
+        room!(rooms, 6, "Castle Inside First LevelCave", [0., 7657., 0.]);
+        room!(rooms, 7, "Hazy Maze Cave", [0., 7657., 0.]);
+        room!(rooms, 8, "Shifting Sand Land", [0., 7657., 0.]);
+        room!(rooms, 9, "Bob-omb Battlefield", [-2384., 260., 6203.]);
+        room!(rooms, 10, "Snowman's Land", [0., 7657., 0.]);
+        room!(
+            rooms,
             16,
-            Room {
-                id: "Castle Grounds".to_string(),
-                flags: vec![RwLock::new(Flag::new([0., 3657., 0.]))],
-                players: HashMap::new(),
-            },
+            "Castle Grounds",
+            [6300., 910., -5900.],
+            [-4200., -1300., -5300.]
         );
-        rooms.insert(
-            24,
-            Room {
-                id: "Whomps Fortress".to_string(),
-                flags: vec![RwLock::new(Flag::new([0., 7657., 0.]))],
-                players: HashMap::new(),
-            },
-        );
-        rooms.insert(
-            27,
-            Room {
-                id: "Princess's Secret Slide".to_string(),
-                flags: vec![RwLock::new(Flag::new([0., 7657., 0.]))],
-                players: HashMap::new(),
-            },
-        );
-        rooms.insert(
-            36,
-            Room {
-                id: "Tall, Tall Mountain".to_string(),
-                flags: vec![RwLock::new(Flag::new([0., 7657., 0.]))],
-                players: HashMap::new(),
-            },
-        );
-        rooms.insert(
+        room!(rooms, 24, "Whomps Fortress", [0., 7657., 0.]);
+        room!(rooms, 26, "Castle Courtyard", [0., 7657., 0.]);
+        room!(rooms, 27, "Princess's Secret Slide", [0., 7657., 0.]);
+        room!(rooms, 36, "Tall, Tall Mountain", [0., 7657., 0.]);
+        room!(rooms, 602, "Castle Inside Second Level", [0., 7657., 0.]);
+        room!(rooms, 999, "Clouded Ruins", [0., 7657., 0.]);
+        room!(
+            rooms,
             1000,
-            Room {
-                id: "Mushroom Battlefield".to_string(),
-                flags: vec![
-                    RwLock::new(Flag::new([9380., 7657., -8980.])),
-                    RwLock::new(Flag::new([-5126., 3678., 10106.])),
-                    RwLock::new(Flag::new([-14920., 3800., -8675.])),
-                    RwLock::new(Flag::new([12043., 3000., 10086.])),
-                ],
-                players: HashMap::new(),
-            },
+            "Mushroom Battlefield",
+            [9380., 7657., -8980.],
+            [-5126., 3678., 10106.],
+            [-14920., 3800., -8675.],
+            [12043., 3000., 10086.]
         );
+        room!(
+            rooms,
+            1001,
+            "CTF/Race Map",
+            [-76., 467., -7768.],
+            [-76., 467., 7945.]
+        );
+        room!(rooms, 1002, "Starman Fortress", [0., 7657., 0.]);
 
         Arc::new(rooms)
     }
