@@ -89,6 +89,12 @@ module.exports = {
                 [0, 7657, 0]
             ]
         },
+        56: {
+            name: "Cool, Cool Mountain Slide",
+            flagStartPositions: [
+                [0, 7657, 0]
+            ]
+        },
         27: {
             name: "Princess's Secret Slide",
             flagStartPositions: [
