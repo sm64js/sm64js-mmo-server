@@ -135,6 +135,7 @@ pub struct NewGoogleSession {
 // TODO implement Display trait for better human readable error message on ban
 #[derive(Associations, Clone, Debug, Identifiable, Insertable, Queryable, Serialize)]
 #[belongs_to(Account)]
+#[serde(rename_all = "camelCase")]
 pub struct Ban {
     #[serde(skip_serializing)]
     pub id: i32,

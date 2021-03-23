@@ -157,6 +157,7 @@ impl ChatHistory {
 
 #[skip_serializing_none]
 #[derive(Apiv2Schema, Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ChatMessage {
     message: String,
     timestamp: i64,

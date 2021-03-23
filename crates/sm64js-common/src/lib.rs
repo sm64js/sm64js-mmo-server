@@ -32,6 +32,7 @@ pub struct DiscordGuildMember {
 
 #[skip_serializing_none]
 #[derive(Apiv2Schema, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PlayerInfo {
     pub account_id: i32,
     pub discord_id: Option<String>,
