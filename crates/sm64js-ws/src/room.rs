@@ -6,7 +6,11 @@ use flate2::{write::ZlibEncoder, Compression};
 use prost::Message as ProstMessage;
 use rand::{self, Rng};
 use rayon::prelude::*;
-use sm64js_proto::{root_msg, sm64_js_msg, FlagMsg, MarioListMsg, RootMsg, SkinMsg, Sm64JsMsg};
+use sm64js_common::create_uncompressed_msg;
+use sm64js_proto::{
+    root_msg, sm64_js_msg, FlagMsg, MarioListMsg, PlayerListsMsg, RootMsg, SkinMsg, Sm64JsMsg,
+    ValidPlayersMsg,
+};
 use std::{
     collections::HashMap,
     io::prelude::*,
@@ -20,7 +24,8 @@ macro_rules! add_room {
         $rooms.insert(
             $id,
             Room {
-                id: $name.to_string(),
+                id: $id,
+                name: $name.to_string(),
                 flags: vec![$(RwLock::new(Flag::new($flag)),)*],
                 players: HashMap::new(),
             },
@@ -30,7 +35,8 @@ macro_rules! add_room {
 
 #[derive(Debug)]
 pub struct Room {
-    id: String,
+    id: u32,
+    name: String,
     flags: Vec<RwLock<Flag>>,
     players: WeakPlayers,
 }
@@ -183,6 +189,30 @@ impl Room {
             })
             .filter_map(Result::ok)
             .collect::<Vec<_>>();
+    }
+
+    pub fn get_and_send_valid_players(&self) -> ValidPlayersMsg {
+        let valid_players = ValidPlayersMsg {
+            level_id: self.id,
+            valid_players: self
+                .players
+                .iter()
+                .filter_map(|player| {
+                    player
+                        .1
+                        .upgrade()
+                        .map(|player| player.read().get_socket_id())
+                })
+                .collect(),
+        };
+
+        let message = sm64_js_msg::Message::PlayerListsMsg(PlayerListsMsg {
+            game: vec![valid_players.clone()],
+        });
+        let root_msg = create_uncompressed_msg(message);
+        self.broadcast_message(&root_msg);
+
+        valid_players
     }
 
     pub fn has_player(&self, socket_id: u32) -> bool {

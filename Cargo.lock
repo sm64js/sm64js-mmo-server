@@ -2361,6 +2361,7 @@ dependencies = [
  "indexmap",
  "paperclip",
  "parking_lot",
+ "prost",
  "serde",
  "serde_with",
  "sm64js-proto",

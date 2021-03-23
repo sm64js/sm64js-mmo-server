@@ -259,6 +259,27 @@ impl Handler<SendJoinGame> for Sm64JsServer {
 }
 
 #[derive(Message)]
+#[rtype(result = "()")]
+pub struct BroadcastLobbyData {
+    pub data: Vec<u8>,
+}
+
+impl Handler<BroadcastLobbyData> for Sm64JsServer {
+    type Result = ();
+
+    fn handle(&mut self, msg: BroadcastLobbyData, _: &mut Context<Self>) {
+        self.clients
+            .iter()
+            .filter(|client| client.get_level().is_none())
+            .for_each(|client| {
+                if let Err(err) = client.send(Message::SendData(msg.data.clone())) {
+                    eprintln!("{:?}", err);
+                }
+            });
+    }
+}
+
+#[derive(Message)]
 #[rtype(result = "Result<()>")]
 pub struct KickClientByAccountId {
     pub account_id: i32,

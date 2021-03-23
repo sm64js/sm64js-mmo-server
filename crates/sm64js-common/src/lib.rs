@@ -6,8 +6,10 @@ pub use chat::{
 };
 
 use paperclip::actix::Apiv2Schema;
+use prost::Message as ProstMessage;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+use sm64js_proto::{root_msg, sm64_js_msg, RootMsg, Sm64JsMsg};
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct DiscordUser {
@@ -44,4 +46,16 @@ pub struct PlayerInfo {
     pub level: u32,
     pub name: String,
     pub chat: Option<Vec<chat::ChatMessage>>,
+}
+
+pub fn create_uncompressed_msg(msg: sm64_js_msg::Message) -> Vec<u8> {
+    let root_msg = RootMsg {
+        message: Some(root_msg::Message::UncompressedSm64jsMsg(Sm64JsMsg {
+            message: Some(msg),
+        })),
+    };
+    let mut msg = vec![];
+    root_msg.encode(&mut msg).unwrap();
+
+    msg
 }

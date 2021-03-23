@@ -45,7 +45,7 @@ async fn main() -> std::io::Result<()> {
     let chat_history: ChatHistoryData = web::Data::new(RwLock::new(ChatHistory::default()));
     let rooms = Room::init_rooms();
     let server = Sm64JsServer::new(chat_history.clone(), rooms.clone()).start();
-    Game::run(rooms.clone());
+    Game::run(server.clone(), rooms.clone());
 
     // TODO fetch Google Discovery document and cache it
     // let request = awc::Client::default()
