@@ -323,7 +323,6 @@ impl Handler<GetPlayers> for Sm64JsServer {
                         account_id: client.get_account_id(),
                         discord_id,
                         google_id,
-                        socket_id: player.get_socket_id(),
                         ip: client.get_ip().to_string(),
                         real_ip: client.get_real_ip().cloned(),
                         level: player.get_level(),

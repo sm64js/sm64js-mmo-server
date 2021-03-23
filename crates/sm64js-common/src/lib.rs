@@ -36,7 +36,6 @@ pub struct PlayerInfo {
     pub account_id: i32,
     pub discord_id: Option<String>,
     pub google_id: Option<String>,
-    pub socket_id: u32,
     pub ip: String,
     pub real_ip: Option<String>,
     pub level: u32,
