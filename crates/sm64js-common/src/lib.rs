@@ -1,7 +1,9 @@
 mod chat;
 mod date_format;
 
-pub use chat::{ChatError, ChatHistory, ChatHistoryData, ChatMessage, ChatResult, GetChat};
+pub use chat::{
+    sanitize_chat, ChatError, ChatHistory, ChatHistoryData, ChatMessage, ChatResult, GetChat,
+};
 
 use paperclip::actix::Apiv2Schema;
 use serde::{Deserialize, Serialize};

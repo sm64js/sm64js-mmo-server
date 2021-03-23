@@ -13,4 +13,3 @@ parking_lot = "0.11"
 serde = "1"
 serde_with = "1"
 sm64js-proto = { path = "../sm64js-proto" }
-v_htmlescape = "0.13"

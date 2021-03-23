@@ -5,7 +5,6 @@ use paperclip::actix::{web, Apiv2Schema};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-use v_htmlescape::escape;
 
 #[derive(Apiv2Schema, Debug, Default, Deserialize)]
 pub struct GetChat {
@@ -38,6 +37,17 @@ impl Default for ChatHistory {
     }
 }
 
+const ALLOWED_CHARACTERS: &str = r#"
+abcdefghijklmnopoqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ?!@#$%^&*(){}[];:'"\|/,.<>-_=+
+🙄😫🤔🔥😌😍🤣❤️😭😂⭐✨🎄🎃🔺🔻🍬🍭🍫
+"#;
+
+pub fn sanitize_chat(s: &str) -> String {
+    let mut escaped_message = s.to_string();
+    escaped_message.retain(|c| ALLOWED_CHARACTERS.contains(c));
+    escaped_message
+}
+
 impl ChatHistory {
     pub fn add_message(
         &mut self,
@@ -48,7 +58,7 @@ impl ChatHistory {
         ip: String,
         real_ip: Option<String>,
     ) -> ChatResult {
-        let escaped_message = format!("{}", escape(message));
+        let escaped_message = sanitize_chat(message);
         let is_escaped = escaped_message != message;
 
         let censor = Censor::Standard;

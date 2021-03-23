@@ -80,7 +80,7 @@ dependencies = [
  "mime",
  "mime_guess",
  "percent-encoding",
- "v_htmlescape 0.12.0",
+ "v_htmlescape",
 ]
 
 [[package]]
@@ -542,15 +542,6 @@ name = "buf-min"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fa17aa1cf56bdd6bb30518767d00e58019d326f3f05d8c3e0730b549d332ea83"
-dependencies = [
- "bytes 0.5.6",
-]
-
-[[package]]
-name = "buf-min"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "322a0cd4f908663608c3a814c405e40de60d58471b01b1169be39a4f9826e565"
 dependencies = [
  "bytes 0.5.6",
 ]
@@ -2373,7 +2364,6 @@ dependencies = [
  "serde",
  "serde_with",
  "sm64js-proto",
- "v_htmlescape 0.13.0",
 ]
 
 [[package]]
@@ -2422,7 +2412,6 @@ dependencies = [
  "sm64js-common",
  "sm64js-proto",
  "thiserror",
- "v_htmlescape 0.13.0",
 ]
 
 [[package]]
@@ -2874,17 +2863,7 @@ version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f3e0ab5fab1db278a9413d2ea794cb66f471f898c5b020c3c394f6447625d9d4"
 dependencies = [
- "buf-min 0.4.0",
- "v_escape_derive",
-]
-
-[[package]]
-name = "v_escape"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b589fdb24627ef8a81f26da77350ebcb0494547bfe074cda878aff9941edb13"
-dependencies = [
- "buf-min 0.5.0",
+ "buf-min",
  "v_escape_derive",
 ]
 
@@ -2907,17 +2886,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f9a8af610ad6f7fc9989c9d2590d9764bc61f294884e9ee93baa58795174572"
 dependencies = [
  "cfg-if 1.0.0",
- "v_escape 0.15.0",
-]
-
-[[package]]
-name = "v_htmlescape"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f6c364b6fad8be5fd1c01993c4c7217491e2822edec75817ae2c3ac9f3926c82"
-dependencies = [
- "cfg-if 1.0.0",
- "v_escape 0.16.0",
+ "v_escape",
 ]
 
 [[package]]

@@ -7,13 +7,12 @@ use parking_lot::RwLock;
 use prost::Message as ProstMessage;
 use rand::{self, Rng};
 use sm64js_auth::{AuthInfo, Permission};
-use sm64js_common::{ChatError, ChatHistoryData, ChatResult, GetChat, PlayerInfo};
+use sm64js_common::{sanitize_chat, ChatError, ChatHistoryData, ChatResult, GetChat, PlayerInfo};
 use sm64js_proto::{
     root_msg, sm64_js_msg, AnnouncementMsg, AttackMsg, ChatMsg, GrabFlagMsg, JoinGameMsg, MarioMsg,
     RootMsg, SkinMsg, Sm64JsMsg,
 };
 use std::{collections::HashMap, sync::Arc};
-use v_htmlescape::escape;
 
 lazy_static! {
     pub static ref PRIVILEGED_COMMANDS: HashMap<&'static str, Permission> = hashmap! {
@@ -487,7 +486,7 @@ impl Sm64JsServer {
         if name.len() < 3 || name.len() > 14 || name.to_ascii_uppercase() == "SERVER" {
             return false;
         }
-        let mut sanitized_name = format!("{}", escape(&name));
+        let mut sanitized_name = sanitize_chat(&name);
         let censor = Censor::Standard;
         sanitized_name = censor.censor(&sanitized_name);
         sanitized_name == name
