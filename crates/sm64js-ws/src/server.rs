@@ -302,6 +302,8 @@ impl Handler<GetPlayers> for Sm64JsServer {
                     let client = self.clients.get(&player.get_socket_id())?;
                     Some(PlayerInfo {
                         account_id: client.get_account_id(),
+                        discord_id: client.get_discord_id(),
+                        google_id: client.get_google_id(),
                         socket_id: player.get_socket_id(),
                         ip: client.get_ip().to_string(),
                         real_ip: client.get_real_ip().cloned(),

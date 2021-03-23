@@ -62,6 +62,14 @@ impl Client {
         self.auth_info.get_account_id()
     }
 
+    pub fn get_discord_id(&self) -> Option<String> {
+        self.auth_info.get_discord_id()
+    }
+
+    pub fn get_google_id(&self) -> Option<String> {
+        self.auth_info.get_google_id()
+    }
+
     pub fn get_ip(&self) -> &String {
         &self.ip
     }
