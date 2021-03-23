@@ -1,5 +1,5 @@
 use censor::Censor;
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use indexmap::IndexMap;
 use paperclip::actix::{web, Apiv2Schema};
 use parking_lot::RwLock;
@@ -71,6 +71,7 @@ impl ChatHistory {
             ChatMessage {
                 message: message.to_string(),
                 timestamp: now.timestamp(),
+                date_time: now.naive_utc(),
                 player_name: Some(player_name),
                 discord_id,
                 google_id,
@@ -159,6 +160,7 @@ impl ChatHistory {
 pub struct ChatMessage {
     message: String,
     timestamp: i64,
+    date_time: NaiveDateTime,
     player_name: Option<String>,
     discord_id: Option<String>,
     google_id: Option<String>,
