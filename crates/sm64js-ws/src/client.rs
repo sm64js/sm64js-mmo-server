@@ -8,6 +8,8 @@ use sm64js_common::{ChatHistoryData, ChatResult};
 use sm64js_proto::{MarioMsg, SkinData};
 use std::{
     collections::HashMap,
+    net::SocketAddr,
+    str::FromStr,
     sync::{Arc, Weak},
 };
 
@@ -36,7 +38,9 @@ impl Client {
     ) -> Self {
         let add_real_ip = real_ip
             .clone()
-            .map(|real_ip| real_ip != ip)
+            .map(|real_ip| SocketAddr::from_str(&real_ip).ok())
+            .flatten()
+            .map(|real_ip| real_ip.ip().to_string() != ip)
             .unwrap_or_default();
         Client {
             addr,
