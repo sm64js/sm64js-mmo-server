@@ -95,6 +95,7 @@ message MarioMsg {
 	repeated sint32 rawData = 18;
 	uint32 usedObjID = 19;
 	uint32 socketID = 20;
+	bool pvp = 21;
 }
 
 message ControllerMsg {
