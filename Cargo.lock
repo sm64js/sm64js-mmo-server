@@ -2326,6 +2326,7 @@ dependencies = [
  "actix-service",
  "actix-session",
  "actix-web",
+ "anyhow",
  "awc",
  "chrono",
  "diesel",

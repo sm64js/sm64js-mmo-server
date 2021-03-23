@@ -16,5 +16,5 @@ mod session;
 pub use client::{Client, Clients, Player, Players, WeakPlayers};
 pub use game::Game;
 pub use room::{Flag, Room, Rooms};
-pub use server::{KickClientByAccountId, Message, Sm64JsServer};
+pub use server::{GetPlayers, KickClientByAccountId, Message, Sm64JsServer};
 pub use session::Sm64JsWsSession;

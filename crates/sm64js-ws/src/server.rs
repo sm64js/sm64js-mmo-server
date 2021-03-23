@@ -286,6 +286,34 @@ impl Handler<KickClientByAccountId> for Sm64JsServer {
     }
 }
 
+#[derive(Message)]
+#[rtype(result = "Vec<PlayerInfo>")]
+pub struct GetPlayers;
+
+impl Handler<GetPlayers> for Sm64JsServer {
+    type Result = MessageResult<GetPlayers>;
+
+    fn handle(&mut self, _: GetPlayers, _: &mut Context<Self>) -> Self::Result {
+        MessageResult(
+            self.players
+                .iter()
+                .filter_map(|player| {
+                    let player = player.1.read();
+                    let client = self.clients.get(&player.get_socket_id())?;
+                    Some(PlayerInfo {
+                        account_id: client.get_account_id(),
+                        socket_id: player.get_socket_id(),
+                        ip: client.get_ip().to_string(),
+                        real_ip: client.get_real_ip().cloned(),
+                        level: player.get_level(),
+                        name: player.get_name().clone(),
+                    })
+                })
+                .collect(),
+        )
+    }
+}
+
 #[derive(Debug)]
 pub struct JoinGameAccepted {
     pub level: u32,
@@ -337,24 +365,6 @@ impl Sm64JsServer {
         root_msg.encode(&mut msg).unwrap();
 
         msg
-    }
-
-    pub fn get_players(&self) -> Vec<PlayerInfo> {
-        self.players
-            .iter()
-            .filter_map(|player| {
-                let player = player.1.read();
-                let client = self.clients.get(&player.get_socket_id())?;
-                Some(PlayerInfo {
-                    account_id: client.get_account_id(),
-                    socket_id: player.get_socket_id(),
-                    ip: client.get_ip().to_string(),
-                    real_ip: client.get_real_ip().cloned(),
-                    level: player.get_level(),
-                    name: player.get_name().clone(),
-                })
-            })
-            .collect()
     }
 
     fn get_client_by_account_id(&self, account_id: i32) -> Option<Ref<u32, Client>> {
