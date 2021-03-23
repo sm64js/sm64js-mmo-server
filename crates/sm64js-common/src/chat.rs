@@ -7,23 +7,24 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use v_htmlescape::escape;
 
-#[derive(Apiv2Schema, Debug, Deserialize)]
+#[derive(Apiv2Schema, Debug, Default, Deserialize)]
 pub struct GetChat {
     /// Format must be given as %Y-%m-%d %H:%M:%S
     #[serde(
         deserialize_with = "crate::date_format::deserialize_opt",
         default = "crate::date_format::empty"
     )]
-    from: Option<DateTime<Utc>>,
+    pub from: Option<DateTime<Utc>>,
     /// Format must be given as %Y-%m-%d %H:%M:%S
     #[serde(
         deserialize_with = "crate::date_format::deserialize_opt",
         default = "crate::date_format::empty"
     )]
-    to: Option<DateTime<Utc>>,
-    player_name: Option<String>,
-    discord_id: Option<String>,
-    google_id: Option<String>,
+    pub to: Option<DateTime<Utc>>,
+    pub limit: Option<u32>,
+    pub player_name: Option<String>,
+    pub discord_id: Option<String>,
+    pub google_id: Option<String>,
 }
 
 pub type ChatHistoryData = web::Data<RwLock<ChatHistory>>;
@@ -70,7 +71,7 @@ impl ChatHistory {
             ChatMessage {
                 message: message.to_string(),
                 timestamp: now.timestamp(),
-                player_name,
+                player_name: Some(player_name),
                 discord_id,
                 google_id,
                 ip: Some(ip),
@@ -84,8 +85,13 @@ impl ChatHistory {
         ChatResult::Ok(censored_message)
     }
 
-    pub fn get_messages(&self, query: GetChat, with_ip: bool) -> Vec<ChatMessage> {
-        let max_messages = 100;
+    pub fn get_messages(
+        &self,
+        query: GetChat,
+        with_player_info: bool,
+        with_ip: bool,
+    ) -> Vec<ChatMessage> {
+        let max_messages = query.limit.unwrap_or(100) as usize;
         let mut res: Vec<ChatMessage> = vec![];
         let mut reached = false;
         let mut keys = self.0.keys().clone();
@@ -108,7 +114,7 @@ impl ChatHistory {
             }
             let mut msg = self.0.get(key).unwrap().clone();
             if let Some(player_name) = &query.player_name {
-                if &msg.player_name != player_name {
+                if msg.player_name.as_ref() != Some(&player_name) {
                     continue;
                 }
             }
@@ -129,6 +135,11 @@ impl ChatHistory {
                     _ => continue,
                 };
             }
+            if !with_player_info {
+                msg.player_name = None;
+                msg.discord_id = None;
+                msg.google_id = None;
+            }
             if !with_ip {
                 msg.ip = None;
                 msg.real_ip = None;
@@ -148,7 +159,7 @@ impl ChatHistory {
 pub struct ChatMessage {
     message: String,
     timestamp: i64,
-    player_name: String,
+    player_name: Option<String>,
     discord_id: Option<String>,
     google_id: Option<String>,
     ip: Option<String>,

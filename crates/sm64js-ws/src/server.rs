@@ -7,7 +7,7 @@ use parking_lot::RwLock;
 use prost::Message as ProstMessage;
 use rand::{self, Rng};
 use sm64js_auth::{AuthInfo, Permission};
-use sm64js_common::{ChatError, ChatHistoryData, ChatResult, PlayerInfo};
+use sm64js_common::{ChatError, ChatHistoryData, ChatResult, GetChat, PlayerInfo};
 use sm64js_proto::{
     root_msg, sm64_js_msg, AnnouncementMsg, AttackMsg, ChatMsg, GrabFlagMsg, JoinGameMsg, MarioMsg,
     RootMsg, SkinMsg, Sm64JsMsg,
@@ -288,27 +288,47 @@ impl Handler<KickClientByAccountId> for Sm64JsServer {
 
 #[derive(Message)]
 #[rtype(result = "Vec<PlayerInfo>")]
-pub struct GetPlayers;
+pub struct GetPlayers {
+    pub include_chat: Option<u32>,
+}
 
 impl Handler<GetPlayers> for Sm64JsServer {
     type Result = MessageResult<GetPlayers>;
 
-    fn handle(&mut self, _: GetPlayers, _: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: GetPlayers, _: &mut Context<Self>) -> Self::Result {
+        let include_chat = msg.include_chat;
         MessageResult(
             self.players
                 .iter()
                 .filter_map(|player| {
                     let player = player.1.read();
                     let client = self.clients.get(&player.get_socket_id())?;
+                    let discord_id = client.get_discord_id();
+                    let google_id = client.get_google_id();
+                    let chat = if let Some(include_chat) = include_chat {
+                        Some(self.chat_history.read().get_messages(
+                            GetChat {
+                                limit: Some(include_chat),
+                                discord_id: discord_id.clone(),
+                                google_id: google_id.clone(),
+                                ..Default::default()
+                            },
+                            false,
+                            false,
+                        ))
+                    } else {
+                        None
+                    };
                     Some(PlayerInfo {
                         account_id: client.get_account_id(),
-                        discord_id: client.get_discord_id(),
-                        google_id: client.get_google_id(),
+                        discord_id,
+                        google_id,
                         socket_id: player.get_socket_id(),
                         ip: client.get_ip().to_string(),
                         real_ip: client.get_real_ip().cloned(),
                         level: player.get_level(),
                         name: player.get_name().clone(),
+                        chat,
                     })
                 })
                 .collect(),

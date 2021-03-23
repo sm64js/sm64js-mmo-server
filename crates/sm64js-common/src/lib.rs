@@ -41,4 +41,5 @@ pub struct PlayerInfo {
     pub real_ip: Option<String>,
     pub level: u32,
     pub name: String,
+    pub chat: Option<Vec<chat::ChatMessage>>,
 }

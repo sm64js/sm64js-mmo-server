@@ -14,11 +14,11 @@ pub async fn get_chat(
     let auth_info = identity.get_auth_info();
     if auth_info.has_permission(&Permission::ReadChatLog) {
         let with_ip = auth_info.has_permission(&Permission::ReadChatLogWithIp);
-        Ok(web::Json(
-            chat_history
-                .read()
-                .get_messages(query.into_inner(), with_ip),
-        ))
+        Ok(web::Json(chat_history.read().get_messages(
+            query.into_inner(),
+            true,
+            with_ip,
+        )))
     } else {
         Err(GetChatError::Unauthorized)
     }

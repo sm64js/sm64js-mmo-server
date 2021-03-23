@@ -5,10 +5,11 @@ use actix_web::{
     http::StatusCode,
     HttpResponse,
 };
-use paperclip::actix::{api_v2_errors, api_v2_operation, web, Mountable};
+use paperclip::actix::{api_v2_errors, api_v2_operation, web, Apiv2Schema, Mountable};
+use serde::Deserialize;
 use sm64js_auth::{Identity, Permission};
 use sm64js_common::PlayerInfo;
-use sm64js_ws::{GetPlayers, Sm64JsServer};
+use sm64js_ws::Sm64JsServer;
 use thiserror::Error;
 
 pub fn service() -> impl HttpServiceFactory + Mountable {
@@ -18,17 +19,28 @@ pub fn service() -> impl HttpServiceFactory + Mountable {
 /// GET Player list
 #[api_v2_operation(tags(PlayerList))]
 async fn get_players(
+    query: web::Query<GetPlayers>,
     identity: Identity,
     srv: web::Data<Addr<Sm64JsServer>>,
 ) -> Result<web::Json<Vec<PlayerInfo>>, GetPlayerError> {
     let auth_info = identity.get_auth_info();
     if auth_info.has_permission(&Permission::GetPlayerList) {
         Ok(web::Json(
-            srv.send(GetPlayers).await.map_err(|e| anyhow!(e))?,
+            srv.send(sm64js_ws::GetPlayers {
+                include_chat: query.include_chat,
+            })
+            .await
+            .map_err(|e| anyhow!(e))?,
         ))
     } else {
         Err(GetPlayerError::Unauthorized)
     }
+}
+
+#[derive(Apiv2Schema, Debug, Deserialize)]
+pub struct GetPlayers {
+    /// Append last x chat messages
+    include_chat: Option<u32>,
 }
 
 #[api_v2_errors(code = 401)]
