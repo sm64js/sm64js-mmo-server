@@ -103,7 +103,6 @@ impl Room {
         let flag_list: Vec<_> = self
             .flags
             .iter()
-            .par_bridge()
             .map(|flag| flag.read().unwrap().get_msg())
             .collect();
         let sm64js_msg = Sm64JsMsg {
