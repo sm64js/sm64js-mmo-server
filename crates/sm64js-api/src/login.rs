@@ -5,7 +5,7 @@ use awc::{error::JsonPayloadError, SendClientRequest};
 use paperclip::actix::{api_v2_errors, api_v2_operation, web, Apiv2Schema, Mountable};
 use serde::{Deserialize, Serialize};
 use sm64js_auth::Identity;
-use sm64js_common::{DiscordGuildMember, DiscordUser};
+use sm64js_common::DiscordUser;
 use sm64js_db::{
     models::{Ban, UpdateAccount},
     DbPool,
@@ -169,11 +169,11 @@ async fn login_with_discord(
         )
         .send();
     let mut response = request.await?;
-    if !response.status().is_success() {
-        return Err(LoginError::TokenExpired);
+    let guild_member = if !response.status().is_success() {
+        None
+    } else {
+        Some(response.json().await?)
     };
-
-    let guild_member: DiscordGuildMember = response.json().await?;
 
     let conn = pool.get().unwrap();
     let discord_session = sm64js_db::insert_discord_session(

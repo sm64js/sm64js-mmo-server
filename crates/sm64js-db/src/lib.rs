@@ -28,7 +28,7 @@ pub fn insert_discord_session(
     token_type: String,
     expires_in: i64,
     discord_user: DiscordUser,
-    guild_member: DiscordGuildMember,
+    guild_member: Option<DiscordGuildMember>,
     ip: String,
 ) -> Result<models::DiscordSession> {
     use schema::discord_sessions;
@@ -51,22 +51,42 @@ pub fn insert_discord_session(
         }
     }
 
-    let new_account = models::NewDiscordAccount {
-        id: discord_user.id,
-        username: discord_user.username,
-        discriminator: discord_user.discriminator,
-        avatar: discord_user.avatar,
-        mfa_enabled: discord_user.mfa_enabled,
-        locale: discord_user.locale,
-        flags: discord_user.flags,
-        premium_type: discord_user.premium_type,
-        public_flags: discord_user.public_flags,
-        nick: guild_member.nick,
-        roles: guild_member.roles,
-        joined_at: guild_member.joined_at,
-        premium_since: guild_member.premium_since,
-        deaf: guild_member.deaf,
-        mute: guild_member.mute,
+    let new_account = if let Some(guild_member) = guild_member {
+        models::NewDiscordAccount {
+            id: discord_user.id,
+            username: discord_user.username,
+            discriminator: discord_user.discriminator,
+            avatar: discord_user.avatar,
+            mfa_enabled: discord_user.mfa_enabled,
+            locale: discord_user.locale,
+            flags: discord_user.flags,
+            premium_type: discord_user.premium_type,
+            public_flags: discord_user.public_flags,
+            nick: guild_member.nick,
+            roles: guild_member.roles,
+            joined_at: guild_member.joined_at,
+            premium_since: guild_member.premium_since,
+            deaf: guild_member.deaf,
+            mute: guild_member.mute,
+        }
+    } else {
+        models::NewDiscordAccount {
+            id: discord_user.id,
+            username: discord_user.username,
+            discriminator: discord_user.discriminator,
+            avatar: discord_user.avatar,
+            mfa_enabled: discord_user.mfa_enabled,
+            locale: discord_user.locale,
+            flags: discord_user.flags,
+            premium_type: discord_user.premium_type,
+            public_flags: discord_user.public_flags,
+            nick: None,
+            roles: vec![],
+            joined_at: "".to_string(),
+            premium_since: None,
+            deaf: false,
+            mute: false,
+        }
     };
     let discord_account_id = upsert_discord_account(conn, new_account, ip, account_id)?;
 
