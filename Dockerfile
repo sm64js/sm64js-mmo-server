@@ -77,6 +77,9 @@ RUN rm ./crates/sm64js/src/*.rs && \
     rm ./crates/sm64js-proto/src/*.rs && \
     rm ./crates/sm64js-ws/src/*.rs
 
+# add openapi static assets
+COPY ./openapi ./openapi
+
 # compile project
 COPY . .
 # RUN cat ./crates/sm64js-db/src/lib.rs
