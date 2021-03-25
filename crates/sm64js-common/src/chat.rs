@@ -215,12 +215,10 @@ impl ChatHistory {
             ),
             icon_url: if let Some(discord) = account_info.discord {
                 if let Some(avatar) = discord.avatar {
-                    let a = format!(
+                    format!(
                         "https://cdn.discordapp.com/avatars/{}/{}.png?size=64",
                         discord.id, avatar
-                    );
-                    dbg!(&a);
-                    a
+                    )
                 } else {
                     "https://discord.com/assets/2c21aeda16de354ba5334551a883b481.png".to_string()
                 }
