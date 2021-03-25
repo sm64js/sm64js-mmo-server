@@ -424,7 +424,12 @@ impl Sm64JsServer {
     }
 
     fn handle_command(chat_msg: ChatMsg, auth_info: AuthInfo) -> Option<Vec<u8>> {
-        let message = chat_msg.message;
+        let message = chat_msg
+            .message
+            .char_indices()
+            .nth(1)
+            .and_then(|(i, _)| chat_msg.message.get(i..))
+            .unwrap_or("");
         if let Some(index) = message.find(' ') {
             let (cmd, message) = message.split_at(index);
             if let Some(permission) = PRIVILEGED_COMMANDS.get(cmd) {
