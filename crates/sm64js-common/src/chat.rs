@@ -123,11 +123,13 @@ impl ChatHistory {
         );
         let message = message.to_string();
 
-        actix::spawn(async move {
-            Self::send_discord_message(message, player_name, level_name, account_info).await;
-        });
+        if !is_spam && !message.is_empty() {
+            actix::spawn(async move {
+                Self::send_discord_message(message, player_name, level_name, account_info).await;
+            });
+        }
 
-        ChatResult::Ok(censored_message)
+        ChatResult::Ok((censored_message, is_spam))
     }
 
     pub fn get_messages(
@@ -271,7 +273,7 @@ pub struct ChatMessage {
 }
 
 pub enum ChatResult {
-    Ok(String),
+    Ok((String, bool)),
     Err(ChatError),
     NotFound,
 }
