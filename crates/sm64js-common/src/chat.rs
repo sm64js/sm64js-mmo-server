@@ -1,3 +1,5 @@
+use crate::AccountInfo;
+use awc::SendClientRequest;
 use censor::Censor;
 use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use indexmap::IndexMap;
@@ -5,6 +7,7 @@ use paperclip::actix::{web, Apiv2Schema};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+use std::env;
 
 #[derive(Apiv2Schema, Debug, Default, Deserialize)]
 pub struct GetChat {
@@ -48,13 +51,38 @@ pub fn sanitize_chat(s: &str) -> String {
     escaped_message
 }
 
+#[derive(Serialize)]
+struct DiscordChatMessage {
+    embed: DiscordRichEmbed,
+}
+
+#[derive(Serialize)]
+struct DiscordRichEmbed {
+    description: String,
+    timestamp: NaiveDateTime,
+    author: DiscordRichEmbedAuthor,
+    footer: DiscordRichEmbedFooter,
+}
+
+#[derive(Serialize)]
+struct DiscordRichEmbedAuthor {
+    name: String,
+    url: String,
+    icon_url: String,
+}
+
+#[derive(Serialize)]
+struct DiscordRichEmbedFooter {
+    text: String,
+}
+
 impl ChatHistory {
     pub fn add_message(
         &mut self,
         message: &str,
+        account_info: AccountInfo,
         player_name: String,
-        discord_id: Option<String>,
-        google_id: Option<String>,
+        level_name: String,
         ip: String,
         real_ip: Option<String>,
     ) -> ChatResult {
@@ -75,6 +103,7 @@ impl ChatHistory {
             > 5;
 
         let now = Utc::now();
+        let discord_id = account_info.discord.clone().map(|d| d.id);
 
         self.0.insert(
             now,
@@ -82,9 +111,9 @@ impl ChatHistory {
                 message: message.to_string(),
                 timestamp: now.timestamp(),
                 date_time: now.naive_utc(),
-                player_name: Some(player_name),
+                player_name: Some(player_name.clone()),
                 discord_id,
-                google_id,
+                google_id: account_info.google.clone().map(|d| d.sub),
                 ip: Some(ip),
                 real_ip,
                 is_escaped: if is_escaped { Some(is_escaped) } else { None },
@@ -92,6 +121,11 @@ impl ChatHistory {
                 is_spam: if is_spam { Some(is_spam) } else { None },
             },
         );
+        let message = message.to_string();
+
+        actix::spawn(async move {
+            Self::send_discord_message(message, player_name, level_name, account_info).await;
+        });
 
         ChatResult::Ok(censored_message)
     }
@@ -162,6 +196,60 @@ impl ChatHistory {
         }
         res.reverse();
         res
+    }
+
+    async fn send_discord_message(
+        message: String,
+        player_name: String,
+        level_name: String,
+        account_info: AccountInfo,
+    ) {
+        let author = DiscordRichEmbedAuthor {
+            name: player_name,
+            url: format!(
+                "{}/api/account?account_id={}",
+                env::var("REDIRECT_URI").unwrap(),
+                account_info.account.id
+            ),
+            icon_url: if let Some(discord) = account_info.discord {
+                if let Some(avatar) = discord.avatar {
+                    let a = format!(
+                        "https://cdn.discordapp.com/avatars/{}/{}.png?size=64",
+                        discord.id, avatar
+                    );
+                    dbg!(&a);
+                    a
+                } else {
+                    "https://discord.com/assets/2c21aeda16de354ba5334551a883b481.png".to_string()
+                }
+            } else {
+                "https://developers.google.com/identity/images/g-logo.png".to_string()
+            },
+        };
+        let request: SendClientRequest = awc::Client::default()
+            .post(format!(
+                "https://discord.com/api/channels/{}/messages",
+                "824145108047101974"
+            ))
+            .header(
+                awc::http::header::AUTHORIZATION,
+                format!("{} {}", "Bot", env::var("DISCORD_BOT_TOKEN").unwrap(),),
+            )
+            .send_json(&DiscordChatMessage {
+                embed: DiscordRichEmbed {
+                    description: message,
+                    timestamp: Utc::now().naive_utc(),
+                    author,
+                    footer: DiscordRichEmbedFooter {
+                        text: format!("#{} - {}", account_info.account.id, level_name),
+                    },
+                },
+            });
+
+        let response = request.await.unwrap();
+        if !response.status().is_success() {
+            eprintln!("send_discord_message failed: {:?}", response);
+        };
     }
 }
 

@@ -1,5 +1,6 @@
 use crate::{Client, Clients, Player, Players, Rooms};
 use actix::{prelude::*, Recipient};
+use actix_web::web;
 use anyhow::Result;
 use censor::Censor;
 use dashmap::{mapref::one::Ref, DashMap};
@@ -8,6 +9,7 @@ use prost::Message as ProstMessage;
 use rand::{self, Rng};
 use sm64js_auth::{AuthInfo, Permission};
 use sm64js_common::{sanitize_chat, ChatError, ChatHistoryData, ChatResult, GetChat, PlayerInfo};
+use sm64js_db::DbPool;
 use sm64js_proto::{
     root_msg, sm64_js_msg, AnnouncementMsg, AttackMsg, ChatMsg, GrabFlagMsg, JoinGameMsg, MarioMsg,
     RootMsg, SkinMsg, Sm64JsMsg,
@@ -28,6 +30,7 @@ pub enum Message {
 }
 
 pub struct Sm64JsServer {
+    pool: web::Data<DbPool>,
     clients: Arc<Clients>,
     players: Players,
     rooms: Rooms,
@@ -387,8 +390,9 @@ impl Handler<SendRequestCosmetics> for Sm64JsServer {
 pub struct RequestCosmeticsAccepted(pub Vec<Vec<u8>>);
 
 impl Sm64JsServer {
-    pub fn new(chat_history: ChatHistoryData, rooms: Rooms) -> Self {
+    pub fn new(pool: web::Data<DbPool>, chat_history: ChatHistoryData, rooms: Rooms) -> Self {
         Sm64JsServer {
+            pool,
             clients: Arc::new(DashMap::new()),
             players: HashMap::new(),
             rooms,
@@ -459,10 +463,12 @@ impl Sm64JsServer {
     ) -> Result<Option<Vec<u8>>, Vec<u8>> {
         let socket_id = player.read().get_socket_id();
         let username = player.read().get_name().clone();
-        let root_msg = match player
-            .write()
-            .add_chat_message(self.chat_history.clone(), &chat_msg.message)
-        {
+        let root_msg = match player.write().add_chat_message(
+            self.pool.clone(),
+            self.chat_history.clone(),
+            &chat_msg.message,
+            self.rooms.clone(),
+        ) {
             ChatResult::Ok(message) => {
                 chat_msg.message = message;
                 chat_msg.is_admin = auth_info.is_in_game_admin();

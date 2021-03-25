@@ -36,7 +36,7 @@ macro_rules! add_room {
 #[derive(Debug)]
 pub struct Room {
     id: u32,
-    name: String,
+    pub name: String,
     flags: Vec<RwLock<Flag>>,
     players: WeakPlayers,
 }

@@ -17,7 +17,7 @@ use diesel::{
     r2d2::ConnectionManager,
 };
 use paperclip::actix::api_v2_errors;
-use sm64js_common::{DiscordGuildMember, DiscordUser};
+use sm64js_common::{AccountInfo, DiscordAccount, DiscordGuildMember, DiscordUser};
 use thiserror::Error;
 
 type Result<T> = std::result::Result<T, DbError>;
@@ -208,6 +208,48 @@ pub fn get_auth_info(conn: &PgConnection, req_session: &Session) -> Result<Optio
     }
 
     Ok(None)
+}
+
+pub fn get_account_info(
+    conn: &PgConnection,
+    account_id: i32,
+    extended_info: bool,
+) -> Option<AccountInfo> {
+    use schema::accounts::dsl::*;
+
+    let account = accounts.find(account_id).first(conn);
+
+    let account: Account = match account {
+        Ok(account) => account,
+        Err(_) => return None,
+    };
+
+    let mut account_info = AccountInfo {
+        account: account.clone().into(),
+        discord: None,
+        google: None,
+    };
+
+    if let Ok(discord) =
+        models::DiscordAccount::belonging_to(&account).first::<models::DiscordAccount>(conn)
+    {
+        let mut discord: DiscordAccount = discord.into();
+        if !extended_info {
+            discord.mfa_enabled = None;
+            discord.flags = None;
+            discord.public_flags = None;
+            discord.premium_since = None;
+        }
+        account_info.discord = Some(discord);
+    }
+
+    if let Ok(google) =
+        models::GoogleAccount::belonging_to(&account).first::<models::GoogleAccount>(conn)
+    {
+        account_info.google = Some(google.into());
+    }
+
+    Some(account_info)
 }
 
 pub fn delete_session(conn: &PgConnection, auth_info: AuthInfo) -> Result<()> {

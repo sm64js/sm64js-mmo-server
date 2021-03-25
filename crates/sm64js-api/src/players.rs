@@ -17,7 +17,7 @@ pub fn service() -> impl HttpServiceFactory + Mountable {
 }
 
 /// GET Player list
-#[api_v2_operation(tags(PlayerList))]
+#[api_v2_operation(tags(PlayerInfo))]
 async fn get_players(
     query: web::Query<GetPlayers>,
     identity: Identity,

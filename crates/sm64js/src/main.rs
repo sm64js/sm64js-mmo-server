@@ -37,14 +37,16 @@ async fn main() -> std::io::Result<()> {
 
     let connspec = env::var("DATABASE_URL").expect("DATABASE_URL");
     let manager = ConnectionManager::<PgConnection>::new(connspec);
-    let pool = r2d2::Pool::builder()
-        .build(manager)
-        .expect("Failed to create pool.");
+    let pool = web::Data::new(
+        r2d2::Pool::builder()
+            .build(manager)
+            .expect("Failed to create pool."),
+    );
     let conn = pool.get().unwrap();
     embedded_migrations::run(&conn).unwrap();
     let chat_history: ChatHistoryData = web::Data::new(RwLock::new(ChatHistory::default()));
     let rooms = Room::init_rooms();
-    let server = Sm64JsServer::new(chat_history.clone(), rooms.clone()).start();
+    let server = Sm64JsServer::new(pool.clone(), chat_history.clone(), rooms.clone()).start();
     Game::run(server.clone(), rooms.clone());
 
     // TODO fetch Google Discovery document and cache it
@@ -84,7 +86,7 @@ A session cookie will then be stored in the user's browser that can be used to f
                     external_docs: None,
                 },
                 Tag {
-                    name: "PlayerList".to_string(),
+                    name: "PlayerInfo".to_string(),
                     description: None,
                     external_docs: None,
                 },
@@ -108,7 +110,7 @@ A session cookie will then be stored in the user's browser that can be used to f
 
         App::new()
             .wrap_api_with_spec(spec)
-            .data(pool.clone())
+            .app_data(pool.clone())
             .app_data(chat_history.clone())
             .data(server.clone())
             .wrap(middleware::Logger::default())

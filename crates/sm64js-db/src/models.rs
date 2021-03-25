@@ -29,6 +29,17 @@ pub struct Account {
     pub last_ip: String,
 }
 
+#[allow(clippy::from_over_into)]
+impl Into<sm64js_common::Account> for Account {
+    fn into(self) -> sm64js_common::Account {
+        sm64js_common::Account {
+            id: self.id,
+            username: self.username,
+            last_ip: Some(self.last_ip),
+        }
+    }
+}
+
 #[derive(Insertable)]
 #[table_name = "accounts"]
 pub struct NewAccount {
@@ -64,6 +75,29 @@ pub struct DiscordAccount {
     pub account_id: i32,
 }
 
+#[allow(clippy::from_over_into)]
+impl Into<sm64js_common::DiscordAccount> for DiscordAccount {
+    fn into(self) -> sm64js_common::DiscordAccount {
+        sm64js_common::DiscordAccount {
+            id: self.id,
+            username: self.username,
+            discriminator: self.discriminator,
+            avatar: self.avatar,
+            mfa_enabled: self.mfa_enabled,
+            locale: self.locale,
+            flags: self.flags,
+            premium_type: self.premium_type,
+            public_flags: self.public_flags,
+            nick: self.nick,
+            roles: self.roles,
+            joined_at: self.joined_at,
+            premium_since: self.premium_since,
+            deaf: self.deaf,
+            mute: self.mute,
+        }
+    }
+}
+
 #[derive(Clone, Deserialize)]
 pub struct NewDiscordAccount {
     pub id: String,
@@ -89,6 +123,13 @@ pub struct NewDiscordAccount {
 pub struct GoogleAccount {
     pub sub: String,
     pub account_id: i32,
+}
+
+#[allow(clippy::from_over_into)]
+impl Into<sm64js_common::GoogleAccount> for GoogleAccount {
+    fn into(self) -> sm64js_common::GoogleAccount {
+        sm64js_common::GoogleAccount { sub: self.sub }
+    }
 }
 
 #[derive(Clone, Deserialize)]

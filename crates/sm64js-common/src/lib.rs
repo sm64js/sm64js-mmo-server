@@ -48,6 +48,47 @@ pub struct PlayerInfo {
     pub chat: Option<Vec<chat::ChatMessage>>,
 }
 
+#[skip_serializing_none]
+#[derive(Apiv2Schema, Clone, Debug, Serialize)]
+pub struct AccountInfo {
+    pub account: Account,
+    pub discord: Option<DiscordAccount>,
+    pub google: Option<GoogleAccount>,
+}
+
+#[skip_serializing_none]
+#[derive(Apiv2Schema, Clone, Debug, Serialize)]
+pub struct Account {
+    pub id: i32,
+    pub username: Option<String>,
+    pub last_ip: Option<String>,
+}
+
+#[skip_serializing_none]
+#[derive(Apiv2Schema, Clone, Debug, Serialize)]
+pub struct DiscordAccount {
+    pub id: String,
+    pub username: String,
+    pub discriminator: String,
+    pub avatar: Option<String>,
+    pub mfa_enabled: Option<bool>,
+    pub locale: Option<String>,
+    pub flags: Option<i32>,
+    pub premium_type: Option<i16>,
+    pub public_flags: Option<i32>,
+    pub nick: Option<String>,
+    pub roles: Vec<String>,
+    pub joined_at: String,
+    pub premium_since: Option<String>,
+    pub deaf: bool,
+    pub mute: bool,
+}
+
+#[derive(Apiv2Schema, Clone, Debug, Serialize)]
+pub struct GoogleAccount {
+    pub sub: String,
+}
+
 pub fn create_uncompressed_msg(msg: sm64_js_msg::Message) -> Vec<u8> {
     let root_msg = RootMsg {
         message: Some(root_msg::Message::UncompressedSm64jsMsg(Sm64JsMsg {

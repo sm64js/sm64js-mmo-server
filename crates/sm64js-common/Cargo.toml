@@ -5,8 +5,10 @@ authors = ["Mario Reder <mreder1289@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+awc = "2"
 censor = "0.2"
 chrono = "0.4"
+futures = "0.3"
 indexmap = "1"
 paperclip = { git = "https://github.com/wafflespeanut/paperclip.git", rev = "a64cabbb13ad9d51a67c12d3dbf9c986a1ff6585", features = ["actix-nightly", "actix-session", "chrono"] }
 parking_lot = "0.11"
@@ -14,3 +16,4 @@ prost = "0.6"
 serde = "1"
 serde_with = "1"
 sm64js-proto = { path = "../sm64js-proto" }
+actix = "0.10"

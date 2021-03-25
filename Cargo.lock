@@ -2356,8 +2356,11 @@ dependencies = [
 name = "sm64js-common"
 version = "0.1.0"
 dependencies = [
+ "actix",
+ "awc",
  "censor",
  "chrono",
+ "futures",
  "indexmap",
  "paperclip",
  "parking_lot",
@@ -2411,6 +2414,7 @@ dependencies = [
  "serde",
  "sm64js-auth",
  "sm64js-common",
+ "sm64js-db",
  "sm64js-proto",
  "thiserror",
 ]

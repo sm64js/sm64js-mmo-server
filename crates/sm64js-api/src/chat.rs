@@ -13,7 +13,7 @@ pub async fn get_chat(
 ) -> Result<web::Json<Vec<ChatMessage>>, GetChatError> {
     let auth_info = identity.get_auth_info();
     if auth_info.has_permission(&Permission::ReadChatLog) {
-        let with_ip = auth_info.has_permission(&Permission::ReadChatLogWithIp);
+        let with_ip = auth_info.has_permission(&Permission::SeeIp);
         Ok(web::Json(chat_history.read().get_messages(
             query.into_inner(),
             true,

@@ -1,10 +1,12 @@
-use crate::Message;
+use crate::{Message, Rooms};
 use actix::Recipient;
+use actix_web::web;
 use anyhow::Result;
 use dashmap::DashMap;
 use parking_lot::RwLock;
 use sm64js_auth::AuthInfo;
 use sm64js_common::{ChatHistoryData, ChatResult};
+use sm64js_db::DbPool;
 use sm64js_proto::{MarioMsg, SkinData};
 use std::{
     collections::HashMap,
@@ -150,14 +152,28 @@ impl Player {
             .send(Message::SendData(msg))
     }
 
-    pub fn add_chat_message(&mut self, chat_history: ChatHistoryData, message: &str) -> ChatResult {
+    pub fn add_chat_message(
+        &mut self,
+        pool: web::Data<DbPool>,
+        chat_history: ChatHistoryData,
+        message: &str,
+        rooms: Rooms,
+    ) -> ChatResult {
         if let Some(client) = self.clients.get(&self.socket_id) {
             let auth_info = &self.clients.get(&self.socket_id).unwrap().auth_info;
+
+            let conn = pool.get().unwrap();
+            let account_info =
+                sm64js_db::get_account_info(&conn, auth_info.get_account_id(), true).unwrap();
+
             chat_history.write().add_message(
                 message,
+                account_info,
                 self.name.clone(),
-                auth_info.get_discord_id(),
-                auth_info.get_google_id(),
+                rooms
+                    .get(&self.level)
+                    .map(|room| room.name.clone())
+                    .unwrap_or_else(|| "Lobby".to_string()),
                 client.ip.to_string(),
                 client.real_ip.clone(),
             )

@@ -78,10 +78,12 @@ impl AuthInfo {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Permission {
+    GetAccount,
+    GetAccountExt,
     GetPlayerList,
     PermBanAccount,
     ReadChatLog,
-    ReadChatLogWithIp,
+    SeeIp,
     SendAnnouncement,
     TempBanAccount,
 }
@@ -100,15 +102,17 @@ lazy_static! {
     pub static ref ROLES_WITH_PERMISSIONS: HashMap<&'static str, Vec<Permission>> = hashmap! {
         "755200616267120791" => // Moderator
             vec![
+                Permission::GetAccount,
+                Permission::GetAccountExt,
                 Permission::GetPlayerList,
                 Permission::PermBanAccount,
                 Permission::ReadChatLog,
-                Permission::ReadChatLogWithIp,
+                Permission::SeeIp,
                 Permission::SendAnnouncement,
                 Permission::TempBanAccount
             ],
         "780937094473318420" => // In-game Chat Moderator
-            vec![ Permission::GetPlayerList, Permission::ReadChatLog ]
+            vec![ Permission::GetAccount, Permission::GetPlayerList, Permission::ReadChatLog ]
     };
 
     pub static ref IN_GAME_ADMIN_ROLES: HashSet<&'static str> = hashset! { "755200616267120791", "780937094473318420" };
