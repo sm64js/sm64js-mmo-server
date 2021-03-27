@@ -125,7 +125,7 @@ impl ChatHistory {
 
         if !is_spam && !message.is_empty() {
             actix::spawn(async move {
-                Self::send_discord_message(message, player_name, level_name, account_info).await;
+                Self::send_discord_message(censored_message, player_name, level_name, account_info).await;
             });
         }
 
