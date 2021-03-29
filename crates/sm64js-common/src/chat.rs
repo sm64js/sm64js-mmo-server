@@ -124,8 +124,10 @@ impl ChatHistory {
         let message = message.to_string();
 
         if !is_spam && !message.is_empty() {
+            let censored_message = censored_message.clone();
             actix::spawn(async move {
-                Self::send_discord_message(censored_message, player_name, level_name, account_info).await;
+                Self::send_discord_message(censored_message, player_name, level_name, account_info)
+                    .await;
             });
         }
 
