@@ -53,6 +53,8 @@ COPY ./crates/sm64js-ws/Cargo.toml ./crates/sm64js-ws/Cargo.toml
 RUN rm ./src/main.rs && \
     mkdir -p ./crates/sm64js/src && \
     echo "fn main() {}" >> ./crates/sm64js/src/main.rs && \
+    mkdir -p ./crates/sm64js/benches && \
+    echo "fn main() {}" >> ./crates/sm64js/benches/game.rs && \
     mkdir -p ./crates/sm64js-api/src && \
     touch ./crates/sm64js-api/src/lib.rs && \
     mkdir -p ./crates/sm64js-auth/src && \
