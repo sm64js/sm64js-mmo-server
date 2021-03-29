@@ -13,7 +13,7 @@ pub use auth::Auth;
 pub use identity::Identity;
 
 #[derive(Clone, Debug)]
-pub struct AuthInfo(sm64js_db::AuthInfo);
+pub struct AuthInfo(pub sm64js_db::AuthInfo);
 
 impl AuthInfo {
     pub fn into_inner(self) -> sm64js_db::AuthInfo {

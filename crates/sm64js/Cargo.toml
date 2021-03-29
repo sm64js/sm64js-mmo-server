@@ -32,3 +32,13 @@ thiserror = "1"
 
 [features]
 docker = []
+
+[dev-dependencies]
+actix-rt = "*"
+criterion = { version = "0.3", features =[ "html_reports" ] }
+dashmap = "4"
+gnuplot = "0.0"
+
+[[bench]]
+name = "game"
+harness = false

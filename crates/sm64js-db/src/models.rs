@@ -3,7 +3,7 @@ use crate::schema::*;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct AuthInfo {
     pub account: Account,
     pub discord: Option<DiscordAuthInfo>,
@@ -22,7 +22,7 @@ pub struct GoogleAuthInfo {
     pub session: GoogleSession,
 }
 
-#[derive(Clone, Debug, Identifiable, Queryable)]
+#[derive(Clone, Debug, Default, Identifiable, Queryable)]
 pub struct Account {
     pub id: i32,
     pub username: Option<String>,
