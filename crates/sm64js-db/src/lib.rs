@@ -348,6 +348,31 @@ pub fn ban_account(
     Ok(ban)
 }
 
+pub fn mute_account(
+    conn: &PgConnection,
+    reason: Option<String>,
+    expires_at: Option<NaiveDateTime>,
+    account_id: i32,
+) -> Result<models::Mute> {
+    use schema::mutes;
+
+    if let Some(ban) = is_account_muted(conn, account_id)? {
+        use schema::mutes::dsl::*;
+        diesel::delete(mutes).filter(id.eq(ban.id)).execute(conn)?;
+    }
+
+    let new_mute = models::NewMute {
+        reason,
+        expires_at,
+        account_id,
+    };
+    let mute: models::Mute = diesel::insert_into(mutes::table)
+        .values(&new_mute)
+        .get_result(conn)?;
+
+    Ok(mute)
+}
+
 pub fn is_account_banned(conn: &PgConnection, account_id: i32) -> Result<Option<models::Ban>> {
     let account = get_account(conn, account_id)?;
 
@@ -361,6 +386,24 @@ pub fn is_account_banned(conn: &PgConnection, account_id: i32) -> Result<Option<
             }
         }
         Ok(Some(ban))
+    } else {
+        Ok(None)
+    }
+}
+
+pub fn is_account_muted(conn: &PgConnection, account_id: i32) -> Result<Option<models::Mute>> {
+    let account = get_account(conn, account_id)?;
+
+    if let Ok(mute) = models::Mute::belonging_to(&account).first::<models::Mute>(conn) {
+        if let Some(expires_at) = mute.expires_at {
+            if Utc::now().naive_utc() > expires_at {
+                use schema::mutes::dsl::*;
+
+                diesel::delete(mutes).filter(id.eq(mute.id)).execute(conn)?;
+                return Ok(None);
+            }
+        }
+        Ok(Some(mute))
     } else {
         Ok(None)
     }

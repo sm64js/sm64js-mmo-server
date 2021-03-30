@@ -1,0 +1,6 @@
+CREATE TABLE mutes (
+  id SERIAL PRIMARY KEY,
+  reason VARCHAR,
+  expires_at TIMESTAMP,
+  account_id INTEGER NOT NULL REFERENCES accounts ON DELETE CASCADE
+)

@@ -83,6 +83,15 @@ table! {
     }
 }
 
+table! {
+    mutes (id) {
+        id -> Int4,
+        reason -> Nullable<Varchar>,
+        expires_at -> Nullable<Timestamp>,
+        account_id -> Int4,
+    }
+}
+
 joinable!(bans -> accounts (account_id));
 joinable!(discord_accounts -> accounts (account_id));
 joinable!(discord_sessions -> discord_accounts (discord_account_id));
@@ -91,6 +100,7 @@ joinable!(geolocations -> discord_sessions (discord_session_id));
 joinable!(geolocations -> google_sessions (google_session_id));
 joinable!(google_accounts -> accounts (account_id));
 joinable!(google_sessions -> google_accounts (google_account_id));
+joinable!(mutes -> accounts (account_id));
 
 allow_tables_to_appear_in_same_query!(
     accounts,
@@ -100,4 +110,5 @@ allow_tables_to_appear_in_same_query!(
     geolocations,
     google_accounts,
     google_sessions,
+    mutes,
 );

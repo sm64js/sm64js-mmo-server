@@ -6,6 +6,7 @@ mod ban;
 mod chat;
 mod login;
 mod logout;
+mod mute;
 mod players;
 
 use actix_web::dev;
@@ -19,4 +20,5 @@ pub fn service() -> impl dev::HttpServiceFactory + Mountable {
         .service(login::service())
         .service(web::resource("/logout").route(web::post().to(logout::post_logout)))
         .service(web::resource("/ban").route(web::post().to(ban::post_ban)))
+        .service(web::resource("/mute").route(web::post().to(mute::post_mute)))
 }

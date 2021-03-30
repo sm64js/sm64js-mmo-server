@@ -123,6 +123,7 @@ message ChatMsg {
 	uint32 socketID = 3;
 	string adminToken = 4;
 	bool isAdmin = 5;
+	bool isServer = 6;
 }
 
 message SkinMsg {

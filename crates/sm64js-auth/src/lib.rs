@@ -10,6 +10,7 @@ mod identity;
 use std::collections::{HashMap, HashSet};
 
 pub use auth::Auth;
+use chrono::Duration;
 pub use identity::Identity;
 
 #[derive(Clone, Debug)]
@@ -76,25 +77,50 @@ impl AuthInfo {
     }
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq)]
 pub enum Permission {
     GetAccount,
     GetAccountExt,
     GetPlayerList,
     PermBanAccount,
+    PermMuteAccount,
     ReadChatLog,
     SeeIp,
     SendAnnouncement,
-    TempBanAccount,
+    TempBanAccount(Duration),
+    TempMuteAccount(Duration),
+}
+
+impl PartialEq for Permission {
+    fn eq(&self, other: &Self) -> bool {
+        matches!(
+            (self, other),
+            (Self::GetAccount, Self::GetAccount)
+                | (Self::GetAccountExt, Self::GetAccountExt)
+                | (Self::GetPlayerList, Self::GetPlayerList)
+                | (Self::PermBanAccount, Self::PermBanAccount)
+                | (Self::PermMuteAccount, Self::PermMuteAccount)
+                | (Self::ReadChatLog, Self::ReadChatLog)
+                | (Self::SeeIp, Self::SeeIp)
+                | (Self::SendAnnouncement, Self::SendAnnouncement)
+                | (Self::TempBanAccount(_), Self::TempBanAccount(_))
+                | (Self::TempMuteAccount(_), Self::TempMuteAccount(_))
+        )
+    }
 }
 
 impl Permission {
     fn role_has_permission(&self, role: &str) -> bool {
-        PERMISSION_WITH_ROLES
-            .get(self)
-            .map(|roles| roles.iter().find(|r| *r == &role))
+        ROLES_WITH_PERMISSIONS
+            .get(role)
+            .map(|permissions| permissions.iter().find(|p| *p == self))
             .flatten()
-            .is_some()
+            .map(|p| match (self, p) {
+                (Self::TempBanAccount(d1), Self::TempBanAccount(d2))
+                | (Self::TempMuteAccount(d1), Self::TempMuteAccount(d2)) => d1 <= d2,
+                _ => true,
+            })
+            .unwrap_or_default()
     }
 }
 
@@ -106,26 +132,23 @@ lazy_static! {
                 Permission::GetAccountExt,
                 Permission::GetPlayerList,
                 Permission::PermBanAccount,
+                Permission::PermMuteAccount,
                 Permission::ReadChatLog,
                 Permission::SeeIp,
                 Permission::SendAnnouncement,
-                Permission::TempBanAccount
+                Permission::TempBanAccount(Duration::weeks(1000)),
+                Permission::TempMuteAccount(Duration::weeks(1000)),
             ],
         "780937094473318420" => // In-game Chat Moderator
-            vec![ Permission::GetAccount, Permission::GetPlayerList, Permission::ReadChatLog ]
+            vec![
+                Permission::GetAccount,
+                Permission::GetPlayerList,
+                Permission::PermMuteAccount,
+                Permission::ReadChatLog,
+                Permission::TempBanAccount(Duration::hours(12)),
+                Permission::TempMuteAccount(Duration::days(7)),
+            ]
     };
 
     pub static ref IN_GAME_ADMIN_ROLES: HashSet<&'static str> = hashset! { "755200616267120791", "780937094473318420" };
-
-    pub static ref PERMISSION_WITH_ROLES: HashMap<Permission, Vec<&'static str>> = {
-        let mut m: HashMap<Permission, Vec<&'static str>> = HashMap::new();
-        ROLES_WITH_PERMISSIONS.clone().into_iter().for_each(|(role, permissions)| {
-            permissions.into_iter().for_each(|permission| if let Some(p) = m.get_mut(&permission) {
-                p.push(role);
-            } else {
-                m.insert(permission, vec![role]);
-            });
-        });
-        m
-    };
 }

@@ -9,6 +9,7 @@ actix-http = { version = "2", features = [ "rustls" ] }
 actix-service = "1"
 actix-session = "0.4"
 actix-web = "3"
+chrono = "0.4"
 futures = "0.3"
 lazy_static = "1"
 maplit = "1"

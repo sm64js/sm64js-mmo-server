@@ -3,7 +3,9 @@ use actix::{prelude::*, Recipient};
 use actix_web::web;
 use anyhow::Result;
 use censor::Censor;
+use chrono::{Duration, Utc};
 use dashmap::{mapref::one::Ref, DashMap};
+use humantime::format_duration;
 use parking_lot::RwLock;
 use prost::Message as ProstMessage;
 use rand::{self, Rng};
@@ -171,7 +173,7 @@ impl Handler<SendChat> for Sm64JsServer {
         let msg = if chat_msg.message.starts_with('/') {
             Ok(Self::handle_command(chat_msg, auth_info))
         } else if let Some(player) = self.players.get(&socket_id) {
-            self.handle_chat(player, chat_msg, auth_info)
+            self.handle_chat(player, socket_id, chat_msg, auth_info)
         } else {
             Ok(None)
         };
@@ -463,10 +465,41 @@ impl Sm64JsServer {
     fn handle_chat(
         &self,
         player: &Arc<RwLock<Player>>,
+        socket_id: u32,
         mut chat_msg: ChatMsg,
         auth_info: AuthInfo,
     ) -> Result<Option<Vec<u8>>, Vec<u8>> {
-        let socket_id = player.read().get_socket_id();
+        let account_id = if let Some(client) = self.clients.get(&socket_id) {
+            client.get_account_id()
+        } else {
+            return Ok(None);
+        };
+        let conn = self.pool.get().unwrap();
+        if let Ok(Some(mute)) = sm64js_db::is_account_muted(&conn, account_id) {
+            let mut message = "You are muted".to_string();
+            if let Some(expires_at) = mute.expires_at {
+                let expires_in = expires_at - Utc::now().naive_utc();
+                let expires_in = Duration::seconds(expires_in.num_seconds());
+                message += &format!(
+                    " for {}",
+                    format_duration(expires_in.to_std().unwrap_or_default())
+                );
+            }
+            chat_msg.message = message;
+            chat_msg.sender = "[Server]".to_string();
+            chat_msg.is_server = true;
+            let root_msg = RootMsg {
+                message: Some(root_msg::Message::UncompressedSm64jsMsg(Sm64JsMsg {
+                    message: Some(sm64_js_msg::Message::ChatMsg(chat_msg)),
+                })),
+            };
+            let mut msg = vec![];
+            root_msg.encode(&mut msg).unwrap();
+
+            return Err(msg);
+        }
+        drop(conn);
+
         let username = player.read().get_name().clone();
         let root_msg = match player.write().add_chat_message(
             self.pool.clone(),
@@ -494,7 +527,8 @@ impl Sm64JsServer {
                     chat_msg.message =
                             "Chat message ignored: You have to wait longer between sending chat messages"
                                 .to_string();
-                    chat_msg.sender = "Server".to_string();
+                    chat_msg.sender = "[Server]".to_string();
+                    chat_msg.is_server = true;
                     let root_msg = RootMsg {
                         message: Some(root_msg::Message::UncompressedSm64jsMsg(Sm64JsMsg {
                             message: Some(sm64_js_msg::Message::ChatMsg(chat_msg)),

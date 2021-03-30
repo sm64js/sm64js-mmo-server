@@ -196,6 +196,26 @@ pub struct NewBan {
     pub account_id: Option<i32>,
 }
 
+#[derive(Associations, Clone, Debug, Identifiable, Insertable, Queryable, Serialize)]
+#[belongs_to(Account)]
+#[serde(rename_all = "camelCase")]
+pub struct Mute {
+    #[serde(skip_serializing)]
+    pub id: i32,
+    pub reason: Option<String>,
+    pub expires_at: Option<NaiveDateTime>,
+    pub account_id: i32,
+}
+
+// TODO implement Display trait for better human readable error message on ban
+#[derive(Clone, Debug, Insertable)]
+#[table_name = "mutes"]
+pub struct NewMute {
+    pub reason: Option<String>,
+    pub expires_at: Option<NaiveDateTime>,
+    pub account_id: i32,
+}
+
 #[derive(Associations, Clone, Debug, Identifiable, Insertable, Queryable)]
 #[belongs_to(DiscordSession, GoogleSession)]
 pub struct Geolocation {
