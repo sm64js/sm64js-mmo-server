@@ -2471,7 +2471,6 @@ dependencies = [
  "dashmap",
  "diesel",
  "diesel_migrations",
- "dotenv",
  "env_logger",
  "gnuplot",
  "indexmap",
@@ -2484,6 +2483,7 @@ dependencies = [
  "sm64js-auth",
  "sm64js-common",
  "sm64js-db",
+ "sm64js-env",
  "sm64js-ws",
  "thiserror",
 ]
@@ -2512,6 +2512,7 @@ dependencies = [
  "sm64js-auth",
  "sm64js-common",
  "sm64js-db",
+ "sm64js-env",
  "sm64js-ws",
  "thiserror",
 ]
@@ -2548,6 +2549,7 @@ dependencies = [
  "prost",
  "serde",
  "serde_with",
+ "sm64js-env",
  "sm64js-proto",
 ]
 
@@ -2564,6 +2566,14 @@ dependencies = [
  "serde",
  "sm64js-common",
  "thiserror",
+]
+
+[[package]]
+name = "sm64js-env"
+version = "0.1.0"
+dependencies = [
+ "dotenv",
+ "once_cell",
 ]
 
 [[package]]

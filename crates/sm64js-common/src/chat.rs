@@ -7,7 +7,7 @@ use paperclip::actix::{web, Apiv2Schema};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-use std::env;
+use sm64js_env::{DISCORD_BOT_TOKEN, REDIRECT_URI};
 
 #[derive(Apiv2Schema, Debug, Default, Deserialize)]
 pub struct GetChat {
@@ -212,7 +212,7 @@ impl ChatHistory {
             name: player_name,
             url: format!(
                 "{}/api/account?account_id={}",
-                env::var("REDIRECT_URI").unwrap(),
+                REDIRECT_URI.get().unwrap(),
                 account_info.account.id
             ),
             icon_url: if let Some(discord) = account_info.discord {
@@ -235,7 +235,7 @@ impl ChatHistory {
             ))
             .header(
                 awc::http::header::AUTHORIZATION,
-                format!("{} {}", "Bot", env::var("DISCORD_BOT_TOKEN").unwrap(),),
+                format!("{} {}", "Bot", DISCORD_BOT_TOKEN.get().unwrap(),),
             )
             .send_json(&DiscordChatMessage {
                 embed: DiscordRichEmbed {

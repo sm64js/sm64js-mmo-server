@@ -15,7 +15,6 @@ actix-web = "3"
 actix-web-actors = "3"
 diesel = { version = "1", features = ["chrono", "postgres", "r2d2"] }
 diesel_migrations = "1"
-dotenv = "0.15"
 env_logger = "0.8"
 indexmap = "1"
 paperclip = { git = "https://github.com/wafflespeanut/paperclip.git", rev = "a64cabbb13ad9d51a67c12d3dbf9c986a1ff6585", features = ["actix-nightly", "actix-session", "chrono"] }
@@ -27,6 +26,7 @@ sm64js-api = { path = "../sm64js-api" }
 sm64js-auth = { path = "../sm64js-auth" }
 sm64js-common = { path = "../sm64js-common" }
 sm64js-db = { path = "../sm64js-db" }
+sm64js-env = { path = "../sm64js-env" }
 sm64js-ws = { path = "../sm64js-ws" }
 thiserror = "1"
 

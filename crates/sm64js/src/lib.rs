@@ -14,6 +14,7 @@ use paperclip::{
     v2::models::{DefaultApiRaw, Info, Tag},
 };
 use sm64js_common::{ChatHistory, ChatHistoryData};
+use sm64js_env::DATABASE_URL;
 use sm64js_ws::{Game, Room, Sm64JsServer};
 
 embed_migrations!("../sm64js-db/migrations");
@@ -23,20 +24,18 @@ const DIST_FOLDER: &str = "./dist";
 #[cfg(not(feature = "docker"))]
 const DIST_FOLDER: &str = "../client/dist";
 
-// #[actix_web::main]
 pub fn main() -> std::io::Result<Server> {
     use actix_session::CookieSession;
     use parking_lot::RwLock;
     use std::env;
 
-    dotenv::dotenv().ok();
+    sm64js_env::load();
 
     env::set_var("RUST_BACKTRACE", "1");
     env::set_var("RUST_LOG", "actix_server=info,actix_web=info");
     env_logger::init();
 
-    let connspec = env::var("DATABASE_URL").expect("DATABASE_URL");
-    let manager = ConnectionManager::<PgConnection>::new(connspec);
+    let manager = ConnectionManager::<PgConnection>::new(DATABASE_URL.get().unwrap());
     let pool = web::Data::new(
         r2d2::Pool::builder()
             .build(manager)

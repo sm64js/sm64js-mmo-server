@@ -10,12 +10,11 @@ use sm64js_db::{
     models::{Ban, UpdateAccount},
     DbPool,
 };
-use std::env;
+use sm64js_env::{
+    DISCORD_BOT_TOKEN, DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET, REDIRECT_URI,
+};
 use thiserror::Error;
-
-pub static GOOGLE_CLIENT_ID: &str =
-    "1000892686951-dkp1vpqohmbq64h7jiiop9v6ic4t1mul.apps.googleusercontent.com";
-pub static DISCORD_CLIENT_ID: &str = "807123464414429184";
 
 #[derive(Debug, Deserialize)]
 struct Login {
@@ -124,11 +123,11 @@ async fn login_with_discord(
         .to_string();
 
     let req = OAuth2Request {
-        client_id: DISCORD_CLIENT_ID.to_string(),
-        client_secret: env::var("DISCORD_CLIENT_SECRET").unwrap(),
+        client_id: DISCORD_CLIENT_ID.get().unwrap().clone(),
+        client_secret: DISCORD_CLIENT_SECRET.get().unwrap().clone(),
         code: json.code.clone(),
         grant_type: "authorization_code".to_string(),
-        redirect_uri: env::var("REDIRECT_URI").unwrap(),
+        redirect_uri: REDIRECT_URI.get().unwrap().clone(),
         scopes: Some("identify".to_string()),
     };
     let request: SendClientRequest = awc::Client::default()
@@ -165,7 +164,7 @@ async fn login_with_discord(
         ))
         .header(
             awc::http::header::AUTHORIZATION,
-            format!("{} {}", "Bot", env::var("DISCORD_BOT_TOKEN").unwrap(),),
+            format!("{} {}", "Bot", DISCORD_BOT_TOKEN.get().unwrap(),),
         )
         .send();
     let mut response = request.await?;
@@ -211,11 +210,11 @@ async fn login_with_google(
         .to_string();
 
     let req = OAuth2Request {
-        client_id: GOOGLE_CLIENT_ID.to_string(),
-        client_secret: std::env::var("GOOGLE_CLIENT_SECRET").unwrap(),
+        client_id: GOOGLE_CLIENT_ID.get().unwrap().clone(),
+        client_secret: GOOGLE_CLIENT_SECRET.get().unwrap().clone(),
         code: json.code.clone(),
         grant_type: "authorization_code".to_string(),
-        redirect_uri: std::env::var("REDIRECT_URI").unwrap(),
+        redirect_uri: REDIRECT_URI.get().unwrap().clone(),
         scopes: None,
     };
     let request: SendClientRequest = awc::Client::default()
