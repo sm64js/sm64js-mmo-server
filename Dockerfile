@@ -48,6 +48,7 @@ COPY ./crates/sm64js-api/Cargo.toml ./crates/sm64js-api/Cargo.toml
 COPY ./crates/sm64js-auth/Cargo.toml ./crates/sm64js-auth/Cargo.toml
 COPY ./crates/sm64js-common/Cargo.toml ./crates/sm64js-common/Cargo.toml
 COPY ./crates/sm64js-db/Cargo.toml ./crates/sm64js-db/Cargo.toml
+COPY ./crates/sm64js-env/Cargo.toml ./crates/sm64js-env/Cargo.toml
 COPY ./crates/sm64js-proto/Cargo.toml ./crates/sm64js-proto/Cargo.toml
 COPY ./crates/sm64js-ws/Cargo.toml ./crates/sm64js-ws/Cargo.toml
 RUN rm ./src/main.rs && \
@@ -63,6 +64,8 @@ RUN rm ./src/main.rs && \
     touch ./crates/sm64js-common/src/lib.rs && \
     mkdir -p ./crates/sm64js-db/src && \
     touch ./crates/sm64js-db/src/lib.rs && \
+    mkdir -p ./crates/sm64js-env/src && \
+    touch ./crates/sm64js-env/src/lib.rs && \
     mkdir -p ./crates/sm64js-proto/src && \
     touch ./crates/sm64js-proto/src/lib.rs && \
     mkdir -p ./crates/sm64js-ws/src && \
@@ -76,6 +79,7 @@ RUN rm ./crates/sm64js/src/*.rs && \
     rm ./crates/sm64js-auth/src/*.rs && \
     rm ./crates/sm64js-common/src/*.rs && \
     rm ./crates/sm64js-db/src/*.rs && \
+    rm ./crates/sm64js-env/src/*.rs && \
     rm ./crates/sm64js-proto/src/*.rs && \
     rm ./crates/sm64js-ws/src/*.rs
 
