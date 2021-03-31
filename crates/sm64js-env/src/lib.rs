@@ -13,7 +13,10 @@ pub static DATABASE_URL: OnceCell<String> = OnceCell::new();
 pub fn load() {
     dotenv::dotenv().ok();
 
-    if let Ok(client_id) = env::var("GOOGLE_CLIENT_ID") {
+    if let Ok(mut client_id) = env::var("GOOGLE_CLIENT_ID") {
+        if !client_id.ends_with(".apps.googleusercontent.com") {
+            client_id += ".apps.googleusercontent.com";
+        }
         GOOGLE_CLIENT_ID.set(client_id).unwrap();
     } else {
         GOOGLE_CLIENT_ID
@@ -24,11 +27,9 @@ pub fn load() {
             .unwrap();
     }
 
-    let mut google_client_secret = env::var("GOOGLE_CLIENT_SECRET").unwrap();
-    if !google_client_secret.ends_with(".apps.googleusercontent.com") {
-        google_client_secret += ".apps.googleusercontent.com";
-    }
-    GOOGLE_CLIENT_SECRET.set(google_client_secret).unwrap();
+    GOOGLE_CLIENT_SECRET
+        .set(env::var("GOOGLE_CLIENT_SECRET").unwrap())
+        .unwrap();
 
     if let Ok(client_id) = env::var("DISCORD_CLIENT_ID") {
         DISCORD_CLIENT_ID.set(client_id).unwrap();
