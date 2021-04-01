@@ -24,6 +24,11 @@ const DIST_FOLDER: &str = "./dist";
 #[cfg(not(feature = "docker"))]
 const DIST_FOLDER: &str = "../client/dist";
 
+#[cfg(debug_assertions)]
+const LOG_LEVEL: &str = "actix_server=debug,actix_web=debug";
+#[cfg(not(debug_assertions))]
+const LOG_LEVEL: &str = "actix_server=info,actix_web=warn";
+
 pub fn main() -> std::io::Result<Server> {
     use actix_session::CookieSession;
     use parking_lot::RwLock;
@@ -32,7 +37,7 @@ pub fn main() -> std::io::Result<Server> {
     sm64js_env::load();
 
     env::set_var("RUST_BACKTRACE", "1");
-    env::set_var("RUST_LOG", "actix_server=info,actix_web=info");
+    env::set_var("RUST_LOG", LOG_LEVEL);
     env_logger::init();
 
     let manager = ConnectionManager::<PgConnection>::new(DATABASE_URL.get().unwrap());
