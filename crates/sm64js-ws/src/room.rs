@@ -144,11 +144,10 @@ impl Room {
                     let player_name = player_r.get_name().clone();
                     let socket_id = player_r.get_socket_id();
                     drop(player_r);
-                    if let Some(skin_data) = player.write().get_updated_skin_data() {
-                        Some((skin_data, player_name, socket_id))
-                    } else {
-                        None
-                    }
+                    player
+                        .write()
+                        .get_updated_skin_data()
+                        .map(|skin_data| (skin_data, player_name, socket_id))
                 } else {
                     None
                 }
@@ -277,11 +276,10 @@ impl Room {
                 if let Some(player) = player.upgrade() {
                     let socket_id = player.read().get_socket_id();
                     let player_name = player.read().get_name().clone();
-                    if let Some(skin_data) = player.write().get_skin_data() {
-                        Some((skin_data.clone(), socket_id, player_name))
-                    } else {
-                        None
-                    }
+                    player
+                        .write()
+                        .get_updated_skin_data()
+                        .map(|skin_data| (skin_data, socket_id, player_name))
                 } else {
                     None
                 }

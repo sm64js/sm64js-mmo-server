@@ -26,30 +26,26 @@ impl AuthInfo {
     }
 
     pub fn get_discord_username(&self) -> Option<String> {
-        if let Some(discord) = &self.0.discord {
-            Some(format!(
+        self.0.discord.as_ref().map(|discord| {
+            format!(
                 "{}#{}",
                 discord.account.username, discord.account.discriminator
-            ))
-        } else {
-            None
-        }
+            )
+        })
     }
 
     pub fn get_discord_id(&self) -> Option<String> {
-        if let Some(discord) = &self.0.discord {
-            Some(discord.account.id.clone())
-        } else {
-            None
-        }
+        self.0
+            .discord
+            .as_ref()
+            .map(|discord| discord.account.id.clone())
     }
 
     pub fn get_google_id(&self) -> Option<String> {
-        if let Some(google) = &self.0.google {
-            Some(google.account.sub.clone())
-        } else {
-            None
-        }
+        self.0
+            .google
+            .as_ref()
+            .map(|google| google.account.sub.clone())
     }
 
     pub fn has_permission(&self, permission: &Permission) -> bool {
