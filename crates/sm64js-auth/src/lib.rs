@@ -139,9 +139,19 @@ lazy_static! {
             vec![
                 Permission::GetAccount,
                 Permission::GetPlayerList,
+                Permission::PermBanAccount,
                 Permission::PermMuteAccount,
                 Permission::ReadChatLog,
-                Permission::TempBanAccount(Duration::hours(12)),
+                Permission::SendAnnouncement,
+                Permission::TempBanAccount(Duration::weeks(1000)),
+                Permission::TempMuteAccount(Duration::weeks(1000)),
+            ],
+        "801876964892868659" => // Trial mod
+            vec![
+                Permission::GetAccount,
+                Permission::GetPlayerList,
+                Permission::ReadChatLog,
+                Permission::TempBanAccount(Duration::days(2)),
                 Permission::TempMuteAccount(Duration::days(7)),
             ]
     };
