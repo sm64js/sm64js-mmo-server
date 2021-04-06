@@ -1,12 +1,6 @@
 #![feature(try_blocks)]
 #![feature(try_trait)]
 
-#[macro_use]
-extern crate lazy_static;
-
-#[macro_use]
-extern crate maplit;
-
 mod client;
 mod game;
 mod room;

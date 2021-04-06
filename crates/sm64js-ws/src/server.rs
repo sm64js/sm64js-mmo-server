@@ -6,7 +6,8 @@ use censor::Censor;
 use chrono::{Duration, Utc};
 use dashmap::{mapref::one::Ref, DashMap};
 use humantime::format_duration;
-use parking_lot::RwLock;
+use once_cell::sync::Lazy;
+use parking_lot::{Mutex, RwLock};
 use prost::Message as ProstMessage;
 use rand::{self, Rng};
 use sm64js_auth::{AuthInfo, Permission};
@@ -18,11 +19,11 @@ use sm64js_proto::{
 };
 use std::{collections::HashMap, sync::Arc};
 
-lazy_static! {
-    pub static ref PRIVILEGED_COMMANDS: HashMap<&'static str, Permission> = hashmap! {
-        "ANNOUNCEMENT" => Permission::SendAnnouncement
-    };
-}
+pub static PRIVILEGED_COMMANDS: Lazy<Mutex<HashMap<&str, Permission>>> = Lazy::new(|| {
+    let mut m = HashMap::new();
+    m.insert("ANNOUNCEMENT", Permission::SendAnnouncement);
+    Mutex::new(m)
+});
 
 #[derive(Message)]
 #[rtype(result = "()")]
@@ -434,12 +435,13 @@ impl Sm64JsServer {
             .unwrap_or("");
         if let Some(index) = message.find(' ') {
             let (cmd, message) = message.split_at(index);
-            if let Some(permission) = PRIVILEGED_COMMANDS.get(cmd) {
+            let cmd = cmd.to_ascii_uppercase();
+            if let Some(permission) = PRIVILEGED_COMMANDS.lock().get(cmd.as_str()) {
                 if !auth_info.has_permission(permission) {
                     return None;
                 }
             }
-            match cmd.to_ascii_uppercase().as_ref() {
+            match cmd.as_ref() {
                 // TODO store in enum
                 "ANNOUNCEMENT" => {
                     let root_msg = RootMsg {
