@@ -23,9 +23,9 @@ pub async fn post_mute(
     let perm = if let Some(expires_in) = query.expires_in {
         let expires_in = chrono::Duration::from_std(expires_in)
             .unwrap_or_else(|_| chrono::Duration::milliseconds(0));
-        Permission::TempBanAccount(expires_in)
+        Permission::TempMuteAccount(expires_in)
     } else {
-        Permission::PermBanAccount
+        Permission::PermMuteAccount
     };
     if !auth_info.has_permission(&perm) {
         return Err(MuteError::Unauthorized);
