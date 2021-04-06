@@ -137,7 +137,10 @@ impl Player {
     }
 
     pub fn get_data(&self) -> Option<MarioMsg> {
-        self.clients.get(&self.socket_id).unwrap().data.clone()
+        self.clients
+            .get(&self.socket_id)
+            .map(|d| d.data.clone())
+            .flatten()
     }
 
     pub fn set_skin_data(&mut self, skin_data: Option<SkinData>) {
@@ -146,10 +149,10 @@ impl Player {
     }
 
     pub fn send_message(&self, msg: Vec<u8>) -> Result<()> {
-        self.clients
-            .get(&self.socket_id)
-            .unwrap()
-            .send(Message::SendData(msg))
+        if let Some(client) = self.clients.get(&self.socket_id) {
+            client.send(Message::SendData(msg))?;
+        }
+        Ok(())
     }
 
     pub fn add_chat_message(
