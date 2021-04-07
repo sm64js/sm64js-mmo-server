@@ -14,7 +14,6 @@ pub async fn index(
     identity: Identity,
 ) -> Result<HttpResponse, WsError> {
     let auth_info = identity.get_auth_info();
-    dbg!(req.headers());
     let ip = if let Some(x_real_ip) = req
         .headers()
         .get("x-real-ip")
