@@ -11,12 +11,7 @@ use paperclip::actix::Apiv2Security;
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Apiv2Security, Debug)]
-#[openapi(
-    apiKey,
-    in = "header",
-    name = "Authorization",
-    description = "Use format 'APIKEY TOKEN'"
-)]
+#[openapi(apiKey, in = "cookie", name = "sm64js")]
 pub struct Identity(Rc<RefCell<Option<AuthInfo>>>);
 
 impl Identity {
