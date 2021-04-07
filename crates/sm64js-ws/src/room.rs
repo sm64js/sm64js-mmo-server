@@ -278,8 +278,8 @@ impl Room {
                     let player_name = player.read().get_name().clone();
                     player
                         .write()
-                        .get_updated_skin_data()
-                        .map(|skin_data| (skin_data, socket_id, player_name))
+                        .get_skin_data()
+                        .map(|skin_data| (skin_data.clone(), socket_id, player_name))
                 } else {
                     None
                 }
