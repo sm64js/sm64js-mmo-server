@@ -244,10 +244,26 @@ pub fn get_account_info(
         Err(_) => return None,
     };
 
-    let mut account_info = AccountInfo {
-        account: account.clone().into(),
-        discord: None,
-        google: None,
+    let ban = is_account_banned(conn, account_id).ok().flatten();
+    let mute = is_account_muted(conn, account_id).ok().flatten();
+
+    let mut account_info = {
+        let account = account.clone();
+        AccountInfo {
+            account: sm64js_common::Account {
+                id: account.id,
+                last_ip: Some(account.last_ip),
+                username: account.username,
+                is_banned: if ban.is_some() { Some(true) } else { None },
+                banned_until: ban.clone().map(|b| b.expires_at).flatten(),
+                ban_reason: ban.map(|b| b.reason).flatten(),
+                is_muted: if mute.is_some() { Some(true) } else { None },
+                muted_until: mute.clone().map(|m| m.expires_at).flatten(),
+                mute_reason: mute.map(|m| m.reason).flatten(),
+            },
+            discord: None,
+            google: None,
+        }
     };
 
     if let Ok(discord) =

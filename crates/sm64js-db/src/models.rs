@@ -29,17 +29,6 @@ pub struct Account {
     pub last_ip: String,
 }
 
-#[allow(clippy::from_over_into)]
-impl Into<sm64js_common::Account> for Account {
-    fn into(self) -> sm64js_common::Account {
-        sm64js_common::Account {
-            id: self.id,
-            username: self.username,
-            last_ip: Some(self.last_ip),
-        }
-    }
-}
-
 #[derive(Insertable)]
 #[table_name = "accounts"]
 pub struct NewAccount {

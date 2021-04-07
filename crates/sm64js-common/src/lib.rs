@@ -5,6 +5,7 @@ pub use chat::{
     sanitize_chat, ChatError, ChatHistory, ChatHistoryData, ChatMessage, ChatResult, GetChat,
 };
 
+use chrono::NaiveDateTime;
 use paperclip::actix::Apiv2Schema;
 use prost::Message as ProstMessage;
 use serde::{Deserialize, Serialize};
@@ -58,10 +59,17 @@ pub struct AccountInfo {
 
 #[skip_serializing_none]
 #[derive(Apiv2Schema, Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Account {
     pub id: i32,
     pub username: Option<String>,
     pub last_ip: Option<String>,
+    pub is_banned: Option<bool>,
+    pub banned_until: Option<NaiveDateTime>,
+    pub ban_reason: Option<String>,
+    pub is_muted: Option<bool>,
+    pub muted_until: Option<NaiveDateTime>,
+    pub mute_reason: Option<String>,
 }
 
 #[skip_serializing_none]
