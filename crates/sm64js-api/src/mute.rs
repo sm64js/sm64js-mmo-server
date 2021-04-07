@@ -46,10 +46,13 @@ pub async fn post_mute(
 #[skip_serializing_none]
 #[derive(Apiv2Schema, Debug, Deserialize)]
 pub struct PostBan {
+    /// You can either get the `account_id` from Discord's #in-game-chat
+    /// or from the <a href="#get-/api/players">player list</a>
     account_id: i32,
     reason: Option<String>,
     /// Parses duration for temp mutes, e.g. "15days". See https://docs.rs/humantime/2.1.0/humantime/index.html
     ///
+    /// Keep this empty for a permanent mute.
     /// Muting will overwrite an already existing mute, so if you want to unmute someone, just set this to "0s"
     #[serde(default)]
     #[serde(with = "humantime_serde")]

@@ -15,7 +15,7 @@ pub fn service() -> impl HttpServiceFactory + Mountable {
     web::scope("/account").service(web::resource("").route(web::get().to(get_account_info)))
 }
 
-/// GET Player
+/// GET Account info
 #[api_v2_operation(tags(PlayerInfo))]
 async fn get_account_info(
     query: web::Query<GetAccount>,
@@ -43,6 +43,8 @@ async fn get_account_info(
 
 #[derive(Apiv2Schema, Debug, Deserialize)]
 pub struct GetAccount {
+    /// You can either get the `account_id` from Discord's #in-game-chat
+    /// or from the <a href="#get-/api/players">player list</a>
     account_id: i32,
 }
 

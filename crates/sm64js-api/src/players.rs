@@ -17,6 +17,8 @@ pub fn service() -> impl HttpServiceFactory + Mountable {
 }
 
 /// GET Player list
+///
+/// Returns the list of currently online players.
 #[api_v2_operation(tags(PlayerInfo))]
 async fn get_players(
     query: web::Query<GetPlayers>,
