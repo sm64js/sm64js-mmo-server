@@ -59,6 +59,19 @@ impl Handler<Connect> for Sm64JsServer {
     type Result = u32;
 
     fn handle(&mut self, msg: Connect, _: &mut Context<Self>) -> Self::Result {
+        if let Some(client) = self
+            .clients
+            .iter()
+            .find(|client| client.get_account_id() == msg.auth_info.get_account_id())
+        {
+            match client.send(Message::Kick) {
+                Ok(_) => {}
+                Err(err) => {
+                    eprintln!("{:?}", err)
+                }
+            };
+        }
+
         let socket_id = rand::thread_rng().gen::<u32>();
         let client = Client::new(msg.addr, msg.auth_info, msg.ip, msg.real_ip, socket_id);
 
