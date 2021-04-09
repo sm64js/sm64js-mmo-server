@@ -50,7 +50,7 @@ pub struct PlayerInfo {
 }
 
 #[skip_serializing_none]
-#[derive(Apiv2Schema, Clone, Debug, Serialize)]
+#[derive(Apiv2Schema, Clone, Debug, Default, Serialize)]
 pub struct AccountInfo {
     pub account: Account,
     pub discord: Option<DiscordAccount>,
@@ -58,7 +58,7 @@ pub struct AccountInfo {
 }
 
 #[skip_serializing_none]
-#[derive(Apiv2Schema, Clone, Debug, Serialize)]
+#[derive(Apiv2Schema, Clone, Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Account {
     pub id: i32,

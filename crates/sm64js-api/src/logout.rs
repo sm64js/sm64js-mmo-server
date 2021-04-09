@@ -15,7 +15,7 @@ pub async fn post_logout(
     let conn = pool.get().unwrap();
     sm64js_db::delete_session(&conn, auth_info.into_inner())?;
 
-    session.purge();
+    session.clear();
 
     Ok(NoContent)
 }

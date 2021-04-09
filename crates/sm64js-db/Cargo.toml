@@ -13,4 +13,5 @@ paperclip = { git = "https://github.com/wafflespeanut/paperclip.git", rev = "a64
 r2d2 = "0.8"
 serde = "1"
 sm64js-common = { path = "../sm64js-common" }
+sm64js-env = { path = "../sm64js-env" }
 thiserror = "1"

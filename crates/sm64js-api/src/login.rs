@@ -2,6 +2,8 @@ use actix_http::{body::Body, client::SendRequestError};
 use actix_session::Session;
 use actix_web::{dev, error::ResponseError, http::StatusCode, HttpRequest, HttpResponse};
 use awc::{error::JsonPayloadError, SendClientRequest};
+#[cfg(debug_assertions)]
+use chrono::{Duration, Utc};
 use paperclip::actix::{api_v2_errors, api_v2_operation, web, Apiv2Schema, Mountable};
 use serde::{Deserialize, Serialize};
 use sm64js_auth::Identity;
@@ -14,6 +16,9 @@ use sm64js_env::{
     DISCORD_BOT_TOKEN, DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET, REDIRECT_URI,
 };
+
+#[cfg(debug_assertions)]
+use sm64js_env::{DEV_GOOGLE_ACCOUNT_ID, DEV_GOOGLE_SESSION_TOKEN};
 use thiserror::Error;
 
 #[derive(Debug, Deserialize)]
@@ -209,48 +214,69 @@ async fn login_with_google(
         .ip()
         .to_string();
 
-    let req = OAuth2Request {
-        client_id: GOOGLE_CLIENT_ID.get().unwrap().clone(),
-        client_secret: GOOGLE_CLIENT_SECRET.get().unwrap().clone(),
-        code: json.code.clone(),
-        grant_type: "authorization_code".to_string(),
-        redirect_uri: REDIRECT_URI.get().unwrap().clone(),
-        scopes: None,
-    };
-    let request: SendClientRequest = awc::Client::default()
-        .post("https://oauth2.googleapis.com/token")
-        .send_form(&req);
-    let mut response = request.await?;
-    if !response.status().is_success() {
-        return Err(LoginError::TokenExpired);
-    };
-    let response: GoogleOAuth2Response = response.json().await?;
-    let jwt_token = response.id_token.clone();
+    if let (Some(client_id), Some(client_secret)) = (
+        GOOGLE_CLIENT_ID.get().cloned(),
+        GOOGLE_CLIENT_SECRET.get().cloned(),
+    ) {
+        let req = OAuth2Request {
+            client_id,
+            client_secret,
+            code: json.code.clone(),
+            grant_type: "authorization_code".to_string(),
+            redirect_uri: REDIRECT_URI.get().unwrap().clone(),
+            scopes: None,
+        };
+        let request: SendClientRequest = awc::Client::default()
+            .post("https://oauth2.googleapis.com/token")
+            .send_form(&req);
+        let mut response = request.await?;
+        if !response.status().is_success() {
+            return Err(LoginError::TokenExpired);
+        };
+        let response: GoogleOAuth2Response = response.json().await?;
+        let jwt_token = response.id_token.clone();
 
-    let request: SendClientRequest = awc::Client::default()
-        .get(&format!(
-            "https://oauth2.googleapis.com/tokeninfo?id_token={}",
-            response.id_token
-        ))
-        .send();
-    let mut response = request.await?;
-    if !response.status().is_success() {
-        return Err(LoginError::TokenExpired);
-    };
-    let id_token: IdToken = response.json().await?;
-    let expires_at = id_token.exp.parse::<i64>().unwrap();
+        let request: SendClientRequest = awc::Client::default()
+            .get(&format!(
+                "https://oauth2.googleapis.com/tokeninfo?id_token={}",
+                response.id_token
+            ))
+            .send();
+        let mut response = request.await?;
+        if !response.status().is_success() {
+            return Err(LoginError::TokenExpired);
+        };
+        let id_token: IdToken = response.json().await?;
+        let expires_at = id_token.exp.parse::<i64>().unwrap();
 
-    let conn = pool.get().unwrap();
-    let google_session =
-        sm64js_db::insert_google_session(&conn, jwt_token, expires_at, id_token.sub, ip).unwrap();
+        let conn = pool.get().unwrap();
+        let google_session =
+            sm64js_db::insert_google_session(&conn, jwt_token, expires_at, id_token.sub, ip)
+                .unwrap();
 
-    session.set("account_id", google_session.google_account_id)?;
-    session.set("session_id", google_session.id)?;
-    session.set("token", google_session.id_token)?;
-    session.set("expires_at", google_session.expires_at.timestamp())?;
-    session.set("account_type", "google")?;
+        session.set("account_id", google_session.google_account_id)?;
+        session.set("session_id", google_session.id)?;
+        session.set("token", google_session.id_token)?;
+        session.set("expires_at", google_session.expires_at.timestamp())?;
+        session.set("account_type", "google")?;
 
-    Ok(web::Json(AuthorizedUserMessage { username: None }))
+        Ok(web::Json(AuthorizedUserMessage { username: None }))
+    } else {
+        #[cfg(debug_assertions)]
+        {
+            let expires_at = Utc::now() + Duration::weeks(1000);
+
+            session.set("account_id", DEV_GOOGLE_ACCOUNT_ID.to_string())?;
+            session.set("session_id", 1)?;
+            session.set("token", DEV_GOOGLE_SESSION_TOKEN.to_string())?;
+            session.set("expires_at", expires_at.timestamp())?;
+            session.set("account_type", "google")?;
+
+            Ok(web::Json(AuthorizedUserMessage { username: None }))
+        }
+        #[cfg(not(debug_assertions))]
+        unreachable!();
+    }
 }
 
 #[api_v2_errors(code = 400, code = 500)]

@@ -10,42 +10,95 @@ pub static REDIRECT_URI: OnceCell<String> = OnceCell::new();
 pub static POSTGRES_PASSWORD: OnceCell<String> = OnceCell::new();
 pub static DATABASE_URL: OnceCell<String> = OnceCell::new();
 
+#[cfg(debug_assertions)]
+pub static DEV_ACCOUNT_ID: i32 = -1337;
+#[cfg(debug_assertions)]
+pub static DEV_GOOGLE_ACCOUNT_ID: &str = "1456789";
+#[cfg(debug_assertions)]
+pub static DEV_GOOGLE_SESSION_TOKEN: &str = "supersecretgooglesessiontoken";
+#[cfg(debug_assertions)]
+pub static DEV_GOOGLE_TEST_USER: &str = "GoogleTestUser";
+
 pub fn load() {
     dotenv::dotenv().ok();
 
-    if let Ok(mut client_id) = env::var("GOOGLE_CLIENT_ID") {
-        if !client_id.ends_with(".apps.googleusercontent.com") {
-            client_id += ".apps.googleusercontent.com";
-        }
-        GOOGLE_CLIENT_ID.set(client_id).unwrap();
-    } else {
+    let google_client_id_fallback = || {
         GOOGLE_CLIENT_ID
             .set(
                 "1000892686951-dkp1vpqohmbq64h7jiiop9v6ic4t1mul.apps.googleusercontent.com"
                     .to_string(),
             )
             .unwrap();
+    };
+    if let Ok(mut client_id) = env::var("GOOGLE_CLIENT_ID") {
+        if !client_id.is_empty() {
+            if !client_id.ends_with(".apps.googleusercontent.com") {
+                client_id += ".apps.googleusercontent.com";
+            }
+            GOOGLE_CLIENT_ID.set(client_id).unwrap();
+        } else {
+            google_client_id_fallback();
+        }
+    } else {
+        google_client_id_fallback();
     }
 
-    GOOGLE_CLIENT_SECRET
-        .set(env::var("GOOGLE_CLIENT_SECRET").unwrap())
-        .unwrap();
+    #[cfg(debug_assertions)]
+    if let Ok(secret) = env::var("GOOGLE_CLIENT_SECRET") {
+        if !secret.is_empty() {
+            GOOGLE_CLIENT_SECRET.set(secret).unwrap();
+        }
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        GOOGLE_CLIENT_SECRET
+            .set(env::var("GOOGLE_CLIENT_SECRET").unwrap())
+            .unwrap();
+        assert!(!GOOGLE_CLIENT_SECRET.get().unwrap().is_empty());
+    }
 
-    if let Ok(client_id) = env::var("DISCORD_CLIENT_ID") {
-        DISCORD_CLIENT_ID.set(client_id).unwrap();
-    } else {
+    let discord_client_id_fallback = || {
         DISCORD_CLIENT_ID
             .set("807123464414429184".to_string())
             .unwrap();
+    };
+    if let Ok(client_id) = env::var("DISCORD_CLIENT_ID") {
+        if !client_id.is_empty() {
+            DISCORD_CLIENT_ID.set(client_id).unwrap();
+        } else {
+            discord_client_id_fallback();
+        }
+    } else {
+        discord_client_id_fallback();
     }
 
-    DISCORD_CLIENT_SECRET
-        .set(env::var("DISCORD_CLIENT_SECRET").unwrap())
-        .unwrap();
+    #[cfg(debug_assertions)]
+    if let Ok(secret) = env::var("DISCORD_CLIENT_SECRET") {
+        if !secret.is_empty() {
+            DISCORD_CLIENT_SECRET.set(secret).unwrap();
+        }
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        DISCORD_CLIENT_SECRET
+            .set(env::var("DISCORD_CLIENT_SECRET").unwrap())
+            .unwrap();
+        assert!(!DISCORD_CLIENT_SECRET.get().unwrap().is_empty());
+    }
 
-    DISCORD_BOT_TOKEN
-        .set(env::var("DISCORD_BOT_TOKEN").unwrap())
-        .unwrap();
+    #[cfg(debug_assertions)]
+    if let Ok(token) = env::var("DISCORD_BOT_TOKEN") {
+        if !token.is_empty() {
+            DISCORD_BOT_TOKEN.set(token).unwrap();
+        }
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        DISCORD_BOT_TOKEN
+            .set(env::var("DISCORD_BOT_TOKEN").unwrap())
+            .unwrap();
+        assert!(!DISCORD_BOT_TOKEN.get().unwrap().is_empty());
+    }
 
     if let Ok(uri) = env::var("REDIRECT_URI") {
         REDIRECT_URI.set(uri).unwrap();
@@ -54,10 +107,6 @@ pub fn load() {
             .set("http://localhost:3060".to_string())
             .unwrap();
     }
-
-    POSTGRES_PASSWORD
-        .set(env::var("POSTGRES_PASSWORD").unwrap())
-        .unwrap();
 
     DATABASE_URL.set(env::var("DATABASE_URL").unwrap()).unwrap();
 }

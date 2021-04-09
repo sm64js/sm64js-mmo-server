@@ -18,6 +18,10 @@ use diesel::{
 };
 use paperclip::actix::api_v2_errors;
 use sm64js_common::{AccountInfo, DiscordAccount, DiscordGuildMember, DiscordUser};
+#[cfg(debug_assertions)]
+use sm64js_env::{
+    DEV_ACCOUNT_ID, DEV_GOOGLE_ACCOUNT_ID, DEV_GOOGLE_SESSION_TOKEN, DEV_GOOGLE_TEST_USER,
+};
 use thiserror::Error;
 
 type Result<T> = std::result::Result<T, DbError>;
@@ -190,7 +194,23 @@ pub fn get_auth_info(conn: &PgConnection, req_session: &Session) -> Result<Optio
             "google" => {
                 use schema::google_sessions::dsl::*;
 
-                let session = google_sessions.find(session_id).first(conn);
+                let session = {
+                    #[cfg(debug_assertions)]
+                    {
+                        if token == DEV_GOOGLE_SESSION_TOKEN {
+                            Ok(models::GoogleSession {
+                                id: DEV_ACCOUNT_ID,
+                                id_token: DEV_GOOGLE_SESSION_TOKEN.to_string(),
+                                expires_at: Utc::now().naive_utc() + Duration::weeks(1000),
+                                google_account_id: DEV_GOOGLE_ACCOUNT_ID.to_string(),
+                            })
+                        } else {
+                            google_sessions.find(session_id).first(conn)
+                        }
+                    }
+                    #[cfg(not(debug_assertions))]
+                    google_sessions.find(session_id).first(conn)
+                };
 
                 let session: models::GoogleSession = match session {
                     Ok(session) => session,
@@ -235,6 +255,19 @@ pub fn get_account_info(
     account_id: i32,
     extended_info: bool,
 ) -> Option<AccountInfo> {
+    #[cfg(debug_assertions)]
+    if account_id == DEV_ACCOUNT_ID {
+        return Some(AccountInfo {
+            account: sm64js_common::Account {
+                id: account_id,
+                last_ip: None,
+                username: Some(DEV_GOOGLE_TEST_USER.to_string()),
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+    }
+
     use schema::accounts::dsl::*;
 
     let account = accounts.find(account_id).first(conn);
@@ -312,6 +345,15 @@ pub fn delete_session(conn: &PgConnection, auth_info: AuthInfo) -> Result<()> {
 }
 
 pub fn get_account(conn: &PgConnection, account_id: i32) -> Result<models::Account> {
+    #[cfg(debug_assertions)]
+    if account_id == DEV_ACCOUNT_ID {
+        return Ok(models::Account {
+            id: account_id,
+            username: None,
+            last_ip: "0.0.0.0".to_string(),
+        });
+    }
+
     use schema::accounts::dsl::*;
 
     Ok(accounts.find(account_id).first(conn)?)
@@ -442,6 +484,14 @@ fn get_discord_account(conn: &PgConnection, id: &str) -> Result<models::DiscordA
 }
 
 fn get_google_account(conn: &PgConnection, id: &str) -> Result<models::GoogleAccount> {
+    #[cfg(debug_assertions)]
+    if id == DEV_GOOGLE_ACCOUNT_ID {
+        return Ok(models::GoogleAccount {
+            account_id: 1,
+            sub: DEV_GOOGLE_ACCOUNT_ID.to_string(),
+        });
+    }
+
     use schema::google_accounts;
 
     Ok(google_accounts::table.find(id).first(conn)?)
