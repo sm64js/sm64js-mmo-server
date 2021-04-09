@@ -15,12 +15,19 @@ use std::time::{Duration, Instant};
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 
 /// How long before lack of client response causes a timeout
-const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
+const CLIENT_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// How long before client gets kicked on not updating its location
+const CLIENT_AFK_TIMEOUT: Duration = Duration::from_secs(180);
 
 pub struct Sm64JsWsSession {
     id: u32,
     hb: Instant,
-    hb_data: Option<Instant>,
+    hb_data: Instant,
+    hb_afk: Instant,
+    data: Vec<f32>,
+    data_afk_check: Vec<f32>,
+    data_loop_index: u8,
     addr: Addr<server::Sm64JsServer>,
     auth_info: AuthInfo,
     ip: String,
@@ -90,7 +97,12 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Sm64JsWsSession {
                         ctx.binary(bin);
                     }
                     Some(sm64_js_msg::Message::MarioMsg(mario_msg)) => {
-                        self.hb_data = Some(Instant::now());
+                        self.data_loop_index += 1;
+                        self.hb_data = Instant::now();
+                        if self.data_loop_index >= 30 {
+                            self.data = mario_msg.pos.clone();
+                            self.data_loop_index = 0;
+                        }
                         self.addr.do_send(server::SetData {
                             socket_id: self.id,
                             data: mario_msg,
@@ -232,7 +244,11 @@ impl Sm64JsWsSession {
         Self {
             id: 0,
             hb: Instant::now(),
-            hb_data: None,
+            hb_data: Instant::now(),
+            hb_afk: Instant::now(),
+            data: Vec::new(),
+            data_afk_check: Vec::new(),
+            data_loop_index: 0,
             addr,
             auth_info,
             ip,
@@ -246,21 +262,21 @@ impl Sm64JsWsSession {
     fn hb(&self, ctx: &mut <Self as Actor>::Context) {
         ctx.run_interval(HEARTBEAT_INTERVAL, |act, ctx| {
             if Instant::now().duration_since(act.hb) > CLIENT_TIMEOUT {
-                println!("Websocket Client heartbeat failed, disconnecting!");
-
                 ctx.stop();
-
                 return;
             }
 
-            if let Some(hb_data) = act.hb_data {
-                if Instant::now().duration_since(hb_data) > CLIENT_TIMEOUT {
-                    println!("Websocket Client timed out due to not sending data, disconnecting!");
+            if Instant::now().duration_since(act.hb_data) > CLIENT_TIMEOUT {
+                ctx.stop();
+                return;
+            }
 
-                    ctx.stop();
-
-                    return;
-                }
+            if act.data_afk_check != act.data {
+                act.data_afk_check = act.data.clone();
+                act.hb_afk = Instant::now();
+            } else if Instant::now().duration_since(act.hb_afk) > CLIENT_AFK_TIMEOUT {
+                ctx.stop();
+                return;
             }
 
             ctx.ping(b"");
