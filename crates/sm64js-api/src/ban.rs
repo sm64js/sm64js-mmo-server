@@ -10,6 +10,7 @@ use serde::Deserialize;
 use serde_with::skip_serializing_none;
 use sm64js_auth::{Identity, Permission};
 use sm64js_db::{models::NewGeolocation, DbPool};
+use sm64js_env::REDIRECT_URI;
 use sm64js_ws::{KickClientByAccountId, Sm64JsServer};
 use thiserror::Error;
 
@@ -48,6 +49,7 @@ pub async fn post_ban(
 
     let conn = pool.get().unwrap();
     let account = sm64js_db::get_account(&conn, query.account_id)?;
+    let account_info = sm64js_db::get_account_info(&conn, account.id, true).unwrap();
 
     let geolocation: Option<NewGeolocation> = {
         let mut ip = account.last_ip.clone();
@@ -79,6 +81,43 @@ pub async fn post_ban(
         expires_at,
         Some(account.id),
     )?;
+
+    actix::spawn(async move {
+        let message = format!(
+            r"reason: {}
+expires_at: {}
+        ",
+            query.reason.clone().unwrap_or_default(),
+            expires_at.map(|exp| exp.to_string()).unwrap_or_default()
+        );
+        let author = sm64js_common::DiscordRichEmbedAuthor {
+            name: format!(
+                "POST Ban player by {}",
+                auth_info.get_discord_username().unwrap_or_default()
+            ),
+            url: format!(
+                "{}/api/account?account_id={}",
+                REDIRECT_URI.get().unwrap(),
+                account_info.account.id
+            ),
+            icon_url: if let Some(discord) = &account_info.discord {
+                if let Some(avatar) = &discord.avatar {
+                    format!(
+                        "https://cdn.discordapp.com/avatars/{}/{}.png?size=64",
+                        discord.id, avatar
+                    )
+                } else {
+                    "https://discord.com/assets/2c21aeda16de354ba5334551a883b481.png".to_string()
+                }
+            } else {
+                "https://developers.google.com/identity/images/g-logo.png".to_string()
+            },
+        };
+        let footer = sm64js_common::DiscordRichEmbedFooter {
+            text: format!("#{}", account_info.account.id),
+        };
+        sm64js_common::send_discord_message("829813249520042066", message, author, footer).await;
+    });
 
     Ok(NoContent)
 }

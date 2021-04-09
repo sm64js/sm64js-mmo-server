@@ -5,11 +5,13 @@ pub use chat::{
     sanitize_chat, ChatError, ChatHistory, ChatHistoryData, ChatMessage, ChatResult, GetChat,
 };
 
-use chrono::NaiveDateTime;
+use awc::SendClientRequest;
+use chrono::{NaiveDateTime, Utc};
 use paperclip::actix::Apiv2Schema;
 use prost::Message as ProstMessage;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
+use sm64js_env::DISCORD_BOT_TOKEN;
 use sm64js_proto::{root_msg, sm64_js_msg, RootMsg, Sm64JsMsg};
 
 #[derive(Clone, Debug, Deserialize)]
@@ -97,6 +99,31 @@ pub struct GoogleAccount {
     pub sub: String,
 }
 
+#[derive(Serialize)]
+struct DiscordChatMessage {
+    embed: DiscordRichEmbed,
+}
+
+#[derive(Serialize)]
+struct DiscordRichEmbed {
+    description: String,
+    timestamp: NaiveDateTime,
+    author: DiscordRichEmbedAuthor,
+    footer: DiscordRichEmbedFooter,
+}
+
+#[derive(Serialize)]
+pub struct DiscordRichEmbedAuthor {
+    pub name: String,
+    pub url: String,
+    pub icon_url: String,
+}
+
+#[derive(Serialize)]
+pub struct DiscordRichEmbedFooter {
+    pub text: String,
+}
+
 pub fn create_uncompressed_msg(msg: sm64_js_msg::Message) -> Vec<u8> {
     let root_msg = RootMsg {
         message: Some(root_msg::Message::UncompressedSm64jsMsg(Sm64JsMsg {
@@ -107,4 +134,34 @@ pub fn create_uncompressed_msg(msg: sm64_js_msg::Message) -> Vec<u8> {
     root_msg.encode(&mut msg).unwrap();
 
     msg
+}
+
+pub async fn send_discord_message(
+    channel_id: &str,
+    description: String,
+    author: DiscordRichEmbedAuthor,
+    footer: DiscordRichEmbedFooter,
+) {
+    let request: SendClientRequest = awc::Client::default()
+        .post(format!(
+            "https://discord.com/api/channels/{}/messages",
+            channel_id
+        ))
+        .header(
+            awc::http::header::AUTHORIZATION,
+            format!("{} {}", "Bot", DISCORD_BOT_TOKEN.get().unwrap(),),
+        )
+        .send_json(&DiscordChatMessage {
+            embed: DiscordRichEmbed {
+                description,
+                timestamp: Utc::now().naive_utc(),
+                author,
+                footer,
+            },
+        });
+
+    let response = request.await.unwrap();
+    if !response.status().is_success() {
+        eprintln!("send_discord_message failed: {:?}", response);
+    };
 }

@@ -1,5 +1,4 @@
 use crate::AccountInfo;
-use awc::SendClientRequest;
 use censor::Censor;
 use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use indexmap::IndexMap;
@@ -7,7 +6,7 @@ use paperclip::actix::{web, Apiv2Schema};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
-use sm64js_env::{DISCORD_BOT_TOKEN, REDIRECT_URI};
+use sm64js_env::REDIRECT_URI;
 
 #[derive(Apiv2Schema, Debug, Default, Deserialize)]
 pub struct GetChat {
@@ -49,31 +48,6 @@ pub fn sanitize_chat(s: &str) -> String {
     let mut escaped_message = s.to_string();
     escaped_message.retain(|c| ALLOWED_CHARACTERS.contains(c));
     escaped_message
-}
-
-#[derive(Serialize)]
-struct DiscordChatMessage {
-    embed: DiscordRichEmbed,
-}
-
-#[derive(Serialize)]
-struct DiscordRichEmbed {
-    description: String,
-    timestamp: NaiveDateTime,
-    author: DiscordRichEmbedAuthor,
-    footer: DiscordRichEmbedFooter,
-}
-
-#[derive(Serialize)]
-struct DiscordRichEmbedAuthor {
-    name: String,
-    url: String,
-    icon_url: String,
-}
-
-#[derive(Serialize)]
-struct DiscordRichEmbedFooter {
-    text: String,
 }
 
 impl ChatHistory {
@@ -126,8 +100,13 @@ impl ChatHistory {
         if !is_spam && !message.is_empty() {
             let censored_message = censored_message.clone();
             actix::spawn(async move {
-                Self::send_discord_message(censored_message, player_name, level_name, account_info)
-                    .await;
+                Self::send_discord_chat_message(
+                    censored_message,
+                    player_name,
+                    level_name,
+                    account_info,
+                )
+                .await;
             });
         }
 
@@ -202,13 +181,13 @@ impl ChatHistory {
         res
     }
 
-    async fn send_discord_message(
+    async fn send_discord_chat_message(
         message: String,
         player_name: String,
         level_name: String,
         account_info: AccountInfo,
     ) {
-        let author = DiscordRichEmbedAuthor {
+        let author = super::DiscordRichEmbedAuthor {
             name: player_name,
             url: format!(
                 "{}/api/account?account_id={}",
@@ -228,30 +207,10 @@ impl ChatHistory {
                 "https://developers.google.com/identity/images/g-logo.png".to_string()
             },
         };
-        let request: SendClientRequest = awc::Client::default()
-            .post(format!(
-                "https://discord.com/api/channels/{}/messages",
-                "824145108047101974"
-            ))
-            .header(
-                awc::http::header::AUTHORIZATION,
-                format!("{} {}", "Bot", DISCORD_BOT_TOKEN.get().unwrap(),),
-            )
-            .send_json(&DiscordChatMessage {
-                embed: DiscordRichEmbed {
-                    description: message,
-                    timestamp: Utc::now().naive_utc(),
-                    author,
-                    footer: DiscordRichEmbedFooter {
-                        text: format!("#{} - {}", account_info.account.id, level_name),
-                    },
-                },
-            });
-
-        let response = request.await.unwrap();
-        if !response.status().is_success() {
-            eprintln!("send_discord_message failed: {:?}", response);
+        let footer = super::DiscordRichEmbedFooter {
+            text: format!("#{} - {}", account_info.account.id, level_name),
         };
+        super::send_discord_message("824145108047101974", message, author, footer).await;
     }
 }
 
