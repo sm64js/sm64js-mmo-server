@@ -434,16 +434,32 @@ pub fn mute_account(
 pub fn is_account_banned(conn: &PgConnection, account_id: i32) -> Result<Option<models::Ban>> {
     let account = get_account(conn, account_id)?;
 
-    if let Ok(ban) = models::Ban::belonging_to(&account).first::<models::Ban>(conn) {
-        if let Some(expires_at) = ban.expires_at {
-            if Utc::now().naive_utc() > expires_at {
+    if let Ok(bans) = models::Ban::belonging_to(&account).load::<models::Ban>(conn) {
+        if bans.is_empty() {
+            Ok(None)
+        } else {
+            let max_ban = if let Some(max_ban) = bans.iter().find(|ban| ban.expires_at.is_none()) {
+                max_ban
+            } else {
+                bans.iter().max_by_key(|ban| ban.expires_at).unwrap()
+            };
+            for ban in bans.iter().filter(|filtered| filtered.id != max_ban.id) {
                 use schema::bans::dsl::*;
 
                 diesel::delete(bans).filter(id.eq(ban.id)).execute(conn)?;
-                return Ok(None);
             }
+            if let Some(expires_at) = max_ban.expires_at {
+                if Utc::now().naive_utc() > expires_at {
+                    use schema::bans::dsl::*;
+
+                    diesel::delete(bans)
+                        .filter(id.eq(max_ban.id))
+                        .execute(conn)?;
+                    return Ok(None);
+                }
+            }
+            Ok(Some(max_ban.clone()))
         }
-        Ok(Some(ban))
     } else {
         Ok(None)
     }
@@ -452,16 +468,33 @@ pub fn is_account_banned(conn: &PgConnection, account_id: i32) -> Result<Option<
 pub fn is_account_muted(conn: &PgConnection, account_id: i32) -> Result<Option<models::Mute>> {
     let account = get_account(conn, account_id)?;
 
-    if let Ok(mute) = models::Mute::belonging_to(&account).first::<models::Mute>(conn) {
-        if let Some(expires_at) = mute.expires_at {
-            if Utc::now().naive_utc() > expires_at {
+    if let Ok(mutes) = models::Mute::belonging_to(&account).load::<models::Mute>(conn) {
+        if mutes.is_empty() {
+            Ok(None)
+        } else {
+            let max_mute =
+                if let Some(max_mute) = mutes.iter().find(|mute| mute.expires_at.is_none()) {
+                    max_mute
+                } else {
+                    mutes.iter().max_by_key(|mute| mute.expires_at).unwrap()
+                };
+            for mute in mutes.iter().filter(|filtered| filtered.id != max_mute.id) {
                 use schema::mutes::dsl::*;
 
                 diesel::delete(mutes).filter(id.eq(mute.id)).execute(conn)?;
-                return Ok(None);
             }
+            if let Some(expires_at) = max_mute.expires_at {
+                if Utc::now().naive_utc() > expires_at {
+                    use schema::mutes::dsl::*;
+
+                    diesel::delete(mutes)
+                        .filter(id.eq(max_mute.id))
+                        .execute(conn)?;
+                    return Ok(None);
+                }
+            }
+            Ok(Some(max_mute.clone()))
         }
-        Ok(Some(mute))
     } else {
         Ok(None)
     }
