@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use sm64js_env::DISCORD_BOT_TOKEN;
 use sm64js_proto::{root_msg, sm64_js_msg, RootMsg, Sm64JsMsg};
+use std::time::Duration;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct DiscordUser {
@@ -142,7 +143,9 @@ pub async fn send_discord_message(
     author: DiscordRichEmbedAuthor,
     footer: DiscordRichEmbedFooter,
 ) {
-    let request: SendClientRequest = awc::Client::default()
+    let request: SendClientRequest = awc::Client::builder()
+        .timeout(Duration::from_secs(15))
+        .finish()
         .post(format!(
             "https://discord.com/api/channels/{}/messages",
             channel_id
@@ -160,8 +163,14 @@ pub async fn send_discord_message(
             },
         });
 
-    let response = request.await.unwrap();
-    if !response.status().is_success() {
-        eprintln!("send_discord_message failed: {:?}", response);
+    match request.await {
+        Ok(res) => {
+            if !res.status().is_success() {
+                eprintln!("send_discord_message failed: {:?}", res);
+            };
+        }
+        Err(err) => {
+            eprintln!("{:?}", err)
+        }
     };
 }
