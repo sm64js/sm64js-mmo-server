@@ -544,13 +544,21 @@ impl Sm64JsServer {
                                 .to_string();
                     chat_msg.sender = "[Server]".to_string();
                     chat_msg.is_server = true;
-                    let root_msg = RootMsg {
-                        message: Some(root_msg::Message::UncompressedSm64jsMsg(Sm64JsMsg {
-                            message: Some(sm64_js_msg::Message::ChatMsg(chat_msg)),
-                        })),
-                    };
-                    let mut msg = vec![];
-                    root_msg.encode(&mut msg).unwrap();
+
+                    let msg = Sm64JsServer::create_uncompressed_msg(sm64_js_msg::Message::ChatMsg(
+                        chat_msg,
+                    ));
+
+                    return Err(msg);
+                }
+                ChatError::Screaming => {
+                    chat_msg.message = "COULD YOU PLEASE STOP SCREAMING?".to_string();
+                    chat_msg.sender = "[Server]".to_string();
+                    chat_msg.is_server = true;
+
+                    let msg = Sm64JsServer::create_uncompressed_msg(sm64_js_msg::Message::ChatMsg(
+                        chat_msg,
+                    ));
 
                     return Err(msg);
                 }

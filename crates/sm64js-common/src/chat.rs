@@ -67,14 +67,23 @@ impl ChatHistory {
         let censored_message = censor.censor(&escaped_message);
         let is_censored = censored_message != escaped_message;
 
-        let date = Utc::now() - Duration::seconds(15);
+        let date = Utc::now() - Duration::seconds(10);
         let is_spam = self
             .0
             .keys()
             .skip_while(|k| *k < &date)
             .filter(|k| !self.0.get(*k).unwrap().is_spam.unwrap_or_default())
             .count()
-            > 5;
+            > 3;
+
+        let is_screaming = {
+            let alphabetic_count = message.chars().filter(|c| c.is_ascii_alphabetic()).count();
+            let screaming_count = message
+                .chars()
+                .filter(|c| c.is_ascii_alphabetic() && c.is_ascii_uppercase())
+                .count();
+            (screaming_count as f32 / alphabetic_count as f32) > 0.5
+        };
 
         let now = Utc::now();
         let discord_id = account_info.discord.clone().map(|d| d.id);
@@ -93,10 +102,21 @@ impl ChatHistory {
                 is_escaped: if is_escaped { Some(is_escaped) } else { None },
                 is_censored: if is_censored { Some(is_censored) } else { None },
                 is_spam: if is_spam { Some(is_spam) } else { None },
+                is_screaming: if is_screaming {
+                    Some(is_screaming)
+                } else {
+                    None
+                },
             },
         );
-        let message = message.to_string();
 
+        if is_spam {
+            return ChatResult::Err(ChatError::Spam);
+        } else if is_screaming {
+            return ChatResult::Err(ChatError::Screaming);
+        }
+
+        let message = message.to_string();
         if !is_spam && !message.is_empty() {
             let censored_message = censored_message.clone();
             actix::spawn(async move {
@@ -229,6 +249,7 @@ pub struct ChatMessage {
     is_escaped: Option<bool>,
     is_censored: Option<bool>,
     is_spam: Option<bool>,
+    is_screaming: Option<bool>,
 }
 
 pub enum ChatResult {
@@ -239,4 +260,5 @@ pub enum ChatResult {
 
 pub enum ChatError {
     Spam,
+    Screaming,
 }
