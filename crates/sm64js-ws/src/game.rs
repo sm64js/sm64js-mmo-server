@@ -1,4 +1,7 @@
-use crate::{server::BroadcastLobbyData, Rooms, Sm64JsServer};
+use crate::{
+    server::{BroadcastLobbyData, SendPlayerList},
+    Rooms, Sm64JsServer,
+};
 
 use actix::Addr;
 use anyhow::Result;
@@ -12,9 +15,11 @@ pub struct Game;
 impl Game {
     pub fn run(server: Addr<Sm64JsServer>, rooms: Rooms) {
         thread::spawn(move || {
-            let mut i = 0;
+            let mut i = 0u16;
+            let mut j = 0u16;
             loop {
                 i += 1;
+                j += 1;
                 Self::process_flags(rooms.clone());
                 Self::broadcast_data(rooms.clone());
                 if i == 30 {
@@ -22,12 +27,16 @@ impl Game {
                     Self::broadcast_valid_update(server.clone(), rooms.clone());
                     i = 0;
                 }
+                if j == 300 {
+                    Self::send_player_list(server.clone());
+                    j = 0;
+                }
                 thread::sleep(Duration::from_millis(33));
             }
         });
     }
 
-    pub fn process_flags(rooms: Rooms) {
+    fn process_flags(rooms: Rooms) {
         rooms.par_iter().for_each(|room| room.process_flags());
     }
 
@@ -41,7 +50,7 @@ impl Game {
         }
     }
 
-    pub fn broadcast_skins(rooms: Rooms) {
+    fn broadcast_skins(rooms: Rooms) {
         if let Err(err) = rooms
             .par_iter()
             .map(|room| room.broadcast_skins())
@@ -51,7 +60,7 @@ impl Game {
         }
     }
 
-    pub fn broadcast_valid_update(server: Addr<Sm64JsServer>, rooms: Rooms) {
+    fn broadcast_valid_update(server: Addr<Sm64JsServer>, rooms: Rooms) {
         let game = rooms
             .par_iter()
             .map(|room| room.get_and_send_valid_players())
@@ -60,5 +69,9 @@ impl Game {
         let root_msg = create_uncompressed_msg(message);
 
         server.do_send(BroadcastLobbyData { data: root_msg });
+    }
+
+    fn send_player_list(server: Addr<Sm64JsServer>) {
+        server.do_send(SendPlayerList);
     }
 }

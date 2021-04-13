@@ -23,6 +23,7 @@ serde = "1"
 sm64js-auth = { path = "../sm64js-auth" }
 sm64js-common = { path = "../sm64js-common" }
 sm64js-db = { path = "../sm64js-db" }
+sm64js-env = { path = "../sm64js-env" }
 sm64js-proto = { path = "../sm64js-proto" }
 thiserror = "1"
 

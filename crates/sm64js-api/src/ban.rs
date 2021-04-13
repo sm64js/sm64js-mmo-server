@@ -95,12 +95,12 @@ expires_at: {}
                 "POST Ban player by {}",
                 auth_info.get_discord_username().unwrap_or_default()
             ),
-            url: format!(
+            url: Some(format!(
                 "{}/api/account?account_id={}",
                 REDIRECT_URI.get().unwrap(),
                 account_info.account.id
-            ),
-            icon_url: if let Some(discord) = &account_info.discord {
+            )),
+            icon_url: Some(if let Some(discord) = &account_info.discord {
                 if let Some(avatar) = &discord.avatar {
                     format!(
                         "https://cdn.discordapp.com/avatars/{}/{}.png?size=64",
@@ -111,12 +111,20 @@ expires_at: {}
                 }
             } else {
                 "https://developers.google.com/identity/images/g-logo.png".to_string()
-            },
+            }),
         };
-        let footer = sm64js_common::DiscordRichEmbedFooter {
+        let footer = Some(sm64js_common::DiscordRichEmbedFooter {
             text: format!("#{}", account_info.account.id),
-        };
-        sm64js_common::send_discord_message("829813249520042066", message, author, footer).await;
+        });
+        sm64js_common::send_discord_message(
+            "829813249520042066",
+            None,
+            message,
+            None,
+            author,
+            footer,
+        )
+        .await;
     });
 
     Ok(NoContent)

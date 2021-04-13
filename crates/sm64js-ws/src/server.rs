@@ -11,7 +11,10 @@ use parking_lot::{Mutex, RwLock};
 use prost::Message as ProstMessage;
 use rand::{self, Rng};
 use sm64js_auth::{AuthInfo, Permission};
-use sm64js_common::{sanitize_chat, ChatError, ChatHistoryData, ChatResult, GetChat, PlayerInfo};
+use sm64js_common::{
+    sanitize_chat, send_discord_message, ChatError, ChatHistoryData, ChatResult, GetChat,
+    PlayerInfo,
+};
 use sm64js_db::DbPool;
 use sm64js_proto::{
     root_msg, sm64_js_msg, AnnouncementMsg, AttackMsg, ChatMsg, GrabFlagMsg, JoinGameMsg, MarioMsg,
@@ -404,6 +407,56 @@ impl Handler<SendRequestCosmetics> for Sm64JsServer {
 
 #[derive(Debug)]
 pub struct RequestCosmeticsAccepted(pub Vec<Vec<u8>>);
+
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct SendPlayerList;
+
+impl Handler<SendPlayerList> for Sm64JsServer {
+    type Result = ();
+
+    fn handle(&mut self, _: SendPlayerList, _: &mut Context<Self>) {
+        let mut fields: Vec<_> = self
+            .rooms
+            .iter_mut()
+            .filter_map(|mut room| room.get_player_list_field())
+            .collect();
+        fields.sort_unstable_by(|(num1, _), (num2, _)| num1.cmp(num2));
+
+        let mut sum = 100u16;
+        let mut field_sum = 0u8;
+        fields.retain(|(_, field)| {
+            sum += field.name.len() as u16 + field.value.len() as u16;
+            field_sum += 1;
+            sum <= 6000 && field_sum <= 25
+        });
+        let author = sm64js_common::DiscordRichEmbedAuthor {
+            name: format!("Players online: {}", self.players.len()),
+            url: None,
+            icon_url: None,
+        };
+
+        actix::spawn(async move {
+            #[cfg(debug_assertions)]
+            let channel_id = "831511367763623966";
+            #[cfg(not(debug_assertions))]
+            let channel_id = "831511367763623966";
+            #[cfg(debug_assertions)]
+            let message_id = "831512522308845568";
+            #[cfg(not(debug_assertions))]
+            let message_id = "831438385624776714";
+            send_discord_message(
+                channel_id,
+                Some(message_id),
+                "".to_string(),
+                Some(fields.into_iter().map(|(_, field)| field).collect()),
+                author,
+                None,
+            )
+            .await;
+        });
+    }
+}
 
 impl Sm64JsServer {
     pub fn new(pool: web::Data<DbPool>, chat_history: ChatHistoryData, rooms: Rooms) -> Self {

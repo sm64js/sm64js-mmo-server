@@ -6,7 +6,8 @@ use flate2::{write::ZlibEncoder, Compression};
 use prost::Message as ProstMessage;
 use rand::{self, Rng};
 use rayon::prelude::*;
-use sm64js_common::create_uncompressed_msg;
+use sm64js_common::{create_uncompressed_msg, DiscordRichEmbedField};
+use sm64js_env::REDIRECT_URI;
 use sm64js_proto::{
     root_msg, sm64_js_msg, FlagMsg, MarioListMsg, PlayerListsMsg, RootMsg, SkinMsg, Sm64JsMsg,
     ValidPlayersMsg,
@@ -302,6 +303,42 @@ impl Room {
             .collect::<Result<Vec<_>>>()?;
 
         Ok(messages)
+    }
+
+    pub fn get_player_list_field(&mut self) -> Option<(usize, DiscordRichEmbedField)> {
+        self.players.retain(|_, player| player.upgrade().is_some());
+        if self.players.is_empty() {
+            return None;
+        }
+
+        let mut value = "".to_string();
+        let mut num = 0;
+        for player in self.players.values() {
+            if let Some(player) = player.upgrade() {
+                if player.read().is_in_game_admin() {
+                    value += "🌟 ";
+                }
+                let to_append = format!(
+                    "[{}]({}/api/account?account_id={})\n",
+                    player.read().get_name(),
+                    REDIRECT_URI.get().unwrap(),
+                    player.read().get_account_id().unwrap_or_default()
+                );
+                if value.len() + to_append.len() > 1024 {
+                    break;
+                }
+                num += 1;
+                value += &to_append;
+            }
+        }
+        value += "\n";
+        Some((
+            num,
+            DiscordRichEmbedField {
+                name: self.name.clone(),
+                value,
+            },
+        ))
     }
 }
 

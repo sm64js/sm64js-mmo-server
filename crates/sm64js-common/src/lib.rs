@@ -108,16 +108,23 @@ struct DiscordChatMessage {
 #[derive(Serialize)]
 struct DiscordRichEmbed {
     description: String,
+    fields: Option<Vec<DiscordRichEmbedField>>,
     timestamp: NaiveDateTime,
     author: DiscordRichEmbedAuthor,
-    footer: DiscordRichEmbedFooter,
+    footer: Option<DiscordRichEmbedFooter>,
+}
+
+#[derive(Serialize)]
+pub struct DiscordRichEmbedField {
+    pub name: String,
+    pub value: String,
 }
 
 #[derive(Serialize)]
 pub struct DiscordRichEmbedAuthor {
     pub name: String,
-    pub url: String,
-    pub icon_url: String,
+    pub url: Option<String>,
+    pub icon_url: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -139,17 +146,27 @@ pub fn create_uncompressed_msg(msg: sm64_js_msg::Message) -> Vec<u8> {
 
 pub async fn send_discord_message(
     channel_id: &str,
+    message_id: Option<&str>,
     description: String,
+    fields: Option<Vec<DiscordRichEmbedField>>,
     author: DiscordRichEmbedAuthor,
-    footer: DiscordRichEmbedFooter,
+    footer: Option<DiscordRichEmbedFooter>,
 ) {
-    let request: SendClientRequest = awc::Client::builder()
+    let client = awc::Client::builder()
         .timeout(Duration::from_secs(15))
-        .finish()
-        .post(format!(
+        .finish();
+    let request = if let Some(message_id) = message_id {
+        client.patch(format!(
+            "https://discord.com/api/channels/{}/messages/{}",
+            channel_id, message_id
+        ))
+    } else {
+        client.post(format!(
             "https://discord.com/api/channels/{}/messages",
             channel_id
         ))
+    };
+    let request: SendClientRequest = request
         .header(
             awc::http::header::AUTHORIZATION,
             format!("{} {}", "Bot", DISCORD_BOT_TOKEN.get().unwrap(),),
@@ -157,6 +174,7 @@ pub async fn send_discord_message(
         .send_json(&DiscordChatMessage {
             embed: DiscordRichEmbed {
                 description,
+                fields,
                 timestamp: Utc::now().naive_utc(),
                 author,
                 footer,

@@ -209,12 +209,12 @@ impl ChatHistory {
     ) {
         let author = super::DiscordRichEmbedAuthor {
             name: player_name,
-            url: format!(
+            url: Some(format!(
                 "{}/api/account?account_id={}",
                 REDIRECT_URI.get().unwrap(),
                 account_info.account.id
-            ),
-            icon_url: if let Some(discord) = account_info.discord {
+            )),
+            icon_url: Some(if let Some(discord) = account_info.discord {
                 if let Some(avatar) = discord.avatar {
                     format!(
                         "https://cdn.discordapp.com/avatars/{}/{}.png?size=64",
@@ -225,12 +225,13 @@ impl ChatHistory {
                 }
             } else {
                 "https://developers.google.com/identity/images/g-logo.png".to_string()
-            },
+            }),
         };
-        let footer = super::DiscordRichEmbedFooter {
+        let footer = Some(super::DiscordRichEmbedFooter {
             text: format!("#{} - {}", account_info.account.id, level_name),
-        };
-        super::send_discord_message("824145108047101974", message, author, footer).await;
+        });
+        super::send_discord_message("824145108047101974", None, message, None, author, footer)
+            .await;
     }
 }
 

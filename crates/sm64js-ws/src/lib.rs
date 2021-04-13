@@ -1,5 +1,5 @@
+#![feature(iter_map_while)]
 #![feature(try_blocks)]
-#![feature(try_trait)]
 
 mod client;
 mod game;

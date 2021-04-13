@@ -124,8 +124,31 @@ impl Player {
         }
     }
 
+    pub fn get_avatar_url(&self) -> Option<String> {
+        self.clients.get(&self.socket_id).map(|client| {
+            if let Some(discord) = &client.auth_info.0.discord {
+                if let Some(avatar) = &discord.account.avatar {
+                    format!(
+                        "https://cdn.discordapp.com/avatars/{}/{}.png?size=64",
+                        discord.account.id, avatar
+                    )
+                } else {
+                    "https://discord.com/assets/2c21aeda16de354ba5334551a883b481.png".to_string()
+                }
+            } else {
+                "https://developers.google.com/identity/images/g-logo.png".to_string()
+            }
+        })
+    }
+
     pub fn get_socket_id(&self) -> u32 {
         self.socket_id
+    }
+
+    pub fn get_account_id(&self) -> Option<i32> {
+        self.clients
+            .get(&self.socket_id)
+            .map(|client| client.get_account_id())
     }
 
     pub fn get_level(&self) -> u32 {
@@ -146,6 +169,13 @@ impl Player {
     pub fn set_skin_data(&mut self, skin_data: Option<SkinData>) {
         self.skin_data = skin_data;
         self.skin_data_updated = true;
+    }
+
+    pub fn is_in_game_admin(&self) -> bool {
+        self.clients
+            .get(&self.socket_id)
+            .map(|client| client.auth_info.is_in_game_admin())
+            .unwrap_or_default()
     }
 
     pub fn send_message(&self, msg: Vec<u8>) -> Result<()> {
