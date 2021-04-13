@@ -39,6 +39,10 @@ pub fn insert_discord_session(
 
     let mut account_id = None;
     if let Some(account) = get_discord_account_if_exists(conn, &discord_user.id)? {
+        if let Some(ban) = is_account_banned(conn, account.account_id)? {
+            return Err(DbError::Banned(ban));
+        }
+
         update_account(
             conn,
             account.account_id,
@@ -118,6 +122,10 @@ pub fn insert_google_session(
 
     let mut account_id = None;
     if let Some(account) = get_google_account_if_exists(conn, &sub)? {
+        if let Some(ban) = is_account_banned(conn, account.account_id)? {
+            return Err(DbError::Banned(ban));
+        }
+
         update_account(
             conn,
             account.account_id,
@@ -661,6 +669,8 @@ pub enum DbError {
     AccessTokenInvalid,
     #[error("account_id does not match db entry")]
     AccountIdInvalid,
+    #[error("[Banned]: {0:?}")]
+    Banned(models::Ban),
     #[error("[Diesel]: {0}")]
     Diesel(#[from] diesel::result::Error),
 }
@@ -671,6 +681,7 @@ impl ResponseError for DbError {
             Self::SessionExpired | Self::AccessTokenInvalid | Self::AccountIdInvalid => {
                 HttpResponse::new(StatusCode::BAD_REQUEST)
             }
+            Self::Banned(_) => HttpResponse::new(StatusCode::FORBIDDEN),
             Self::Diesel(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
         };
         res.set_body(Body::from(format!("{}", self)))

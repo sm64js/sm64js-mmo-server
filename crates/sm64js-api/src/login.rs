@@ -87,30 +87,29 @@ async fn login(
     pool: web::Data<DbPool>,
     identity: Identity,
 ) -> Result<web::Json<AuthorizedUserMessage>, LoginError> {
+    let auth_info = identity.get_auth_info();
+    let conn = pool.get().unwrap();
+
+    if let Some(ban) = sm64js_db::is_account_banned(&conn, auth_info.get_account_id())? {
+        return Err(LoginError::Banned(ban));
+    }
+
     let ip = req
         .peer_addr()
         .ok_or(LoginError::IpRequired)?
         .ip()
         .to_string();
 
-    let account_info = identity.get_auth_info();
-    let username = account_info.get_discord_username();
-
-    let conn = pool.get().unwrap();
-
-    if let Some(ban) = sm64js_db::is_account_banned(&conn, account_info.get_account_id())? {
-        return Err(LoginError::Banned(ban));
-    }
-
     sm64js_db::update_account(
         &conn,
-        account_info.get_account_id(),
+        auth_info.get_account_id(),
         &UpdateAccount {
             username: None,
             last_ip: Some(ip),
         },
     )?;
 
+    let username = auth_info.get_discord_username();
     Ok(web::Json(AuthorizedUserMessage { username }))
 }
 
