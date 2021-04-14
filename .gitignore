@@ -1,9 +1,4 @@
 dist
-testdb.json
-*lock.json
-yarn.lock
-node_modules
 /target
-testdb.json
 .DS_Store
 .env
