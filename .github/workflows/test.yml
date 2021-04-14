@@ -1,11 +1,11 @@
 on: 
   push:
     paths:
-      - "sm64js/**/*"
+      - "crates/**/*"
       - ".github/workflows/*.yml"
   pull_request:
     paths:
-      - "sm64js/**/*"
+      - "crates/**/*"
       - ".github/workflows/*.yml"
 
 name: Rust Server Test & Publish
