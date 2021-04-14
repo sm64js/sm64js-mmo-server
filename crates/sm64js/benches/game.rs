@@ -21,7 +21,7 @@ impl Handler<sm64js_ws::Message> for ServerStub {
 }
 
 fn broadcast_data(c: &mut Criterion) {
-    let _ = System::new("asd");
+    let _ = System::new();
 
     let rooms = Room::init_rooms();
 
