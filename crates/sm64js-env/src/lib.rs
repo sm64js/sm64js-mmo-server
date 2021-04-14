@@ -9,6 +9,7 @@ pub static DISCORD_BOT_TOKEN: OnceCell<String> = OnceCell::new();
 pub static REDIRECT_URI: OnceCell<String> = OnceCell::new();
 pub static POSTGRES_PASSWORD: OnceCell<String> = OnceCell::new();
 pub static DATABASE_URL: OnceCell<String> = OnceCell::new();
+pub static ENABLE_PLAYER_LIST: OnceCell<bool> = OnceCell::new();
 
 #[cfg(debug_assertions)]
 pub static DEV_ACCOUNT_ID: i32 = -1337;
@@ -109,4 +110,14 @@ pub fn load() {
     }
 
     DATABASE_URL.set(env::var("DATABASE_URL").unwrap()).unwrap();
+
+    if let Some(enable) = env::var("ENABLE_PLAYER_LIST")
+        .ok()
+        .map(|e| e.parse().ok())
+        .flatten()
+    {
+        ENABLE_PLAYER_LIST.set(enable).unwrap();
+    } else {
+        ENABLE_PLAYER_LIST.set(false).unwrap();
+    }
 }

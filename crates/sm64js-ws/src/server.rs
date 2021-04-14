@@ -440,7 +440,7 @@ impl Handler<SendPlayerList> for Sm64JsServer {
             #[cfg(debug_assertions)]
             let channel_id = "831511367763623966";
             #[cfg(not(debug_assertions))]
-            let channel_id = "831511367763623966";
+            let channel_id = "831428759655284797";
             #[cfg(debug_assertions)]
             let message_id = "831512522308845568";
             #[cfg(not(debug_assertions))]

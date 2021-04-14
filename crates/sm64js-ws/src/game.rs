@@ -7,6 +7,7 @@ use actix::Addr;
 use anyhow::Result;
 use rayon::prelude::*;
 use sm64js_common::create_uncompressed_msg;
+use sm64js_env::ENABLE_PLAYER_LIST;
 use sm64js_proto::{sm64_js_msg, PlayerListsMsg};
 use std::{thread, time::Duration};
 
@@ -18,18 +19,20 @@ impl Game {
             let mut i = 0u16;
             let mut j = 0u16;
             loop {
-                i += 1;
-                j += 1;
                 Self::process_flags(rooms.clone());
                 Self::broadcast_data(rooms.clone());
+                i += 1;
                 if i == 30 {
                     Self::broadcast_skins(rooms.clone());
                     Self::broadcast_valid_update(server.clone(), rooms.clone());
                     i = 0;
                 }
-                if j == 300 {
-                    Self::send_player_list(server.clone());
-                    j = 0;
+                if *ENABLE_PLAYER_LIST.get().unwrap() {
+                    j += 1;
+                    if j == 300 {
+                        Self::send_player_list(server.clone());
+                        j = 0;
+                    }
                 }
                 thread::sleep(Duration::from_millis(33));
             }
