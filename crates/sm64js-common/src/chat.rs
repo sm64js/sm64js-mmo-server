@@ -67,14 +67,26 @@ impl ChatHistory {
         let censored_message = censor.censor(&escaped_message);
         let is_censored = censored_message != escaped_message;
 
-        let date = Utc::now() - Duration::seconds(10);
+        let date = Utc::now() - Duration::seconds(15);
+        let account_id = account_info.account.id;
         let is_spam = self
             .0
-            .keys()
-            .skip_while(|k| *k < &date)
-            .filter(|k| !self.0.get(*k).unwrap().is_spam.unwrap_or_default())
+            .iter()
+            .skip_while(|(k, _)| *k < &date)
+            .filter(|(k, v)| {
+                v.account_id == account_id && !self.0.get(*k).unwrap().is_spam.unwrap_or_default()
+            })
             .count()
-            > 3;
+            >= 3;
+
+        let date = Utc::now() - Duration::seconds(60);
+        let is_excessive_spam = self
+            .0
+            .iter()
+            .skip_while(|(k, _)| *k < &date)
+            .filter(|(_, v)| v.account_id == account_id)
+            .count()
+            >= 30;
 
         let is_screaming = {
             let alphabetic_count = message.chars().filter(|c| c.is_ascii_alphabetic()).count();
@@ -82,7 +94,7 @@ impl ChatHistory {
                 .chars()
                 .filter(|c| c.is_ascii_alphabetic() && c.is_ascii_uppercase())
                 .count();
-            (screaming_count as f32 / alphabetic_count as f32) > 0.5
+            (screaming_count as f32 / alphabetic_count as f32) > 0.7
         };
 
         let now = Utc::now();
@@ -95,6 +107,7 @@ impl ChatHistory {
                 timestamp: now.timestamp(),
                 date_time: now.naive_utc(),
                 player_name: Some(player_name.clone()),
+                account_id,
                 discord_id,
                 google_id: account_info.google.clone().map(|d| d.sub),
                 ip: Some(ip),
@@ -102,6 +115,11 @@ impl ChatHistory {
                 is_escaped: if is_escaped { Some(is_escaped) } else { None },
                 is_censored: if is_censored { Some(is_censored) } else { None },
                 is_spam: if is_spam { Some(is_spam) } else { None },
+                is_excessive_spam: if is_excessive_spam {
+                    Some(is_excessive_spam)
+                } else {
+                    None
+                },
                 is_screaming: if is_screaming {
                     Some(is_screaming)
                 } else {
@@ -110,7 +128,9 @@ impl ChatHistory {
             },
         );
 
-        if is_spam {
+        if is_excessive_spam {
+            return ChatResult::Err(ChatError::ExcessiveSpam);
+        } else if is_spam {
             return ChatResult::Err(ChatError::Spam);
         } else if is_screaming {
             return ChatResult::Err(ChatError::Screaming);
@@ -243,6 +263,7 @@ pub struct ChatMessage {
     timestamp: i64,
     date_time: NaiveDateTime,
     player_name: Option<String>,
+    account_id: i32,
     discord_id: Option<String>,
     google_id: Option<String>,
     ip: Option<String>,
@@ -250,6 +271,7 @@ pub struct ChatMessage {
     is_escaped: Option<bool>,
     is_censored: Option<bool>,
     is_spam: Option<bool>,
+    is_excessive_spam: Option<bool>,
     is_screaming: Option<bool>,
 }
 
@@ -261,5 +283,6 @@ pub enum ChatResult {
 
 pub enum ChatError {
     Spam,
+    ExcessiveSpam,
     Screaming,
 }
