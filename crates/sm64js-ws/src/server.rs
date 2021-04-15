@@ -20,7 +20,7 @@ use sm64js_proto::{
     root_msg, sm64_js_msg, AnnouncementMsg, AttackMsg, ChatMsg, GrabFlagMsg, JoinGameMsg, MarioMsg,
     RootMsg, SkinMsg, Sm64JsMsg,
 };
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, time};
 
 pub static PRIVILEGED_COMMANDS: Lazy<Mutex<HashMap<&str, Permission>>> = Lazy::new(|| {
     let mut m = HashMap::new();
@@ -595,6 +595,31 @@ impl Sm64JsServer {
                     chat_msg.message =
                             "Chat message ignored: You have to wait longer between sending chat messages"
                                 .to_string();
+                    chat_msg.sender = "[Server]".to_string();
+                    chat_msg.is_server = true;
+
+                    let msg = Sm64JsServer::create_uncompressed_msg(sm64_js_msg::Message::ChatMsg(
+                        chat_msg,
+                    ));
+
+                    return Err(msg);
+                }
+                ChatError::ExcessiveSpam => {
+                    let conn = self.pool.get().unwrap();
+                    let expires_at = Utc::now().naive_utc()
+                        + Duration::from_std(time::Duration::from_secs(300)).unwrap();
+                    if let Err(err) = sm64js_db::mute_account(
+                        &conn,
+                        Some("automatic mute due to sending too many messages".to_string()),
+                        Some(expires_at),
+                        account_id,
+                    ) {
+                        eprintln!("{:?}", err);
+                    };
+
+                    chat_msg.message =
+                        "You have been muted for 5min due to sending way too many messages"
+                            .to_string();
                     chat_msg.sender = "[Server]".to_string();
                     chat_msg.is_server = true;
 
