@@ -27,11 +27,12 @@ sm64js-auth = { path = "../sm64js-auth" }
 sm64js-common = { path = "../sm64js-common" }
 sm64js-db = { path = "../sm64js-db" }
 sm64js-env = { path = "../sm64js-env" }
+sm64js-proto = { path = "../sm64js-proto" }
 sm64js-ws = { path = "../sm64js-ws" }
 thiserror = "1"
 
 [features]
-docker = []
+docker = ["sm64js-proto/docker"]
 
 [dev-dependencies]
 actix-rt = "*"

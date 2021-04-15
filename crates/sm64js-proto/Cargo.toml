@@ -10,3 +10,6 @@ prost-build = "0.6"
 [dependencies]
 prost = "0.6"
 serde = "1"
+
+[features]
+docker = []

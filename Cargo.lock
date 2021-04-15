@@ -2550,6 +2550,7 @@ dependencies = [
  "sm64js-common",
  "sm64js-db",
  "sm64js-env",
+ "sm64js-proto",
  "sm64js-ws",
  "thiserror",
 ]

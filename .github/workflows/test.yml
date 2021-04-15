@@ -8,7 +8,7 @@ on:
       - "crates/**/*"
       - ".github/workflows/*.yml"
 
-name: Rust Server Test & Publish
+name: Rust Server Test
 
 jobs:
   test:
