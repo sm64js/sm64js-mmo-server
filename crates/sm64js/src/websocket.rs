@@ -29,6 +29,13 @@ pub async fn index(
         .flatten()
     {
         x_real_ip.to_string()
+    } else if let Some(x_forwarded_for) = req
+        .headers()
+        .get("x-forwarded-for")
+        .map(|ip| ip.to_str().ok())
+        .flatten()
+    {
+        x_forwarded_for.to_string()
     } else {
         req.peer_addr().ok_or(WsError::IpRequired)?.ip().to_string()
     };
