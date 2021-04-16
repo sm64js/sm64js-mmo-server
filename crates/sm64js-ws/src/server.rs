@@ -421,7 +421,7 @@ impl Handler<SendPlayerList> for Sm64JsServer {
             .iter_mut()
             .filter_map(|mut room| room.get_player_list_field())
             .collect();
-        fields.sort_unstable_by(|(num1, _), (num2, _)| num1.cmp(num2));
+        fields.sort_unstable_by(|(num1, _), (num2, _)| num2.cmp(num1));
 
         let mut sum = 100u16;
         let mut field_sum = 0u8;
