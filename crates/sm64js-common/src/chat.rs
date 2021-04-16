@@ -222,7 +222,7 @@ impl ChatHistory {
     }
 
     async fn send_discord_chat_message(
-        message: String,
+        mut message: String,
         player_name: String,
         level_name: String,
         account_info: AccountInfo,
@@ -250,6 +250,7 @@ impl ChatHistory {
         let footer = Some(super::DiscordRichEmbedFooter {
             text: format!("#{} - {}", account_info.account.id, level_name),
         });
+        message = message.replace("*", r"\*").replace("_", r"\_");
         super::send_discord_message("824145108047101974", None, message, None, author, footer)
             .await;
     }
