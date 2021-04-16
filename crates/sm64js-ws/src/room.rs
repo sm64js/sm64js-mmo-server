@@ -21,13 +21,24 @@ use std::{
 pub type Rooms = Arc<DashMap<u32, Room>>;
 
 macro_rules! add_room {
-    ( $rooms:expr, $id:expr, $name:expr, $($flag:expr),* ) => {
+    ( $rooms:expr, $id:expr, $name:expr, $($flag:expr),+ ) => {
         $rooms.insert(
             $id,
             Room {
                 id: $id,
                 name: $name.to_string(),
                 flags: vec![$(RwLock::new(Flag::new($flag)),)*],
+                players: HashMap::new(),
+            },
+        );
+    };
+    ( $rooms:expr, $id:expr, $name:expr ) => {
+        $rooms.insert(
+            $id,
+            Room {
+                id: $id,
+                name: $name.to_string(),
+                flags: vec![],
                 players: HashMap::new(),
             },
         );
@@ -45,13 +56,13 @@ pub struct Room {
 impl Room {
     pub fn init_rooms() -> Rooms {
         let rooms = DashMap::new();
-        add_room!(rooms, 4, "Big Boo's Haunt", [0., 7657., 0.]);
-        add_room!(rooms, 5, "Cool, Cool Mountain", [0., 7657., 0.]);
-        add_room!(rooms, 6, "Castle Inside First LevelCave", [0., 7657., 0.]);
-        add_room!(rooms, 7, "Hazy Maze Cave", [0., 7657., 0.]);
-        add_room!(rooms, 8, "Shifting Sand Land", [0., 7657., 0.]);
+        add_room!(rooms, 4, "Big Boo's Haunt");
+        add_room!(rooms, 5, "Cool, Cool Mountain");
+        add_room!(rooms, 6, "Castle Inside First LevelCave");
+        add_room!(rooms, 7, "Hazy Maze Cave");
+        add_room!(rooms, 8, "Shifting Sand Land");
         add_room!(rooms, 9, "Bob-omb Battlefield", [-2384., 260., 6203.]);
-        add_room!(rooms, 10, "Snowman's Land", [0., 7657., 0.]);
+        add_room!(rooms, 10, "Snowman's Land");
         add_room!(
             rooms,
             16,
@@ -59,12 +70,13 @@ impl Room {
             [6300., 910., -5900.],
             [-4200., -1300., -5300.]
         );
-        add_room!(rooms, 24, "Whomps Fortress", [0., 7657., 0.]);
-        add_room!(rooms, 26, "Castle Courtyard", [0., 7657., 0.]);
-        add_room!(rooms, 27, "Princess's Secret Slide", [0., 7657., 0.]);
-        add_room!(rooms, 36, "Tall, Tall Mountain", [0., 7657., 0.]);
-        add_room!(rooms, 602, "Castle Inside Second Level", [0., 7657., 0.]);
-        add_room!(rooms, 999, "Clouded Ruins", [0., 7657., 0.]);
+        add_room!(rooms, 24, "Whomps Fortress");
+        add_room!(rooms, 26, "Castle Courtyard");
+        add_room!(rooms, 27, "Princess's Secret Slide");
+        add_room!(rooms, 36, "Tall, Tall Mountain");
+        add_room!(rooms, 56, "Cool, Cool Mountain Slide");
+        add_room!(rooms, 602, "Castle Inside Second Level");
+        add_room!(rooms, 999, "Clouded Ruins");
         add_room!(
             rooms,
             1000,
@@ -81,7 +93,7 @@ impl Room {
             [-76., 467., -7768.],
             [-76., 467., 7945.]
         );
-        add_room!(rooms, 1002, "Starman Fortress", [0., 7657., 0.]);
+        add_room!(rooms, 1002, "Starman Fortress");
 
         Arc::new(rooms)
     }
