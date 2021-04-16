@@ -163,7 +163,7 @@ pub struct NewGoogleSession {
 }
 
 // TODO implement Display trait for better human readable error message on ban
-#[derive(Associations, Clone, Debug, Identifiable, Insertable, Queryable, Serialize)]
+#[derive(Associations, Clone, Debug, Identifiable, Queryable, Serialize)]
 #[belongs_to(Account)]
 #[serde(rename_all = "camelCase")]
 pub struct Ban {
@@ -183,6 +183,17 @@ pub struct NewBan {
     pub reason: Option<String>,
     pub expires_at: Option<NaiveDateTime>,
     pub account_id: Option<i32>,
+}
+
+#[derive(
+    AsChangeset, Associations, Clone, Debug, Identifiable, Insertable, Queryable, Serialize,
+)]
+#[serde(rename_all = "camelCase")]
+#[primary_key(ip)]
+pub struct IpBan {
+    pub ip: String,
+    pub reason: Option<String>,
+    pub expires_at: Option<NaiveDateTime>,
 }
 
 #[derive(Associations, Clone, Debug, Identifiable, Insertable, Queryable, Serialize)]

@@ -414,6 +414,29 @@ pub fn ban_account(
     Ok(ban)
 }
 
+pub fn ban_ip(
+    conn: &PgConnection,
+    ip: String,
+    reason: Option<String>,
+    expires_at: Option<NaiveDateTime>,
+) -> Result<models::IpBan> {
+    use schema::ip_bans;
+
+    let ip_ban = models::IpBan {
+        ip,
+        reason,
+        expires_at,
+    };
+    let ip_ban: models::IpBan = diesel::insert_into(ip_bans::table)
+        .values(&ip_ban)
+        .on_conflict(on_constraint("ip_bans_pkey"))
+        .do_update()
+        .set(&ip_ban)
+        .get_result(conn)?;
+
+    Ok(ip_ban)
+}
+
 pub fn mute_account(
     conn: &PgConnection,
     reason: Option<String>,
@@ -470,6 +493,30 @@ pub fn is_account_banned(conn: &PgConnection, account_id: i32) -> Result<Option<
         }
     } else {
         Ok(None)
+    }
+}
+
+pub fn is_ip_banned(conn: &PgConnection, ip: &str) -> Result<Option<models::IpBan>> {
+    use schema::ip_bans;
+
+    match ip_bans::table.find(ip).first(conn) {
+        Ok(ban) => {
+            let ban: models::IpBan = ban;
+            if let Some(expires_at) = ban.expires_at {
+                if Utc::now().naive_utc() > expires_at {
+                    use schema::ip_bans::dsl::*;
+
+                    diesel::delete(ip_bans)
+                        .filter(ip.eq(ban.ip))
+                        .execute(conn)?;
+                    return Ok(None);
+                }
+            }
+
+            Ok(Some(ban))
+        }
+        Err(diesel::result::Error::NotFound) => Ok(None),
+        Err(err) => Err(err.into()),
     }
 }
 

@@ -7,9 +7,9 @@ use chrono::{Duration, Utc};
 use paperclip::actix::{api_v2_errors, api_v2_operation, web, Apiv2Schema, Mountable};
 use serde::{Deserialize, Serialize};
 use sm64js_auth::Identity;
-use sm64js_common::DiscordUser;
+use sm64js_common::{get_ip_from_req, DiscordUser};
 use sm64js_db::{
-    models::{Ban, UpdateAccount},
+    models::{Ban, IpBan, UpdateAccount},
     DbPool,
 };
 use sm64js_env::{
@@ -94,6 +94,11 @@ async fn login(
         return Err(LoginError::Banned(ban));
     }
 
+    let ip = get_ip_from_req(&req).ok_or(LoginError::IpRequired)?;
+    if let Some(ip_ban) = sm64js_db::is_ip_banned(&conn, &ip)? {
+        return Err(LoginError::IpBanned(ip_ban));
+    }
+
     let ip = req
         .peer_addr()
         .ok_or(LoginError::IpRequired)?
@@ -120,11 +125,12 @@ async fn login_with_discord(
     pool: web::Data<DbPool>,
     session: Session,
 ) -> Result<web::Json<AuthorizedUserMessage>, LoginError> {
-    let ip = req
-        .peer_addr()
-        .ok_or(LoginError::IpRequired)?
-        .ip()
-        .to_string();
+    let conn = pool.get().unwrap();
+
+    let ip = get_ip_from_req(&req).ok_or(LoginError::IpRequired)?;
+    if let Some(ip_ban) = sm64js_db::is_ip_banned(&conn, &ip)? {
+        return Err(LoginError::IpBanned(ip_ban));
+    }
 
     let req = OAuth2Request {
         client_id: DISCORD_CLIENT_ID.get().unwrap().clone(),
@@ -178,7 +184,6 @@ async fn login_with_discord(
         Some(response.json().await?)
     };
 
-    let conn = pool.get().unwrap();
     let discord_session = sm64js_db::insert_discord_session(
         &conn,
         access_token,
@@ -207,11 +212,12 @@ async fn login_with_google(
     pool: web::Data<DbPool>,
     session: Session,
 ) -> Result<web::Json<AuthorizedUserMessage>, LoginError> {
-    let ip = req
-        .peer_addr()
-        .ok_or(LoginError::IpRequired)?
-        .ip()
-        .to_string();
+    let conn = pool.get().unwrap();
+
+    let ip = get_ip_from_req(&req).ok_or(LoginError::IpRequired)?;
+    if let Some(ip_ban) = sm64js_db::is_ip_banned(&conn, &ip)? {
+        return Err(LoginError::IpBanned(ip_ban));
+    }
 
     if let (Some(client_id), Some(client_secret)) = (
         GOOGLE_CLIENT_ID.get().cloned(),
@@ -248,7 +254,6 @@ async fn login_with_google(
         let id_token: IdToken = response.json().await?;
         let expires_at = id_token.exp.parse::<i64>().unwrap();
 
-        let conn = pool.get().unwrap();
         let google_session =
             sm64js_db::insert_google_session(&conn, jwt_token, expires_at, id_token.sub, ip)
                 .unwrap();
@@ -285,6 +290,8 @@ enum LoginError {
     IpRequired,
     #[error("[Banned]: {0:?}")]
     Banned(Ban),
+    #[error("[IpBanned]: {0:?}")]
+    IpBanned(IpBan),
     #[error("[SendRequest]: {0}")]
     SendRequest(#[from] SendRequestError),
     #[error("[TokenExpired]")]
@@ -304,6 +311,7 @@ impl ResponseError for LoginError {
         let res = match self {
             Self::IpRequired => HttpResponse::new(StatusCode::BAD_REQUEST),
             Self::Banned(_) => HttpResponse::new(StatusCode::FORBIDDEN),
+            Self::IpBanned(_) => HttpResponse::new(StatusCode::FORBIDDEN),
             Self::SendRequest(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
             Self::TokenExpired => HttpResponse::new(StatusCode::BAD_REQUEST),
             Self::SerdeJson(_) => HttpResponse::new(StatusCode::BAD_REQUEST),

@@ -84,6 +84,14 @@ table! {
 }
 
 table! {
+    ip_bans (ip) {
+        ip -> Varchar,
+        reason -> Nullable<Varchar>,
+        expires_at -> Nullable<Timestamp>,
+    }
+}
+
+table! {
     mutes (id) {
         id -> Int4,
         reason -> Nullable<Varchar>,
@@ -110,5 +118,6 @@ allow_tables_to_appear_in_same_query!(
     geolocations,
     google_accounts,
     google_sessions,
+    ip_bans,
     mutes,
 );

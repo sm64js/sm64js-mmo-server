@@ -3,6 +3,7 @@ use actix_web::{dev::Body, http::StatusCode, HttpRequest, HttpResponse, Response
 use actix_web_actors::ws;
 use paperclip::actix::{api_v2_errors, api_v2_operation, web};
 use sm64js_auth::Identity;
+use sm64js_common::get_ip_from_req;
 use sm64js_db::{models::Ban, DbPool};
 use sm64js_ws::{Sm64JsServer, Sm64JsWsSession};
 use thiserror::Error;
@@ -22,23 +23,7 @@ pub async fn index(
         return Err(WsError::Banned(ban));
     }
 
-    let ip = if let Some(x_real_ip) = req
-        .headers()
-        .get("x-real-ip")
-        .map(|ip| ip.to_str().ok())
-        .flatten()
-    {
-        x_real_ip.to_string()
-    } else if let Some(x_forwarded_for) = req
-        .headers()
-        .get("x-forwarded-for")
-        .map(|ip| ip.to_str().ok())
-        .flatten()
-    {
-        x_forwarded_for.to_string()
-    } else {
-        req.peer_addr().ok_or(WsError::IpRequired)?.ip().to_string()
-    };
+    let ip = get_ip_from_req(&req).ok_or(WsError::IpRequired)?;
     let real_ip = req
         .connection_info()
         .realip_remote_addr()

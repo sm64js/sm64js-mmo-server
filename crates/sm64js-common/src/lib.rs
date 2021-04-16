@@ -7,7 +7,7 @@ pub use chat::{
 
 use awc::SendClientRequest;
 use chrono::{NaiveDateTime, Utc};
-use paperclip::actix::Apiv2Schema;
+use paperclip::actix::{web::HttpRequest, Apiv2Schema};
 use prost::Message as ProstMessage;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
@@ -191,4 +191,24 @@ pub async fn send_discord_message(
             eprintln!("{:?}", err)
         }
     };
+}
+
+pub fn get_ip_from_req(req: &HttpRequest) -> Option<String> {
+    if let Some(x_real_ip) = req
+        .headers()
+        .get("x-real-ip")
+        .map(|ip| ip.to_str().ok())
+        .flatten()
+    {
+        Some(x_real_ip.to_string())
+    } else if let Some(x_forwarded_for) = req
+        .headers()
+        .get("x-forwarded-for")
+        .map(|ip| ip.to_str().ok())
+        .flatten()
+    {
+        Some(x_forwarded_for.to_string())
+    } else {
+        req.peer_addr().map(|ip| ip.ip().to_string())
+    }
 }

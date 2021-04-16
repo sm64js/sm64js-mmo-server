@@ -4,6 +4,7 @@ extern crate anyhow;
 mod account;
 mod ban;
 mod chat;
+mod ip_ban;
 mod login;
 mod logout;
 mod mute;
@@ -20,5 +21,6 @@ pub fn service() -> impl dev::HttpServiceFactory + Mountable {
         .service(login::service())
         .service(web::resource("/logout").route(web::post().to(logout::post_logout)))
         .service(web::resource("/ban").route(web::post().to(ban::post_ban)))
+        .service(web::resource("/ipban").route(web::post().to(ip_ban::post_ban)))
         .service(web::resource("/mute").route(web::post().to(mute::post_mute)))
 }
