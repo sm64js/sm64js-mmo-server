@@ -78,8 +78,7 @@ jobs:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         run: |
-          cd server
-          bash publish.sh
+          bash publish-server.sh
 
       - name: Set output to success
         id: set-output
