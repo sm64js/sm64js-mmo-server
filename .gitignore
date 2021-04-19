@@ -2,4 +2,3 @@ dist
 /target
 .DS_Store
 .env
-/proto

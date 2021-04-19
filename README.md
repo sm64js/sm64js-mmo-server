@@ -6,10 +6,6 @@
 
 [Discord Server](https://discord.gg/7UaDnJt)
 
-## What is this?
-
-This is the server code for sm64js-mmo
-
 ## Prerequisites
 
 - Postgres database, e.g. via [Docker](https://hub.docker.com/_/postgres/).
@@ -19,8 +15,7 @@ This is the server code for sm64js-mmo
 ## Development
 
 The server will also serve client assets, so they first need to be compiled.
-Assuming that you cloned this repository from the [Monorepo](https://github.com/sm64js/sm64js-mmo),
-you will have to navigate to the `client` folder and run `yarn build:rust` once after installing dependencies.
+You will have to navigate to the `client` folder and run `yarn build:rust` once after installing dependencies.
 For development you can instead run `yarn webpack --mode development --env rust`
 or use webpack-dev-server (WIP).
 
