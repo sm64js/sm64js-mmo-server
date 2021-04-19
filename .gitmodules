@@ -1,0 +1,3 @@
+[submodule "client"]
+	path = client
+	url = git@github.com:sm64js/sm64js.git
