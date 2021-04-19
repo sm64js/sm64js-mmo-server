@@ -1,11 +1,11 @@
 on: 
   push:
     paths:
-      - "server/crates/**/*"
+      - "crates/**/*"
       - ".github/workflows/test.yml"
   pull_request:
     paths:
-      - "server/crates/**/*"
+      - "crates/**/*"
       - ".github/workflows/test.yml"
 
 name: Rust Server Test

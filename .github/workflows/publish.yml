@@ -1,0 +1,138 @@
+on: 
+  push:
+    branches: 
+      - main
+
+name: Docker Publish
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      publish-server: ${{ steps.set-output.outputs.publish-server }}
+      publish-client: ${{ steps.set-output.outputs.publish-client }}
+      fetch-depth: ${{ steps.set-depth.outputs.fetch-depth }}
+    steps:
+      - name: Install Dependencies
+        run: |
+          sudo apt-get install -y jq
+
+      - name: Check Clone Depth
+        id: set-depth
+        env:
+          COMMITS: ${{ toJSON(github.event.commits) }}
+        run: |
+          echo "::set-output name=fetch-depth::$(echo $COMMITS | jq length)"
+
+      - uses: actions/checkout@v2
+        name: Checkout
+        env:
+          FETCH_DEPTH: ${{ steps.set-depth.outputs.fetch-depth }}
+        with:
+          fetch-depth: $FETCH_DEPTH
+
+      - name: Checkout submodules
+        env:
+          FETCH_DEPTH: ${{ steps.set-depth.outputs.fetch-depth }}
+        run: |
+          git submodule update --init --depth $FETCH_DEPTH -- client
+
+      - name: Check Git Diff & Log
+        id: set-output
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+        run: |
+          if [[ $(git diff --name-only $BEFORE $AFTER -- 'crates/***' '***.Cargo***') ]]; then
+            echo "::set-output name=publish-server::true"
+          fi
+          if [[ $(git diff --name-only $BEFORE $AFTER client) ]]; then
+            echo "::set-output name=publish-client::true"
+          fi
+          GIT_LOG=$(git log --pretty=format:"%s %b" $BEFORE..$AFTER)
+          if [[ $GIT_LOG == *'publish-server'* ]]; then
+            echo "::set-output name=publish-server::true"
+          fi
+          if [[ $GIT_LOG == *'publish-client'* ]]; then
+            echo "::set-output name=publish-client::true"
+          fi
+
+  publish-server:
+    needs: prepare
+    runs-on: ubuntu-latest
+    outputs:
+      success: ${{ steps.set-output.outputs.success }}
+    steps:
+      - uses: actions/cache@v2
+        if: ${{ needs.prepare.outputs.publish-server }}
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Deploy to Docker Hub
+        if: ${{ needs.prepare.outputs.publish-server }}
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          cd server
+          bash publish.sh
+
+      - name: Set output to success
+        id: set-output
+        run: |
+          echo "::set-output name=success::true"
+
+  publish-client:
+    needs: prepare
+    runs-on: ubuntu-latest
+    outputs:
+      success: ${{ steps.set-output.outputs.success }}
+    steps:
+      - uses: actions/checkout@v2
+        name: Checkout
+        if: ${{ needs.prepare.outputs.publish-client }}
+        env:
+          FETCH_DEPTH: ${{ needs.prepare.outputs.fetch-depth }}
+        with:
+          fetch-depth: $FETCH_DEPTH
+
+      - name: Checkout submodule
+        if: ${{ needs.prepare.outputs.publish-client }}
+        env:
+          FETCH_DEPTH: ${{ needs.prepare.outputs.fetch-depth }}
+        run: |
+          git submodule update --init --depth $FETCH_DEPTH -- client
+
+      - name: Deploy to Docker Hub
+        if: ${{ needs.prepare.outputs.publish-client }}
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          cd client
+          bash publish.sh
+
+      - name: Set output to success
+        id: set-output
+        run: |
+          echo "::set-output name=success::true"
+
+  publish:
+    needs: [prepare, publish-server, publish-client]
+    if: |
+      (${{ needs.prepare.outputs.publish-server }} && ${{ needs.publish-server.outputs.success }}) ||
+      (${{ needs.prepare.outputs.publish-client }} && ${{ needs.publish-client.outputs.success }})
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        name: Checkout
+
+      - name: Deploy to Docker Hub
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: bash publish.sh
