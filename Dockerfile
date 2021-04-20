@@ -13,7 +13,7 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*;
 
 COPY --from=sm64js/sm64js-build /sm64js/target/release/sm64js ./sm64js
-COPY --from=sm64js/sm64js-build /sm64js/openapi ./openapi
+COPY ./openapi ./openapi
 COPY --from=sm64js/sm64js-assets /usr/src/app/dist ./dist
 
 CMD ["./sm64js"]
