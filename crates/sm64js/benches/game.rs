@@ -42,7 +42,7 @@ fn broadcast_data(c: &mut Criterion) {
             });
             clients.insert(
                 i,
-                Client::new(session_addr.clone(), auth_info, "".to_string(), None, i),
+                Client::new(session_addr.clone(), auth_info, "".to_string(), i),
             );
             let player = Arc::new(RwLock::new(Player::new(
                 clients.clone(),

@@ -55,7 +55,6 @@ pub struct Connect {
     pub addr: Recipient<Message>,
     pub auth_info: AuthInfo,
     pub ip: String,
-    pub real_ip: Option<String>,
 }
 
 impl Handler<Connect> for Sm64JsServer {
@@ -76,7 +75,7 @@ impl Handler<Connect> for Sm64JsServer {
         }
 
         let socket_id = rand::thread_rng().gen::<u32>();
-        let client = Client::new(msg.addr, msg.auth_info, msg.ip, msg.real_ip, socket_id);
+        let client = Client::new(msg.addr, msg.auth_info, msg.ip, socket_id);
 
         self.clients.insert(socket_id, client);
         socket_id
@@ -366,7 +365,6 @@ impl Handler<GetPlayers> for Sm64JsServer {
                         discord_id,
                         google_id,
                         ip: client.get_ip().to_string(),
-                        real_ip: client.get_real_ip().cloned(),
                         level: player.get_level(),
                         name: player.get_name().clone(),
                         chat,

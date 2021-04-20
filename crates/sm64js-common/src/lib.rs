@@ -46,7 +46,6 @@ pub struct PlayerInfo {
     pub discord_id: Option<String>,
     pub google_id: Option<String>,
     pub ip: String,
-    pub real_ip: Option<String>,
     pub level: u32,
     pub name: String,
     pub chat: Option<Vec<chat::ChatMessage>>,

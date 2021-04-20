@@ -58,7 +58,6 @@ impl ChatHistory {
         player_name: String,
         level_name: String,
         ip: String,
-        real_ip: Option<String>,
     ) -> ChatResult {
         let escaped_message = sanitize_chat(message);
         let is_escaped = escaped_message != message;
@@ -111,7 +110,6 @@ impl ChatHistory {
                 discord_id,
                 google_id: account_info.google.clone().map(|d| d.sub),
                 ip: Some(ip),
-                real_ip,
                 is_escaped: if is_escaped { Some(is_escaped) } else { None },
                 is_censored: if is_censored { Some(is_censored) } else { None },
                 is_spam: if is_spam { Some(is_spam) } else { None },
@@ -210,7 +208,6 @@ impl ChatHistory {
             }
             if !with_ip {
                 msg.ip = None;
-                msg.real_ip = None;
             }
             res.push(msg);
             if res.len() >= max_messages {
@@ -268,7 +265,6 @@ pub struct ChatMessage {
     discord_id: Option<String>,
     google_id: Option<String>,
     ip: Option<String>,
-    real_ip: Option<String>,
     is_escaped: Option<bool>,
     is_censored: Option<bool>,
     is_spam: Option<bool>,

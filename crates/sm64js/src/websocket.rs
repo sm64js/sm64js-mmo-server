@@ -24,12 +24,8 @@ pub async fn index(
     }
 
     let ip = get_ip_from_req(&req).ok_or(WsError::IpRequired)?;
-    let real_ip = req
-        .connection_info()
-        .realip_remote_addr()
-        .map(|ip| ip.to_string());
     Ok(ws::start(
-        Sm64JsWsSession::new(srv.get_ref().clone(), auth_info, ip, real_ip),
+        Sm64JsWsSession::new(srv.get_ref().clone(), auth_info, ip),
         &req,
         stream,
     )?)

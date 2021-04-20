@@ -10,8 +10,6 @@ use sm64js_db::DbPool;
 use sm64js_proto::{MarioMsg, SkinData};
 use std::{
     collections::HashMap,
-    net::SocketAddr,
-    str::FromStr,
     sync::{Arc, Weak},
 };
 
@@ -24,31 +22,17 @@ pub struct Client {
     addr: Recipient<Message>,
     auth_info: AuthInfo,
     ip: String,
-    real_ip: Option<String>,
     data: Option<MarioMsg>,
     socket_id: u32,
     level: Option<u32>,
 }
 
 impl Client {
-    pub fn new(
-        addr: Recipient<Message>,
-        auth_info: AuthInfo,
-        ip: String,
-        real_ip: Option<String>,
-        socket_id: u32,
-    ) -> Self {
-        let add_real_ip = real_ip
-            .clone()
-            .map(|real_ip| SocketAddr::from_str(&real_ip).ok())
-            .flatten()
-            .map(|real_ip| real_ip.ip().to_string() != ip)
-            .unwrap_or_default();
+    pub fn new(addr: Recipient<Message>, auth_info: AuthInfo, ip: String, socket_id: u32) -> Self {
         Client {
             addr,
             auth_info,
             ip,
-            real_ip: if add_real_ip { real_ip } else { None },
             data: None,
             socket_id,
             level: None,
@@ -78,10 +62,6 @@ impl Client {
 
     pub fn get_ip(&self) -> &String {
         &self.ip
-    }
-
-    pub fn get_real_ip(&self) -> Option<&String> {
-        self.real_ip.as_ref()
     }
 
     pub fn get_socket_id(&self) -> u32 {
@@ -208,7 +188,6 @@ impl Player {
                     .map(|room| room.name.clone())
                     .unwrap_or_else(|| "Lobby".to_string()),
                 client.ip.to_string(),
-                client.real_ip.clone(),
             )
         } else {
             ChatResult::NotFound
