@@ -63,6 +63,14 @@ jobs:
     outputs:
       success: ${{ steps.set-output.outputs.success }}
     steps:
+      - uses: actions/checkout@v2
+        name: Checkout
+        if: ${{ needs.prepare.outputs.publish-server }}
+        env:
+          FETCH_DEPTH: ${{ needs.prepare.outputs.fetch-depth }}
+        with:
+          fetch-depth: $FETCH_DEPTH
+
       - uses: actions/cache@v2
         if: ${{ needs.prepare.outputs.publish-server }}
         with:
