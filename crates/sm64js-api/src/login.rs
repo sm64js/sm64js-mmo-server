@@ -99,12 +99,6 @@ async fn login(
         return Err(LoginError::IpBanned(ip_ban));
     }
 
-    let ip = req
-        .peer_addr()
-        .ok_or(LoginError::IpRequired)?
-        .ip()
-        .to_string();
-
     sm64js_db::update_account(
         &conn,
         auth_info.get_account_id(),
