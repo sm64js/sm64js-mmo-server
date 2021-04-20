@@ -328,6 +328,33 @@ impl Handler<KickClientByAccountId> for Sm64JsServer {
 }
 
 #[derive(Message)]
+#[rtype(result = "Result<()>")]
+pub struct KickClientByIpAddr {
+    pub ip: String,
+}
+
+impl Handler<KickClientByIpAddr> for Sm64JsServer {
+    type Result = Result<()>;
+
+    fn handle(&mut self, msg: KickClientByIpAddr, _: &mut Context<Self>) -> Self::Result {
+        let ip = msg.ip;
+        let socket_id = {
+            if let Some(client) = self.get_client_by_ip_addr(ip) {
+                client.send(Message::Kick)?;
+                Some(client.get_socket_id())
+            } else {
+                None
+            }
+        };
+        if let Some(socket_id) = socket_id {
+            self.clients.remove(&socket_id);
+            self.players.remove(&socket_id);
+        }
+        Ok(())
+    }
+}
+
+#[derive(Message)]
 #[rtype(result = "Vec<PlayerInfo>")]
 pub struct GetPlayers {
     pub include_chat: Option<u32>,
@@ -483,6 +510,17 @@ impl Sm64JsServer {
         self.clients
             .iter()
             .find(|client| client.get_account_id() == account_id)
+            .map(|client| {
+                let socket_id = client.value().get_socket_id();
+                self.clients.get(&socket_id)
+            })
+            .flatten()
+    }
+
+    fn get_client_by_ip_addr(&self, ip: String) -> Option<Ref<u32, Client>> {
+        self.clients
+            .iter()
+            .find(|client| client.get_ip() == &ip)
             .map(|client| {
                 let socket_id = client.value().get_socket_id();
                 self.clients.get(&socket_id)

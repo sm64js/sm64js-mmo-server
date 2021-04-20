@@ -1,17 +1,15 @@
-use std::time::Duration;
+use std::{net::IpAddr, time::Duration};
 
 use actix::prelude::*;
 use actix_http::{body::Body, client::SendRequestError, http::StatusCode, ResponseError};
 use actix_web::HttpResponse;
-use awc::SendClientRequest;
 use chrono::Utc;
 use paperclip::actix::{api_v2_errors, api_v2_operation, web, Apiv2Schema, NoContent};
 use serde::Deserialize;
 use serde_with::skip_serializing_none;
 use sm64js_auth::{Identity, Permission};
-use sm64js_db::{models::NewGeolocation, DbPool};
-use sm64js_env::REDIRECT_URI;
-use sm64js_ws::{KickClientByAccountId, Sm64JsServer};
+use sm64js_db::DbPool;
+use sm64js_ws::{KickClientByIpAddr, Sm64JsServer};
 use thiserror::Error;
 
 /// POST Ban IP address
@@ -35,17 +33,22 @@ pub async fn post_ban(
         return Err(BanError::Unauthorized);
     }
 
-    // match srv
-    //     .send(KickClientByAccountId {
-    //         account_id: query.account_id,
-    //     })
-    //     .await?
-    // {
-    //     Ok(_) => {}
-    //     Err(err) => {
-    //         eprintln!("{:?}", err);
-    //     }
-    // }
+    match query.ip.parse::<IpAddr>() {
+        Ok(ip) => ip,
+        Err(_) => return Err(BanError::IpAddrParse),
+    };
+
+    match srv
+        .send(KickClientByIpAddr {
+            ip: query.ip.clone(),
+        })
+        .await?
+    {
+        Ok(_) => {}
+        Err(err) => {
+            eprintln!("{:?}", err);
+        }
+    }
 
     let conn = pool.get().unwrap();
 
@@ -55,50 +58,35 @@ pub async fn post_ban(
     });
     sm64js_db::ban_ip(&conn, query.ip.clone(), query.reason.clone(), expires_at)?;
 
-    //     actix::spawn(async move {
-    //         let message = format!(
-    //             r"reason: {}
-    // expires_at: {}
-    //         ",
-    //             query.reason.clone().unwrap_or_default(),
-    //             expires_at.map(|exp| exp.to_string()).unwrap_or_default()
-    //         );
-    //         let author = sm64js_common::DiscordRichEmbedAuthor {
-    //             name: format!(
-    //                 "POST Ban player by {}",
-    //                 auth_info.get_discord_username().unwrap_or_default()
-    //             ),
-    //             url: Some(format!(
-    //                 "{}/api/account?account_id={}",
-    //                 REDIRECT_URI.get().unwrap(),
-    //                 account_info.account.id
-    //             )),
-    //             icon_url: Some(if let Some(discord) = &account_info.discord {
-    //                 if let Some(avatar) = &discord.avatar {
-    //                     format!(
-    //                         "https://cdn.discordapp.com/avatars/{}/{}.png?size=64",
-    //                         discord.id, avatar
-    //                     )
-    //                 } else {
-    //                     "https://discord.com/assets/2c21aeda16de354ba5334551a883b481.png".to_string()
-    //                 }
-    //             } else {
-    //                 "https://developers.google.com/identity/images/g-logo.png".to_string()
-    //             }),
-    //         };
-    //         let footer = Some(sm64js_common::DiscordRichEmbedFooter {
-    //             text: format!("#{}", account_info.account.id),
-    //         });
-    //         sm64js_common::send_discord_message(
-    //             "829813249520042066",
-    //             None,
-    //             message,
-    //             None,
-    //             author,
-    //             footer,
-    //         )
-    //         .await;
-    //     });
+    actix::spawn(async move {
+        let message = format!(
+            r"reason: {}
+    expires_at: {}
+            ",
+            query.reason.clone().unwrap_or_default(),
+            expires_at.map(|exp| exp.to_string()).unwrap_or_default()
+        );
+        let author = sm64js_common::DiscordRichEmbedAuthor {
+            name: format!(
+                "POST Ban IP address by {}",
+                auth_info.get_discord_username().unwrap_or_default()
+            ),
+            url: None,
+            icon_url: None,
+        };
+        let footer = Some(sm64js_common::DiscordRichEmbedFooter {
+            text: query.ip.clone(),
+        });
+        sm64js_common::send_discord_message(
+            "829813249520042066",
+            None,
+            message,
+            None,
+            author,
+            footer,
+        )
+        .await;
+    });
 
     Ok(NoContent)
 }
@@ -122,6 +110,8 @@ pub struct PostIpBan {
 pub enum BanError {
     #[error("[Unauthorized]")]
     Unauthorized,
+    #[error("[IpAddrParse]")]
+    IpAddrParse,
     #[error("[SendRequest]: {0}")]
     SendRequest(#[from] SendRequestError),
     #[error("[MailboxError]: {0}")]
@@ -134,6 +124,7 @@ impl ResponseError for BanError {
     fn error_response(&self) -> HttpResponse {
         let res = match self {
             Self::Unauthorized => HttpResponse::new(StatusCode::UNAUTHORIZED),
+            Self::IpAddrParse => HttpResponse::new(StatusCode::BAD_REQUEST),
             Self::SendRequest(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
             Self::Mailbox(_) => HttpResponse::new(StatusCode::INTERNAL_SERVER_ERROR),
             Self::DbError(err) => return err.error_response(),
