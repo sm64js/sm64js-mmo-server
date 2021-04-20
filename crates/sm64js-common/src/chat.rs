@@ -87,13 +87,15 @@ impl ChatHistory {
             .count()
             >= 30;
 
-        let is_screaming = {
+        let is_screaming = if message.len() > 5 {
             let alphabetic_count = message.chars().filter(|c| c.is_ascii_alphabetic()).count();
             let screaming_count = message
                 .chars()
                 .filter(|c| c.is_ascii_alphabetic() && c.is_ascii_uppercase())
                 .count();
             (screaming_count as f32 / alphabetic_count as f32) > 0.7
+        } else {
+            false
         };
 
         let now = Utc::now();
