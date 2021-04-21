@@ -4,6 +4,7 @@ extern crate diesel_migrations;
 mod websocket;
 
 use actix::prelude::*;
+use actix_cors::Cors;
 use actix_web::{dev::Server, middleware, App, HttpServer};
 use diesel::{
     r2d2::{self, ConnectionManager},
@@ -22,7 +23,7 @@ embed_migrations!("../sm64js-db/migrations");
 #[cfg(feature = "docker")]
 const DIST_FOLDER: &str = "./dist";
 #[cfg(not(feature = "docker"))]
-const DIST_FOLDER: &str = "../client/dist";
+const DIST_FOLDER: &str = "./client/dist";
 
 #[cfg(debug_assertions)]
 const LOG_LEVEL: &str = "actix_server=debug,actix_web=debug";
@@ -128,6 +129,14 @@ A session cookie will then be stored in the user's browser that can be used to f
                     .path("/")
                     .max_age(3600 * 24 * 7)
                     .secure(false),
+            )
+            .wrap(
+                Cors::default()
+                    .allow_any_header()
+                    .allow_any_method()
+                    .allow_any_origin()
+                    .supports_credentials()
+                    .max_age(3600),
             )
             .build()
             .service(actix_files::Files::new("/apidoc", "./openapi").index_file("index.html"))
