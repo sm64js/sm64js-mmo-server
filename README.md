@@ -15,11 +15,20 @@
 ## Development
 
 The server will also serve client assets, so they first need to be compiled.
-You will have to navigate to the `client` folder and run `yarn build:rust` once after installing dependencies.
-For development you can instead run `yarn webpack --mode development --env rust`
+You will have to navigate to the `client` folder and run `npm run build` once after installing dependencies
+via `npm install`.
+For development you can instead run `npm run build:dev`
 or use webpack-dev-server (WIP).
 
 In your `.env` file, you don't have to insert all variables for local development.
 It is only mandatory to have a running Postgres database, thus you need to set the `DATABASE_URL` variable.
 Currently only Google sign-in is mocked, so you will have to use this,
 if you cannot set up the Discord environment variables.
+
+If you also cannot manage to run your own Postres database, you can instead contact me
+(Tarnadas#0582 @ Discord) and I might give you access to the Postgres instance of the staging environment.
+
+You can then start the server via `cargo run`.
+Then navigate to `http://localhost:3060`.
+Every time you make changes to the client, you will have to rebuild client assets via `npm run build:dev`.
+Restarting the server is not required.
