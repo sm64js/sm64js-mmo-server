@@ -139,6 +139,10 @@ async fn login_with_discord(
         .send_form(&req);
     let mut response = request.await?;
     if !response.status().is_success() {
+        eprintln!(
+            "[RequestFailed] https://discord.com/api/oauth2/token: {:?}",
+            response.body().await
+        );
         return Err(LoginError::TokenExpired);
     };
     let response: DiscordOAuth2Response = response.json().await?;
@@ -155,6 +159,10 @@ async fn login_with_discord(
         .send();
     let mut response = request.await?;
     if !response.status().is_success() {
+        eprintln!(
+            "[RequestFailed] https://discord.com/api/users/@me: {:?}",
+            response.body().await
+        );
         return Err(LoginError::TokenExpired);
     };
     let discord_user: DiscordUser = response.json().await?;
@@ -230,19 +238,23 @@ async fn login_with_google(
             .send_form(&req);
         let mut response = request.await?;
         if !response.status().is_success() {
+            eprintln!(
+                "[RequestFailed] https://oauth2.googleapis.com/token: {:?}",
+                response.body().await
+            );
             return Err(LoginError::TokenExpired);
         };
         let response: GoogleOAuth2Response = response.json().await?;
         let jwt_token = response.id_token.clone();
 
-        let request: SendClientRequest = awc::Client::default()
-            .get(&format!(
-                "https://oauth2.googleapis.com/tokeninfo?id_token={}",
-                response.id_token
-            ))
-            .send();
+        let req_url = format!(
+            "https://oauth2.googleapis.com/tokeninfo?id_token={}",
+            response.id_token
+        );
+        let request: SendClientRequest = awc::Client::default().get(&req_url).send();
         let mut response = request.await?;
         if !response.status().is_success() {
+            eprintln!("[RequestFailed] {}: {:?}", req_url, response.body().await);
             return Err(LoginError::TokenExpired);
         };
         let id_token: IdToken = response.json().await?;
