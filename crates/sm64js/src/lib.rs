@@ -135,7 +135,7 @@ A session cookie will then be stored in the user's browser that can be used to f
                     } else {
                         SameSite::Lax
                     })
-                    .secure(true),
+                    .secure(false),
             )
             .wrap(
                 Cors::default()
