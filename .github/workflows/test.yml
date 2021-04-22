@@ -55,6 +55,7 @@ jobs:
           
       - name: Start sccache server
         run: |
+          chmod +x $(which sccache)
           sccache --start-server
 
       - uses: actions-rs/cargo@v1
