@@ -5,6 +5,7 @@ mod websocket;
 
 use actix::prelude::*;
 use actix_cors::Cors;
+use actix_http::cookie::SameSite;
 use actix_web::{dev::Server, middleware, App, HttpServer};
 use diesel::{
     r2d2::{self, ConnectionManager},
@@ -15,7 +16,7 @@ use paperclip::{
     v2::models::{DefaultApiRaw, Info, Tag},
 };
 use sm64js_common::{ChatHistory, ChatHistoryData};
-use sm64js_env::DATABASE_URL;
+use sm64js_env::{COOKIE_SAME_SITE_NONE, DATABASE_URL};
 use sm64js_ws::{Game, Room, Sm64JsServer};
 
 embed_migrations!("../sm64js-db/migrations");
@@ -128,7 +129,13 @@ A session cookie will then be stored in the user's browser that can be used to f
                     .name("sm64js")
                     .path("/")
                     .max_age(3600 * 24 * 7)
-                    .secure(false),
+                    .http_only(true)
+                    .same_site(if *COOKIE_SAME_SITE_NONE.get().unwrap() {
+                        SameSite::None
+                    } else {
+                        SameSite::Lax
+                    })
+                    .secure(true),
             )
             .wrap(
                 Cors::default()
