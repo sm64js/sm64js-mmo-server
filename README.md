@@ -32,3 +32,12 @@ You can then start the server via `cargo run`.
 Then navigate to `http://localhost:3060`.
 Every time you make changes to the client, you will have to rebuild client assets via `npm run build:dev`.
 Restarting the server is not required.
+
+### Adding new levels
+
+To add a new level for the MMO server, you need to do these tasks:
+
+- Define a good levelId. If it is a custom level, you should be using a levelId >= 1000.
+  Otherwise use the levelId that is also internally used by Super Mario 64
+- Add the name and levelId to [./client/src/utils.js]() `levelIdToName` constant.
+- Add the name and levelId to [./client/src/index.html]() `#mapSelect` selection.
