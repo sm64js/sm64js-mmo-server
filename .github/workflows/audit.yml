@@ -22,7 +22,7 @@ jobs:
         name: Install Toolchain
         with:
           profile: minimal
-          toolchain: nightly-2021-03-25
+          toolchain: nightly-2021-04-25
           override: true
 
       - uses: actions-rs/cargo@v1
