@@ -95,6 +95,13 @@ impl Room {
         );
         add_room!(rooms, 1002, "Starman Fortress");
         add_room!(rooms, 1003, "Glider Jungle");
+        add_room!(
+            rooms,
+            1006,
+            "Dolphin Town",
+            [-4333., -535., -3239.],
+            [-1543., -535., -3239.]
+        );
 
         Arc::new(rooms)
     }
