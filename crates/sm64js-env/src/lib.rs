@@ -7,7 +7,6 @@ pub static DISCORD_CLIENT_ID: OnceCell<String> = OnceCell::new();
 pub static DISCORD_CLIENT_SECRET: OnceCell<String> = OnceCell::new();
 pub static DISCORD_BOT_TOKEN: OnceCell<String> = OnceCell::new();
 pub static REDIRECT_URI: OnceCell<String> = OnceCell::new();
-pub static POSTGRES_PASSWORD: OnceCell<String> = OnceCell::new();
 pub static DATABASE_URL: OnceCell<String> = OnceCell::new();
 pub static ENABLE_PLAYER_LIST: OnceCell<bool> = OnceCell::new();
 pub static COOKIE_SAME_SITE_NONE: OnceCell<bool> = OnceCell::new();
