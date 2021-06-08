@@ -1,0 +1,16 @@
+version: "3.6"
+services:
+  postgres:
+    image: postgres:13
+    network_mode: bridge
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=topsecretpassword
+      - POSTGRES_DB=sm64js
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  pgdata:

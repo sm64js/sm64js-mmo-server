@@ -8,9 +8,13 @@
 
 ## Prerequisites
 
-- Postgres database, e.g. via [Docker](https://hub.docker.com/_/postgres/).
-- `libpq-dev` for Debian based distros.
 - copy and rename the file `.env.template` to `.env` and insert your environment variables.
+- Postgres database, e.g. via [Docker](https://hub.docker.com/_/postgres/).
+  - for convenience there is a Docker Compose file,
+    that you can start via `docker-compose up` or `docker-compose up -d`
+  - if you want to change the `topsecretpassword`, you will have to do this in the
+    `docker-compose.yml` file and `.env` file
+- `libpq-dev` for Debian based distros.
 
 ## Development
 
