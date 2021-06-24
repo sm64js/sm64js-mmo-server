@@ -70,7 +70,7 @@ impl Room {
             [6300., 910., -5900.],
             [-4200., -1300., -5300.]
         );
-        add_room!(rooms, 24, "Whomps Fortress");
+        add_room!(rooms, 24, "Whomp's Fortress");
         add_room!(rooms, 26, "Castle Courtyard");
         add_room!(rooms, 27, "Princess's Secret Slide");
         add_room!(rooms, 36, "Tall, Tall Mountain");
