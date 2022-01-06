@@ -248,20 +248,13 @@ impl Room {
 
     pub fn process_attack(&self, flag_id: usize, attacker_pos: Vec<f32>, target_id: u32) {
         if let Some(flag) = self.flags.get(flag_id) {
-            let mut flag = flag.write().unwrap();
+            let flag = &mut *flag.write().unwrap();
             if let Some(link_id) = flag.linked_to_player {
                 // TODO use target_id to determine valid attack
                 if link_id != target_id {
                     return;
                 }
-                flag.linked_to_player = None;
-                flag.fall_mode = true;
-                flag.pos = Box::new([
-                    attacker_pos[0] + rand::thread_rng().gen_range(0f32..=1000.) - 500.,
-                    attacker_pos[1] + 600.,
-                    attacker_pos[2] + rand::thread_rng().gen_range(0f32..=1000.) - 500.,
-                ]);
-                flag.height_before_fall = flag.pos[1];
+                flag.drop(&attacker_pos);
             }
         }
     }
@@ -355,6 +348,17 @@ impl Room {
             },
         ))
     }
+
+    pub fn drop_flag_if_holding(&mut self, socket_id: u32) {
+        if let Some(flag) = self
+            .flags
+            .iter()
+            .find(|flag| flag.read().unwrap().linked_to_player == Some(socket_id))
+        {
+            let flag = &mut *flag.write().unwrap();
+            flag.drop(&flag.pos.to_vec());
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -406,5 +410,16 @@ impl Flag {
             socket_id: self.linked_to_player.unwrap_or_default(), // TODO remove from proto
             height_before_fall: self.height_before_fall,
         }
+    }
+
+    fn drop(&mut self, pos: &[f32]) {
+        self.linked_to_player = None;
+        self.fall_mode = true;
+        self.pos = Box::new([
+            pos[0] + rand::thread_rng().gen_range(0f32..=1000.) - 500.,
+            pos[1] + 600.,
+            pos[2] + rand::thread_rng().gen_range(0f32..=1000.) - 500.,
+        ]);
+        self.height_before_fall = self.pos[1];
     }
 }

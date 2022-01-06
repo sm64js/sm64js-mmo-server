@@ -93,7 +93,12 @@ impl Handler<Disconnect> for Sm64JsServer {
 
     fn handle(&mut self, msg: Disconnect, _: &mut Context<Self>) {
         self.clients.remove(&msg.socket_id);
-        self.players.remove(&msg.socket_id);
+        if let Some(player) = self.players.remove(&msg.socket_id) {
+            let level_id = player.read().get_level();
+            if let Some(mut room) = self.rooms.get_mut(&level_id) {
+                room.drop_flag_if_holding(msg.socket_id);
+            }
+        }
     }
 }
 
