@@ -113,8 +113,7 @@ pub fn load() {
 
     if let Some(enable) = env::var("ENABLE_PLAYER_LIST")
         .ok()
-        .map(|e| e.parse().ok())
-        .flatten()
+        .and_then(|e| e.parse().ok())
     {
         ENABLE_PLAYER_LIST.set(enable).unwrap();
     } else {
@@ -123,8 +122,7 @@ pub fn load() {
 
     if let Some(enable) = env::var("COOKIE_SAME_SITE_NONE")
         .ok()
-        .map(|e| e.parse().ok())
-        .flatten()
+        .and_then(|e| e.parse().ok())
     {
         COOKIE_SAME_SITE_NONE.set(enable).unwrap();
     } else {

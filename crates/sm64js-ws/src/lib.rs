@@ -1,4 +1,3 @@
-#![feature(iter_map_while)]
 #![feature(try_blocks)]
 
 mod client;

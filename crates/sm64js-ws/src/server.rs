@@ -135,8 +135,7 @@ impl Handler<SendAttack> for Sm64JsServer {
         if let Some((level_id, attacker_pos)) = self
             .clients
             .get(&socket_id)
-            .map(|client| try { (client.get_level()?, client.get_pos()?.clone()) })
-            .flatten()
+            .and_then(|client| try { (client.get_level()?, client.get_pos()?.clone()) })
         {
             if let Some(room) = self.rooms.get(&level_id) {
                 let flag_id = attack_msg.flag_id as usize;
@@ -163,8 +162,7 @@ impl Handler<SendGrabFlag> for Sm64JsServer {
         if let Some(level_id) = self
             .clients
             .get(&socket_id)
-            .map(|client| client.get_level())
-            .flatten()
+            .and_then(|client| client.get_level())
         {
             if let Some(room) = self.rooms.get(&level_id) {
                 let flag_id = grab_flag_msg.flag_id as usize;
@@ -515,22 +513,20 @@ impl Sm64JsServer {
         self.clients
             .iter()
             .find(|client| client.get_account_id() == account_id)
-            .map(|client| {
+            .and_then(|client| {
                 let socket_id = client.value().get_socket_id();
                 self.clients.get(&socket_id)
             })
-            .flatten()
     }
 
     fn get_client_by_ip_addr(&self, ip: String) -> Option<Ref<u32, Client>> {
         self.clients
             .iter()
             .find(|client| client.get_ip() == &ip)
-            .map(|client| {
+            .and_then(|client| {
                 let socket_id = client.value().get_socket_id();
                 self.clients.get(&socket_id)
             })
-            .flatten()
     }
 
     fn handle_command(chat_msg: ChatMsg, auth_info: AuthInfo) -> Option<Vec<u8>> {
@@ -698,7 +694,7 @@ impl Sm64JsServer {
         if name.len() < 3 || name.len() > 14 || name.to_ascii_uppercase() == "SERVER" {
             return false;
         }
-        let mut sanitized_name = sanitize_chat(&name);
+        let mut sanitized_name = sanitize_chat(name);
         let censor = Censor::Standard;
         sanitized_name = censor.censor(&sanitized_name);
         sanitized_name == name

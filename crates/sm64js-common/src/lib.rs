@@ -196,15 +196,13 @@ pub fn get_ip_from_req(req: &HttpRequest) -> Option<String> {
     if let Some(x_real_ip) = req
         .headers()
         .get("x-real-ip")
-        .map(|ip| ip.to_str().ok())
-        .flatten()
+        .and_then(|ip| ip.to_str().ok())
     {
         Some(x_real_ip.to_string())
     } else if let Some(x_forwarded_for) = req
         .headers()
         .get("x-forwarded-for")
-        .map(|ip| ip.to_str().ok())
-        .flatten()
+        .and_then(|ip| ip.to_str().ok())
     {
         Some(x_forwarded_for.to_string())
     } else {

@@ -109,8 +109,7 @@ impl Permission {
     fn role_has_permission(&self, role: &str) -> bool {
         ROLES_WITH_PERMISSIONS
             .get(role)
-            .map(|permissions| permissions.iter().find(|p| *p == self))
-            .flatten()
+            .and_then(|permissions| permissions.iter().find(|p| *p == self))
             .map(|p| match (self, p) {
                 (Self::TempBanAccount(d1), Self::TempBanAccount(d2))
                 | (Self::TempMuteAccount(d1), Self::TempMuteAccount(d2)) => d1 <= d2,

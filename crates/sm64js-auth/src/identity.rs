@@ -27,7 +27,7 @@ impl Identity {
 
     fn get_identity(extensions: &mut Extensions) -> Identity {
         if let Some(s_impl) = extensions.get::<Rc<RefCell<Option<AuthInfo>>>>() {
-            return Identity(Rc::clone(&s_impl));
+            return Identity(Rc::clone(s_impl));
         }
         let inner = Rc::new(RefCell::new(None));
         extensions.insert(inner.clone());

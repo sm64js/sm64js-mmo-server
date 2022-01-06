@@ -142,8 +142,7 @@ impl Player {
     pub fn get_data(&self) -> Option<MarioMsg> {
         self.clients
             .get(&self.socket_id)
-            .map(|d| d.data.clone())
-            .flatten()
+            .and_then(|d| d.data.clone())
     }
 
     pub fn set_skin_data(&mut self, skin_data: Option<SkinData>) {

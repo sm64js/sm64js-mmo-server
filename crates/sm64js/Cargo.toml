@@ -16,7 +16,7 @@ actix-web = "3"
 actix-web-actors = "3"
 diesel = { version = "1", features = ["chrono", "postgres", "r2d2"] }
 diesel_migrations = "1"
-env_logger = "0.8"
+env_logger = "0.9"
 indexmap = "1"
 paperclip = { git = "https://github.com/wafflespeanut/paperclip.git", rev = "a64cabbb13ad9d51a67c12d3dbf9c986a1ff6585", features = ["actix-nightly", "actix-session", "chrono"] }
 parking_lot = "0.11"
@@ -38,7 +38,7 @@ docker = ["sm64js-proto/docker"]
 [dev-dependencies]
 actix-rt = "*"
 criterion = { version = "0.3", features =[ "html_reports" ] }
-dashmap = "4"
+dashmap = "5"
 gnuplot = "0.0"
 
 [[bench]]

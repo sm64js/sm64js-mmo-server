@@ -182,7 +182,7 @@ impl ChatHistory {
             }
             let mut msg = self.0.get(key).unwrap().clone();
             if let Some(player_name) = &query.player_name {
-                if msg.player_name.as_ref() != Some(&player_name) {
+                if msg.player_name.as_ref() != Some(player_name) {
                     continue;
                 }
             }
@@ -249,7 +249,7 @@ impl ChatHistory {
         let footer = Some(super::DiscordRichEmbedFooter {
             text: format!("#{} - {}", account_info.account.id, level_name),
         });
-        message = message.replace("*", r"\*").replace("_", r"\_");
+        message = message.replace('*', r"\*").replace('_', r"\_");
         super::send_discord_message("824145108047101974", None, message, None, author, footer)
             .await;
     }

@@ -39,7 +39,6 @@ struct OAuth2Request {
 #[derive(Debug, Deserialize)]
 struct GoogleOAuth2Response {
     id_token: String,
-    expires_in: i64,
 }
 
 #[derive(Debug, Deserialize)]
