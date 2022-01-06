@@ -73,6 +73,7 @@ impl Room {
         add_room!(rooms, 24, "Whomp's Fortress");
         add_room!(rooms, 26, "Castle Courtyard");
         add_room!(rooms, 27, "Princess's Secret Slide");
+        add_room!(rooms, 29, "Tower of the Wing Cap");
         add_room!(rooms, 36, "Tall, Tall Mountain");
         add_room!(rooms, 56, "Cool, Cool Mountain Slide");
         add_room!(rooms, 602, "Castle Inside Second Level");
