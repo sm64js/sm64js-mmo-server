@@ -15,6 +15,9 @@
   - if you want to change the `topsecretpassword`, you will have to do this in the
     `docker-compose.yml` file and `.env` file
 - `libpq-dev` for Debian based distros.
+- install [Diesel CLI](https://diesel.rs/) via
+`cargo install diesel_cli --no-default-features --features postgres`
+- navigate to `crates/sm64js-db` and run `diesel migration run`
 
 ## Development
 
