@@ -575,7 +575,7 @@ fn get_google_account(conn: &PgConnection, id: &str) -> Result<models::GoogleAcc
     #[cfg(debug_assertions)]
     if id == DEV_GOOGLE_ACCOUNT_ID {
         return Ok(models::GoogleAccount {
-            account_id: 1,
+            account_id: DEV_ACCOUNT_ID,
             sub: DEV_GOOGLE_ACCOUNT_ID.to_string(),
         });
     }
