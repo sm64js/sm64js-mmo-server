@@ -2,7 +2,7 @@ use crate::{Client, Clients, Player, Players, Rooms};
 use actix::{prelude::*, Recipient};
 use actix_web::web;
 use anyhow::Result;
-use censor::Censor;
+use rustrict::{add_word, CensorStr, Type};
 use chrono::{Duration, Utc};
 use dashmap::{mapref::one::Ref, DashMap};
 use humantime::format_duration;
@@ -691,12 +691,16 @@ impl Sm64JsServer {
     }
 
     fn is_name_valid(name: &str) -> bool {
-        if name.len() < 3 || name.len() > 14 || name.to_ascii_uppercase() == "SERVER" {
+        if name.len() < 3 || name.len() > 14 || name.to_ascii_uppercase().contains("SERVER") {
             return false;
         }
         let mut sanitized_name = sanitize_chat(name);
-        let censor = Censor::Standard;
-        sanitized_name = censor.censor(&sanitized_name);
+        unsafe {
+            add_word("crap", Type::SAFE);
+            add_word("damn", Type::SAFE);
+            add_word("dic", Type::SAFE);
+        }
+        sanitized_name = sanitized_name.censor();
         sanitized_name == name
     }
 }
