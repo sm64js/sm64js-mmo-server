@@ -1,5 +1,5 @@
 use crate::AccountInfo;
-use censor::Censor;
+use rustrict::{add_word, CensorStr, Type};
 use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use indexmap::IndexMap;
 use paperclip::actix::{web, Apiv2Schema};
@@ -41,7 +41,7 @@ impl Default for ChatHistory {
 
 const ALLOWED_CHARACTERS: &str = r#"
 abcdefghijklmnopoqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ?!@#$%^&*(){}[];:'"\|/,.<>-_=+
-🙄😫🤔🔥😌😍🤣❤️😭😂⭐✨🎄🎃🔺🔻🍬🍭🍫
+😂🤣🤔🤨🙄😭😎🥶😤👍👎🗿🔥🎄🎃🔺🔻🤡🎪
 "#;
 
 pub fn sanitize_chat(s: &str) -> String {
@@ -61,9 +61,13 @@ impl ChatHistory {
     ) -> ChatResult {
         let escaped_message = sanitize_chat(message);
         let is_escaped = escaped_message != message;
-
-        let censor = Censor::Standard;
-        let censored_message = censor.censor(&escaped_message);
+        unsafe {
+            add_word("crap", Type::SAFE);
+            add_word("damn", Type::SAFE);
+            add_word("dic", Type::SAFE);
+            add_word("hell", Type::SAFE);
+        }
+        let censored_message = escaped_message.censor();
         let is_censored = censored_message != escaped_message;
 
         let date = Utc::now() - Duration::seconds(15);

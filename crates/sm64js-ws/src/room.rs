@@ -58,7 +58,7 @@ impl Room {
         let rooms = DashMap::new();
         add_room!(rooms, 4, "Big Boo's Haunt");
         add_room!(rooms, 5, "Cool, Cool Mountain");
-        add_room!(rooms, 6, "Castle Inside First LevelCave");
+        add_room!(rooms, 6, "Castle Inside First Level");
         add_room!(rooms, 7, "Hazy Maze Cave");
         add_room!(rooms, 8, "Shifting Sand Land");
         add_room!(rooms, 9, "Bob-omb Battlefield", [-2384., 260., 6203.]);
