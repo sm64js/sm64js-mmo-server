@@ -2,7 +2,6 @@ use crate::{Client, Clients, Player, Players, Rooms};
 use actix::{prelude::*, Recipient};
 use actix_web::web;
 use anyhow::Result;
-use rustrict::{add_word, CensorStr, Type};
 use chrono::{Duration, Utc};
 use dashmap::{mapref::one::Ref, DashMap};
 use humantime::format_duration;
@@ -10,6 +9,7 @@ use once_cell::sync::Lazy;
 use parking_lot::{Mutex, RwLock};
 use prost::Message as ProstMessage;
 use rand::{self, Rng};
+use rustrict::CensorStr;
 use sm64js_auth::{AuthInfo, Permission};
 use sm64js_common::{
     sanitize_chat, send_discord_message, ChatError, ChatHistoryData, ChatResult, GetChat,
@@ -695,11 +695,6 @@ impl Sm64JsServer {
             return false;
         }
         let mut sanitized_name = sanitize_chat(name);
-        unsafe {
-            add_word("crap", Type::SAFE);
-            add_word("damn", Type::SAFE);
-            add_word("dic", Type::SAFE);
-        }
         sanitized_name = sanitized_name.censor();
         sanitized_name == name
     }

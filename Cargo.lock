@@ -2326,6 +2326,7 @@ dependencies = [
  "itertools 0.10.3",
  "lazy_static",
  "rustc-hash",
+ "strsim",
  "unicode-normalization",
  "unicode_categories",
 ]
@@ -2575,6 +2576,7 @@ dependencies = [
  "parking_lot",
  "r2d2",
  "rand 0.8.4",
+ "rustrict",
  "serde",
  "sm64js-api",
  "sm64js-auth",

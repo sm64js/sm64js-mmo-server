@@ -56,43 +56,13 @@ pub struct Room {
 impl Room {
     pub fn init_rooms() -> Rooms {
         let rooms = DashMap::new();
-        add_room!(
-            rooms, 
-            4, 
-            "Big Boo's Haunt",
-            [671., 2867., 1908.]
-        );
-        add_room!(
-            rooms, 
-            5, 
-            "Cool, Cool Mountain",
-            [2556., 2662., -1041.]
-        );
+        add_room!(rooms, 4, "Big Boo's Haunt", [671., 2867., 1908.]);
+        add_room!(rooms, 5, "Cool, Cool Mountain", [2556., 2662., -1041.]);
         add_room!(rooms, 6, "Castle Inside First Level");
-        add_room!(
-            rooms, 
-            7, 
-            "Hazy Maze Cave",
-            [-3555., -4279., 3329.]
-        );
-        add_room!(
-            rooms, 
-            8, 
-            "Shifting Sand Land",
-            [-2048., 1103., -463.]
-        );
-        add_room!(
-            rooms, 
-            9, 
-            "Bob-omb Battlefield", 
-            [-2384., 260., 6203.]
-        );
-        add_room!(
-            rooms, 
-            10, 
-            "Snowman's Land",
-            [214., 4864., -39.]
-        );
+        add_room!(rooms, 7, "Hazy Maze Cave", [-3555., -4279., 3329.]);
+        add_room!(rooms, 8, "Shifting Sand Land", [-2048., 1103., -463.]);
+        add_room!(rooms, 9, "Bob-omb Battlefield", [-2384., 260., 6203.]);
+        add_room!(rooms, 10, "Snowman's Land", [214., 4864., -39.]);
         add_room!(
             rooms,
             16,
@@ -100,29 +70,14 @@ impl Room {
             [6300., 910., -5900.],
             [-4200., -1300., -5300.]
         );
-        add_room!(
-            rooms, 
-            24, 
-            "Whomp's Fortress",
-            [242., 3584., 178.]
-        );
+        add_room!(rooms, 24, "Whomp's Fortress", [242., 3584., 178.]);
         add_room!(rooms, 26, "Castle Courtyard");
         add_room!(rooms, 27, "Princess's Secret Slide");
         add_room!(rooms, 29, "Tower of the Wing Cap");
-        add_room!(
-            rooms, 
-            36, 
-            "Tall, Tall Mountain",
-            [1165., 2309., 261.]
-        );
+        add_room!(rooms, 36, "Tall, Tall Mountain", [1165., 2309., 261.]);
         add_room!(rooms, 56, "Cool, Cool Mountain Slide");
         add_room!(rooms, 602, "Castle Inside Second Level");
-        add_room!(
-            rooms, 
-            999,
-            "Clouded Ruins",
-            [-6., 1116., -2027.]
-        );
+        add_room!(rooms, 999, "Clouded Ruins", [-6., 1116., -2027.]);
         add_room!(
             rooms,
             1000,
@@ -139,22 +94,12 @@ impl Room {
             [-76., 467., -7768.],
             [-76., 467., 7945.]
         );
-        add_room!(
-            rooms, 
-            1002, 
-            "Starman Fortress",
-            [1919., 4319., -1024.]
-        );
-        add_room!(
-            rooms, 
-            1003, 
-            "Glider Jungle",
-            [8363., 8798., -1613.]
-        );
+        add_room!(rooms, 1002, "Starman Fortress", [1919., 4319., -1024.]);
+        add_room!(rooms, 1003, "Glider Jungle", [8363., 8798., -1613.]);
         add_room!(rooms, 1004, "Mushroom Raceway");
         add_room!(
-            rooms, 
-            1006, 
+            rooms,
+            1006,
             "Dolphin Town",
             [4124., 7528., 576.],
             [4224., 7528., -1267.]

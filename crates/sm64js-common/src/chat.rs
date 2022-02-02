@@ -1,9 +1,9 @@
 use crate::AccountInfo;
-use rustrict::{add_word, CensorStr, Type};
 use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use indexmap::IndexMap;
 use paperclip::actix::{web, Apiv2Schema};
 use parking_lot::RwLock;
+use rustrict::CensorStr;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use sm64js_env::REDIRECT_URI;
@@ -61,12 +61,6 @@ impl ChatHistory {
     ) -> ChatResult {
         let escaped_message = sanitize_chat(message);
         let is_escaped = escaped_message != message;
-        unsafe {
-            add_word("crap", Type::SAFE);
-            add_word("damn", Type::SAFE);
-            add_word("dic", Type::SAFE);
-            add_word("hell", Type::SAFE);
-        }
         let censored_message = escaped_message.censor();
         let is_censored = censored_message != escaped_message;
 
