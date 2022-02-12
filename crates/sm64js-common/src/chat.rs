@@ -41,7 +41,7 @@ impl Default for ChatHistory {
 
 const ALLOWED_CHARACTERS: &str = r#"
 abcdefghijklmnopoqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ?!@#$%^&*(){}[];:'"\|/,.<>-_=+
-😂🤣🤔🤨🙄😭😎🥶😤👍👎🗿🔥🎄🎃🔺🔻🤡🎪
+😂🤣🤔🤨🙄😭😎🥶😤👍👎💀🗿🔥🎄🎃🔺🔻🤡🎪
 "#;
 
 pub fn sanitize_chat(s: &str) -> String {
