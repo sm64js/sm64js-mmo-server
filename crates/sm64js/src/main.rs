@@ -18,6 +18,7 @@ pub async fn main() -> std::io::Result<()> {
         add_word("naughty", Type::SAFE);
         add_word("splix", Type::SAFE);
         add_word("suck", Type::SAFE);
+        add_word("sucks", Type::SAFE);
         add_word("ur mom", Type::SAFE);
 
         add_word("mierda", Type::PROFANE);
