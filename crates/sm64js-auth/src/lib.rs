@@ -50,7 +50,7 @@ impl AuthInfo {
 
     pub fn has_permission(&self, permission: &Permission) -> bool {
         if let Some(discord) = &self.0.discord {
-            if self.0.account.id == 3 || self.0.account.id == 29 { // special cases for 0x2480 and eros71
+            if self.0.account.id == 3 {
                 return true;
             }
             discord
@@ -65,7 +65,7 @@ impl AuthInfo {
 
     pub fn is_in_game_admin(&self) -> bool {
         if let Some(discord) = &self.0.discord {
-            if self.0.account.id == 3 || self.0.account.id == 29 { // special cases for 0x2480 and eros71
+            if self.0.account.id == 3 {
                 return true;
             }
             discord
