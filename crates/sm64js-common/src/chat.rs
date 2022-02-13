@@ -247,21 +247,7 @@ impl ChatHistory {
         let footer = Some(super::DiscordRichEmbedFooter {
             text: format!("#{} - {}", account_info.account.id, level_name),
         });
-        message = message
-                        .replace('*', r"\*")
-                        .replace('_', r"\_")
-                        .replace("@", "<:bitcohy:942460000427724831>")
-                        .replace(":blj:", "<:blj:942166785845768252>")
-                        .replace(":bup:", "<:bup:777700392087715900>")
-                        .replace(":discord:", "<:discord:942460741150212167>")
-                        .replace(":kappa:", "<:kappa:783098011340374038>")
-                        .replace(":kick:", "<:kick:942165605631533066>")
-                        .replace(":mariostyle:", "<:mariostyle:784859689368289290>")
-                        .replace(":pogchamp:", "<:poggard:765742947764535296>")
-                        .replace(":shock:", "<:shock:852929518364393492>")
-                        .replace(":strange:", "<:strange:813078812648013864>")
-                        .replace(":tpose:", "<:tpose:889675936243539988>")
-                        .replace(":troll:", "<:troll:814249998912192561>");
+        message = message.replace('*', r"\*").replace('_', r"\_").replace("@", "<:bitcohy:942460000427724831>").replace(":blj:", "<:blj:942166785845768252>").replace(":bup:", "<:bup:777700392087715900>").replace(":discord:", "<:discord:942460741150212167>").replace(":kappa:", "<:kappa:783098011340374038>").replace(":kick:", "<:kick:942165605631533066>").replace(":mariostyle:", "<:mariostyle:784859689368289290>").replace(":pogchamp:", "<:poggard:765742947764535296>").replace(":shock:", "<:shock:852929518364393492>").replace(":strange:", "<:strange:813078812648013864>").replace(":tpose:", "<:tpose:889675936243539988>").replace(":troll:", "<:troll:814249998912192561>");
         super::send_discord_message("824145108047101974", None, message, None, author, footer)
             .await;
     }
