@@ -248,18 +248,6 @@ impl ChatHistory {
             text: format!("#{} - {}", account_info.account.id, level_name),
         });
         message = message.replace('*', r"\*").replace('_', r"\_");
-        message = message.replace('@', "<:bitcohy:942460000427724831>");
-        message = message.replace(':blj:', "<:blj:942166785845768252>");
-        message = message.replace(':bup:', "<:bup:777700392087715900>");
-        message = message.replace(':discord:', "<:discord:942460741150212167>");
-        message = message.replace(':kappa:', "<:kappa:783098011340374038>");
-        message = message.replace(':kick:', "<:kick:942165605631533066>");
-        message = message.replace(':mariostyle:', "<:mariostyle:784859689368289290>");
-        message = message.replace(':pogchamp:', "<:poggard:765742947764535296>");
-        message = message.replace(':shock:', "<:shock:852929518364393492>");
-        message = message.replace(':strange:', "<:strange:813078812648013864>");
-        message = message.replace(':tpose:', "<:tpose:889675936243539988>");
-        message = message.replace(':troll:', "<:troll:814249998912192561>");
         super::send_discord_message("824145108047101974", None, message, None, author, footer)
             .await;
     }
