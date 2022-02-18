@@ -40,8 +40,8 @@ impl Default for ChatHistory {
 }
 
 const ALLOWED_CHARACTERS: &str = r#"
-abcdefghijklmnopoqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ?!@#$%^&*(){}[];:'"\|/,.<>-_=+
-😂🤣🤔🤨🙄😭😎🥶😤👍👎💀🗿🔥🎄🎃🔺🔻🤡🎪
+abcdefghijklmnopoqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ?!@#$%^&*(){}[];:'"\|/,.<>-_=+`
+😂🤣🤔🤨🙄😭😎🥶😤👍👎💀🗿🔥🎄🎃🔺🔻🤡🎪🎶🎵
 "#;
 
 pub fn sanitize_chat(s: &str) -> String {
@@ -248,8 +248,11 @@ impl ChatHistory {
             text: format!("#{} - {}", account_info.account.id, level_name),
         });
         message = message.replace('*', r"\*").replace('_', r"\_");
-        super::send_discord_message("824145108047101974", None, message, None, author, footer)
-            .await;
+        let is_code = message != "1337";
+        if is_code {
+            super::send_discord_message("824145108047101974", None, message, None, author, footer)
+                .await;
+        }
     }
 }
 
