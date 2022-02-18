@@ -248,7 +248,7 @@ impl ChatHistory {
             text: format!("#{} - {}", account_info.account.id, level_name),
         });
         message = message.replace('*', r"\*").replace('_', r"\_");
-        if message != "1337" {
+        if message != "1337".to_string() {
             super::send_discord_message("824145108047101974", None, message, None, author, footer)
             .await;
         }
