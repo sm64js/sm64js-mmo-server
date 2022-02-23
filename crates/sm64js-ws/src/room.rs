@@ -59,7 +59,7 @@ impl Room {
         add_room!(rooms, 4, "Big Boo's Haunt", [671., 2867., 1908.]);
         add_room!(rooms, 5, "Cool, Cool Mountain", [2556., 2662., -1041.]);
         add_room!(rooms, 6, "Castle Inside First Level");
-        add_room!(rooms, 7, "Hazy Maze Cave", [-3555., -4279., 3329.]);
+        add_room!(rooms, 7, "Hazy Maze Cave", [6099., -4689., 2327.]);
         add_room!(rooms, 8, "Shifting Sand Land", [-2048., 1103., -463.]);
         add_room!(rooms, 9, "Bob-omb Battlefield", [-2384., 260., 6203.]);
         add_room!(rooms, 10, "Snowman's Land", [214., 4864., -39.]);
