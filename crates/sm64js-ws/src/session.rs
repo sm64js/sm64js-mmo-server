@@ -15,7 +15,7 @@ use std::time::{Duration, Instant};
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 
 /// How long before lack of client response causes a timeout
-const CLIENT_TIMEOUT: Duration = Duration::from_secs(50);
+const CLIENT_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// How long before client gets kicked on not updating its location
 const CLIENT_AFK_TIMEOUT: Duration = Duration::from_secs(180);
