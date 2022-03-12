@@ -50,10 +50,6 @@ impl AuthInfo {
 
     pub fn has_permission(&self, permission: &Permission) -> bool {
         if let Some(discord) = &self.0.discord {
-            if self.0.account.id == 3 {
-                // override for 0x2480 who is no longer in the Discord server.
-                return true;
-            }
             discord
                 .account
                 .roles
@@ -66,10 +62,6 @@ impl AuthInfo {
 
     pub fn is_in_game_admin(&self) -> bool {
         if let Some(discord) = &self.0.discord {
-            if self.0.account.id == 3 {
-                // override for 0x2480 who is no longer in the Discord server.
-                return true;
-            }
             discord
                 .account
                 .roles
