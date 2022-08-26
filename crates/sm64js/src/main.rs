@@ -11,6 +11,7 @@ pub async fn main() -> std::io::Result<()> {
         add_word("dic", Type::SAFE); // DiC entertainment
         add_word("fat", Type::SAFE);
         add_word("frick", Type::SAFE);
+        add_word("isgay", Type::SAFE);
         add_word("gay", Type::SAFE);
         add_word("hell", Type::SAFE);
         add_word("to hell", Type::SAFE);
@@ -23,6 +24,8 @@ pub async fn main() -> std::io::Result<()> {
         add_word("splix", Type::SAFE);
         add_word("suck", Type::SAFE);
         add_word("sucks", Type::SAFE);
+        add_word("stfu", Type::SAFE);
+        add_word("to hell", Type::SAFE);
         add_word("ur mom", Type::SAFE);
 
         add_word("mierda", Type::PROFANE);
