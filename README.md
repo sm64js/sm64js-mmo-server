@@ -26,6 +26,7 @@ You will have to navigate to the `client` folder and run `npm run build` once af
 via `npm install`.
 For development you can instead run `npm run build:dev`
 or use webpack-dev-server (WIP).
+If you do not have client assets you can git clone all submodules including the client here: git clone --recurse-submodules https://github.com/sm64js/sm64js-mmo-server.git
 
 In your `.env` file, you don't have to insert all variables for local development.
 It is only mandatory to have a running Postgres database, thus you need to set the `DATABASE_URL` variable.
